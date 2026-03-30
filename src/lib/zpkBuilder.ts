@@ -24,6 +24,7 @@ export async function buildZPK(options: ZPKBuildOptions): Promise<ZPKBuildResult
     console.log('[ZPK] Step 1: Generating JS code...');
     const code = generateWatchFaceCode(config);
     console.log('[ZPK] Step 2: JS code generated, app.json length:', code.appJson.length);
+    console.log('[ZPK] DEBUG: Generated app.json content:', code.appJson);
     
     // Create device.zip
     console.log('[ZPK] Step 3: Creating device.zip...');
