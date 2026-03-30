@@ -35,7 +35,9 @@ export async function uploadToGitHub(
   try {
     console.log('[GitHub] Starting upload...');
     
-    // Convert content to base64
+    // Upload to docs/zpk/ folder so it's accessible via GitHub Pages
+    const filepath = `docs/zpk/${filename}`;
+    console.log('[GitHub] Upload path:', filepath);
     let base64Content: string;
     if (content instanceof Blob) {
       console.log('[GitHub] Converting blob to base64, size:', content.size);
@@ -48,7 +50,7 @@ export async function uploadToGitHub(
     
     // Check if file already exists (to get SHA for update)
     console.log('[GitHub] Checking if file exists...');
-    const existingFile = await getFileSha(config, filename);
+    const existingFile = await getFileSha(config, filepath);
     
     // Prepare request body
     const body: Record<string, string> = {
@@ -64,7 +66,7 @@ export async function uploadToGitHub(
     // Upload file
     console.log('[GitHub] Uploading to GitHub API...');
     const response = await fetch(
-      `https://api.github.com/repos/${owner}/${repo}/contents/${filename}`,
+      `https://api.github.com/repos/${owner}/${repo}/contents/${filepath}`,
       {
         method: 'PUT',
         headers: {
@@ -85,7 +87,9 @@ export async function uploadToGitHub(
     console.log('[GitHub] Upload successful!');
     
     // Construct GitHub Pages URL
-    const pagesUrl = `https://${owner}.github.io/${repo}/${filename}`;
+    // Files in docs/zpk/ are accessible at: https://owner.github.io/repo/zpk/filename
+    const pagesUrl = `https://${owner}.github.io/${repo}/zpk/${filename}`;
+    console.log('[GitHub] Pages URL:', pagesUrl);
     
     return {
       success: true,
