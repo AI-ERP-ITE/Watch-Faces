@@ -30,7 +30,7 @@ export async function uploadToGitHub(
   content: Blob | string,
   message?: string
 ): Promise<GitHubUploadResult> {
-  const { token, owner, repo, branch = 'main' } = config;
+  const { token, owner, repo, branch = 'master' } = config;
   
   try {
     console.log('[GitHub] Starting upload...');
@@ -112,7 +112,7 @@ async function getFileSha(
   config: GitHubConfig,
   filename: string
 ): Promise<{ sha: string } | null> {
-  const { token, owner, repo, branch = 'main' } = config;
+  const { token, owner, repo, branch = 'master' } = config;
   
   try {
     const response = await fetch(
