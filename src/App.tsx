@@ -195,11 +195,10 @@ function App() {
       return;
     }
 
-    // Allow local testing without GitHub token
-    const useLocalTesting = !state.githubToken;
-    if (useLocalTesting) {
-      console.log('[App] GitHub token not set - using LOCAL TESTING mode');
-      console.log('[App] You can still download the ZPK and test with local hosting');
+    if (!state.githubToken) {
+      console.log('[App] ERROR: Missing githubToken');
+      toast.error('Please set your GitHub token in settings');
+      return;
     }
 
     console.log('[App] All checks passed, starting generation...');
@@ -221,45 +220,30 @@ function App() {
 
       dispatch(actions.setZpkBlob(zpkResult.blob));
 
-      let downloadUrl = '';
+      // Upload to GitHub
+      dispatch(actions.setLoadingMessage('Uploading to GitHub...'));
 
-      if (useLocalTesting) {
-        // Local testing mode: create object URL for download
-        console.log('[App] Using local testing mode...');
-        dispatch(actions.setLoadingMessage('Local testing mode - download ZPK to test with Zepp'));
-        
-        // For QR testing, we'll use a placeholder that user can modify
-        downloadUrl = `http://192.168.1.6:5173/zpk/${zpkResult.filename}`;
-        console.log('[App] Local test URL:', downloadUrl);
-        console.log('[App] Download ZPK file directly and host it, then scan QR');
-      } else {
-        // GitHub upload mode
-        dispatch(actions.setLoadingMessage('Uploading to GitHub...'));
+      const [owner, repo] = state.githubRepo.split('/');
+      const uploadResult = await uploadToGitHub(
+        {
+          token: state.githubToken,
+          owner,
+          repo,
+        },
+        zpkResult.filename,
+        zpkResult.blob,
+        `Upload watch face: ${state.watchFaceConfig.name}`
+      );
 
-        const [owner, repo] = state.githubRepo.split('/');
-        const uploadResult = await uploadToGitHub(
-          {
-            token: state.githubToken,
-            owner,
-            repo,
-          },
-          zpkResult.filename,
-          zpkResult.blob,
-          `Upload watch face: ${state.watchFaceConfig.name}`
-        );
-
-        if (!uploadResult.success) {
-          throw new Error(uploadResult.error || 'Upload failed');
-        }
-
-        downloadUrl = uploadResult.downloadUrl || '';
+      if (!uploadResult.success) {
+        throw new Error(uploadResult.error || 'Upload failed');
       }
 
-      dispatch(actions.setGithubUrl(downloadUrl));
+      dispatch(actions.setGithubUrl(uploadResult.downloadUrl || ''));
 
       // Generate QR code
       dispatch(actions.setLoadingMessage('Generating QR code...'));
-      const qrDataUrl = await generateQRCode(downloadUrl);
+      const qrDataUrl = await generateQRCode(uploadResult.downloadUrl || '');
       dispatch(actions.setQrCode(qrDataUrl));
 
       dispatch(actions.setStep('success'));
