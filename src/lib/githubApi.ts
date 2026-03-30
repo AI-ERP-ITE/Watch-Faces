@@ -87,9 +87,11 @@ export async function uploadToGitHub(
     console.log('[GitHub] Upload successful!');
     
     // Construct GitHub Pages URL
-    // Files in docs/zpk/ are accessible at: https://owner.github.io/repo/zpk/filename
+    // GitHub Pages serves docs/ folder at root: https://owner.github.io/repo/
+    // So docs/zpk/file.zpk is accessible at: https://owner.github.io/repo/zpk/file.zpk
     const pagesUrl = `https://${owner}.github.io/${repo}/zpk/${filename}`;
-    console.log('[GitHub] Pages URL:', pagesUrl);
+    console.log('[GitHub] File uploaded to:', filepath);
+    console.log('[GitHub] Accessible at:', pagesUrl);
     
     return {
       success: true,
