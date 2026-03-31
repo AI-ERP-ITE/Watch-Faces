@@ -208,8 +208,8 @@ function App() {
       );
 
       // Update state with results
-      if (watchFaceName) {
-        result.config.name = watchFaceName;
+      if (watchFaceName?.trim()) {
+        result.config.name = watchFaceName.trim();
       }
 
       dispatch(actions.setWatchFaceConfig(result.config));
@@ -408,7 +408,7 @@ function App() {
                 <Label className="text-sm text-zinc-300">Watch Face Name (optional)</Label>
                 <Input
                   value={watchFaceName}
-                  onChange={(e) => setWatchFaceName(e.target.value)}
+                  onChange={(e) => setWatchFaceName(e.target.value.trim())}
                   placeholder="My Custom Watch Face"
                   className="bg-[#0F0F0F] border-zinc-700 text-white placeholder:text-zinc-600"
                 />
