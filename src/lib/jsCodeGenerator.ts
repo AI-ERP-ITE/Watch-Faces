@@ -150,10 +150,12 @@ function generateWatchfaceIndexJs(config: WatchFaceConfig): string {
   
   let widgetsCode = '';
   for (const element of elements) {
-    widgetsCode += generateWidgetCode(element);
+    const code = generateWidgetCode(element);
+    widgetsCode += code;
+    console.log('[JSGen] Widget code for', element.name, ':\n', code);
   }
   
-  return `try {
+  const finalCode = `try {
     (() => {
         const __$$app$$__ = __$$hmAppManager$$__.currentApp;
         function getApp() {
@@ -181,6 +183,9 @@ function generateWatchfaceIndexJs(config: WatchFaceConfig): string {
 } catch (e) {
     console.log(e);
 }`;
+  
+  console.log('[JSGen] Complete watchface/index.js:\n', finalCode);
+  return finalCode;
 }
 
 // Generate widget code for each element

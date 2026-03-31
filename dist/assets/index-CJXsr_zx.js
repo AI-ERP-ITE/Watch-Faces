@@ -90,7 +90,8 @@ Minimum version required to store current data is: `+ct+`.
     })();
 } catch (e) {
     console.log(e);
-}`}function v_(i){const c=i.elements.filter(o=>o.visible);let l="";for(const o of c)l+=b_(o);return`try {
+}`}function v_(i){const c=i.elements.filter(f=>f.visible);let l="";for(const f of c){const u=b_(f);l+=u,console.log("[JSGen] Widget code for",f.name,`:
+`,u)}const o=`try {
     (() => {
         const __$$app$$__ = __$$hmAppManager$$__.currentApp;
         function getApp() {
@@ -117,7 +118,8 @@ Minimum version required to store current data is: `+ct+`.
     })();
 } catch (e) {
     console.log(e);
-}`}function b_(i){switch(i.type){case"TIME_POINTER":return x_(i);case"IMG_LEVEL":return __(i);case"TEXT":return w_(i);case"IMG":return Ym(i);default:return Ym(i)}}function x_(i){const c=i.subtype||"hour",l=i.center?.x||i.bounds.x+i.bounds.width/2,o=i.center?.y||i.bounds.y+i.bounds.height/2,f=i.bounds.x,u=i.bounds.y;return`
+}`;return console.log(`[JSGen] Complete watchface/index.js:
+`,o),o}function b_(i){switch(i.type){case"TIME_POINTER":return x_(i);case"IMG_LEVEL":return __(i);case"TEXT":return w_(i);case"IMG":return Ym(i);default:return Ym(i)}}function x_(i){const c=i.subtype||"hour",l=i.center?.x||i.bounds.x+i.bounds.width/2,o=i.center?.y||i.bounds.y+i.bounds.height/2,f=i.bounds.x,u=i.bounds.y;return`
         // ${i.name}
         h.createWidget(hmUI.widget.TIME_POINTER, {
             ${c}: {
