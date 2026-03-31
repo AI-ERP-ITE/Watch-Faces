@@ -116,9 +116,11 @@ async function mockKimiAnalysis(
 
   // Generate mock element images - create different colored placeholders for each element
   console.log('[Mock] Starting element image generation for', elements.length, 'elements');
-  const elementImages: ElementImage[] = elements
+  const elementImages: ElementImage[] = [];
+  
+  elements
     .filter((el) => el.src)
-    .map((el, idx) => {
+    .forEach((el, idx) => {
       console.log('[Mock] Creating canvas for element:', el.name, 'bounds:', el.bounds);
       // Create a simple colored canvas as placeholder for each element
       // In real implementation, this would be cropped/extracted from full design
@@ -152,12 +154,17 @@ async function mockKimiAnalysis(
         console.error('[Mock] ERROR: Invalid or empty dataURL for', el.name);
       }
       
-      return {
-        name: el.src!,
+      // Store the original filename and dataURL for later use
+      const originalFilename = el.src!;
+      elementImages.push({
+        name: originalFilename,
         dataUrl,
         bounds: el.bounds,
         type: el.type,
-      };
+      });
+      
+      // Update element to use dataURL for preview rendering
+      el.src = dataUrl;
     });
   
   console.log('[Mock] Element images generated, total:', elementImages.length, 'images');

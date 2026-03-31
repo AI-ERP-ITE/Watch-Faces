@@ -17,12 +17,32 @@ export interface ZPKBuildResult {
 
 export async function buildZPK(options: ZPKBuildOptions): Promise<ZPKBuildResult> {
   console.log('[ZPK] Starting...');
-  const { config, backgroundFile } = options;
+  const { config, backgroundFile, elementFiles } = options;
   
   try {
-    // Generate JavaScript code
+    // Restore original filenames for code generation
+    // elementFiles are in the same order as they were created from elementImages
+    // which only includes elements that have the src property
+    let filenameIndex = 0;
+    
+    const configForCodeGen: typeof config = {
+      ...config,
+      elements: config.elements.map((el) => {
+        // Elements with src property get their actual filenames back
+        // (elementImages only included elements where el.src was truthy)
+        if (el.src && filenameIndex < elementFiles.length) {
+          const filename = elementFiles[filenameIndex].src;
+          console.log(`[ZPK] Restoring filename for ${el.name}: ${filename}`);
+          filenameIndex++;
+          return { ...el, src: filename };
+        }
+        return el;
+      }),
+    };
+    
+    // Generate JavaScript code with proper filenames
     console.log('[ZPK] Step 1: Generating JS code...');
-    const code = generateWatchFaceCode(config);
+    const code = generateWatchFaceCode(configForCodeGen);
     console.log('[ZPK] Step 2: JS code generated, app.json length:', code.appJson.length);
     console.log('[ZPK] DEBUG: Generated app.json content:', code.appJson);
     
