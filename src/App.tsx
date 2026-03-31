@@ -231,19 +231,32 @@ function App() {
       console.log('[App] Calling buildZPK...');
       
       // Convert elementImages from dataUrl to File objects
-      const elementFiles = await Promise.all(
-        state.elementImages.map(async (img) => {
-          console.log('[App] Converting element image to file:', img.name);
-          const response = await fetch(img.dataUrl);
-          const blob = await response.blob();
-          return {
-            src: img.name,
-            file: new File([blob], img.name, { type: 'image/png' }),
-          };
-        })
-      );
+      const elementFiles = state.elementImages.map((img) => {
+        console.log('[App] Converting element image to file:', img.name);
+        
+        // Parse data URL properly
+        const parts = img.dataUrl.split(',');
+        const mimeType = parts[0].match(/:(.*?);/)?.[1] || 'image/png';
+        const bstr = atob(parts[1]);
+        const n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        for (let i = 0; i < n; i++) {
+          u8arr[i] = bstr.charCodeAt(i);
+        }
+        const blob = new Blob([u8arr], { type: mimeType });
+        
+        console.log('[App] Converted', img.name, 'size:', blob.size);
+        return {
+          src: img.name,
+          file: new File([blob], img.name, { type: mimeType }),
+        };
+      });
       
-      console.log('[App] Element files prepared:', { count: elementFiles.length });
+      console.log('[App] Element files prepared:', { count: elementFiles.length, files: elementFiles.map(f => f.src) });
+      
+      if (elementFiles.length === 0) {
+        console.warn('[App] WARNING: No element files were prepared!');
+      }
       
       const zpkResult = await buildZPK({
         config: state.watchFaceConfig,
