@@ -33,7 +33,19 @@ export async function uploadToGitHub(
   const { token, owner, repo, branch = 'master' } = config;
   
   try {
+    // Validate parameters
+    if (!token || !token.trim()) {
+      throw new Error('GitHub token is missing');
+    }
+    if (!owner || !owner.trim()) {
+      throw new Error('GitHub owner is missing');
+    }
+    if (!repo || !repo.trim()) {
+      throw new Error('GitHub repo is missing');
+    }
+
     console.log('[GitHub] Starting upload...');
+    console.log('[GitHub] Config:', { owner, repo, branch, filename });
     
     // Upload to docs/zpk/ folder so it's accessible via GitHub Pages
     const filepath = `docs/zpk/${filename}`;
@@ -65,8 +77,11 @@ export async function uploadToGitHub(
     
     // Upload file
     console.log('[GitHub] Uploading to GitHub API...');
+    const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${filepath}`;
+    console.log('[GitHub] API URL:', apiUrl);
+    
     const response = await fetch(
-      `https://api.github.com/repos/${owner}/${repo}/contents/${filepath}`,
+      apiUrl,
       {
         method: 'PUT',
         headers: {
@@ -115,8 +130,16 @@ async function getFileSha(
   const { token, owner, repo, branch = 'master' } = config;
   
   try {
+    if (!owner || !repo) {
+      console.warn('[GitHub] Invalid owner or repo for getFileSha, skipping SHA check');
+      return null;
+    }
+
+    const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${filename}?ref=${branch}`;
+    console.log('[GitHub] Checking file SHA at:', apiUrl);
+    
     const response = await fetch(
-      `https://api.github.com/repos/${owner}/${repo}/contents/${filename}?ref=${branch}`,
+      apiUrl,
       {
         headers: {
           'Authorization': `token ${token}`,
@@ -125,17 +148,23 @@ async function getFileSha(
       }
     );
     
+    console.log('[GitHub] File check response status:', response.status);
+    
     if (response.status === 404) {
+      console.log('[GitHub] File does not exist (404), will create new');
       return null; // File doesn't exist
     }
     
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
+      console.warn(`[GitHub] File check failed with status ${response.status}`);
+      return null;
     }
     
     const data = await response.json();
+    console.log('[GitHub] Existing file found, SHA:', data.sha);
     return { sha: data.sha };
-  } catch {
+  } catch (error) {
+    console.error('[GitHub] Error checking file SHA:', error);
     return null;
   }
 }

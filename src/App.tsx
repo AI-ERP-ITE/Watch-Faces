@@ -211,10 +211,26 @@ function App() {
     try {
       // Build ZPK using File objects
       console.log('[App] Calling buildZPK...');
+      
+      // Convert elementImages from dataUrl to File objects
+      const elementFiles = await Promise.all(
+        state.elementImages.map(async (img) => {
+          console.log('[App] Converting element image to file:', img.name);
+          const response = await fetch(img.dataUrl);
+          const blob = await response.blob();
+          return {
+            src: img.name,
+            file: new File([blob], img.name, { type: 'image/png' }),
+          };
+        })
+      );
+      
+      console.log('[App] Element files prepared:', { count: elementFiles.length });
+      
       const zpkResult = await buildZPK({
         config: state.watchFaceConfig,
         backgroundFile: state.backgroundFile,
-        elementFiles: [],
+        elementFiles,
       });
       console.log('[App] ZPK built successfully, size:', zpkResult.size);
 
@@ -223,7 +239,16 @@ function App() {
       // Upload to GitHub
       dispatch(actions.setLoadingMessage('Uploading to GitHub...'));
 
-      const [owner, repo] = state.githubRepo.split('/');
+      const repoParts = state.githubRepo.split('/');
+      const owner = repoParts[0];
+      const repo = repoParts[1];
+      
+      console.log('[App] GitHub repo split:', { original: state.githubRepo, owner, repo, parts: repoParts });
+      
+      if (!owner || !repo || repoParts.length !== 2) {
+        throw new Error(`Invalid GitHub repository format: "${state.githubRepo}". Expected format: "owner/repo"`);
+      }
+
       const uploadResult = await uploadToGitHub(
         {
           token: state.githubToken,

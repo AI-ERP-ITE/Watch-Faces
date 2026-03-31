@@ -2,6 +2,7 @@ import { Download, Share2, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn, downloadBlob } from '@/lib/utils';
 import { downloadQRCode } from '@/lib/qrGenerator';
+import { toast } from 'sonner';
 
 interface QRDisplayProps {
   qrCodeDataUrl: string;
@@ -19,12 +20,29 @@ export function QRDisplay({
   className,
 }: QRDisplayProps) {
   const handleDownloadQR = () => {
-    downloadQRCode(qrCodeDataUrl, filename.replace('.zpk', '-qr.png'));
+    try {
+      console.log('[QRDisplay] Starting QR code download');
+      downloadQRCode(qrCodeDataUrl, filename.replace('.zpk', '-qr.png'));
+      toast.success('QR code saved successfully!');
+    } catch (error) {
+      console.error('[QRDisplay] QR download error:', error);
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      toast.error(`Failed to download QR code: ${message}`);
+    }
   };
 
   const handleDownloadZPK = () => {
-    if (zpkBlob) {
+    try {
+      if (!zpkBlob) {
+        throw new Error('ZPK file is not available');
+      }
+      console.log('[QRDisplay] Starting ZPK download', { filename, size: zpkBlob.size });
       downloadBlob(zpkBlob, filename);
+      toast.success('Watch face saved successfully!');
+    } catch (error) {
+      console.error('[QRDisplay] ZPK download error:', error);
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      toast.error(`Failed to download watch face: ${message}`);
     }
   };
 

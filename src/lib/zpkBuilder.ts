@@ -47,6 +47,14 @@ export async function buildZPK(options: ZPKBuildOptions): Promise<ZPKBuildResult
       console.log('[ZPK] Step 8: Adding background image...');
       assets.file('bg.png', backgroundFile);
       console.log('[ZPK] Step 9: Background image added, size:', backgroundFile.size);
+      
+      // Add element images
+      console.log('[ZPK] Step 9b: Adding element images...');
+      for (const elementFile of options.elementFiles) {
+        console.log('[ZPK] Adding element file:', elementFile.src, 'size:', elementFile.file.size);
+        assets.file(elementFile.src, elementFile.file);
+      }
+      console.log('[ZPK] Element images added, total:', options.elementFiles.length);
     }
     
     console.log('[ZPK] Step 10: Generating device.zip blob (no compression)...');

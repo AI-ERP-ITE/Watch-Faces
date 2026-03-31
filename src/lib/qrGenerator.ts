@@ -55,10 +55,31 @@ export async function generateQRCodeCustom(
 
 // Download QR code as image
 export function downloadQRCode(dataUrl: string, filename: string = 'watchface-qr.png') {
-  const a = document.createElement('a');
-  a.href = dataUrl;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+  try {
+    console.log('[Download] Starting QR code download:', { filename });
+    
+    if (!dataUrl || dataUrl.length === 0) {
+      throw new Error('QR code data URL is empty or invalid');
+    }
+
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = filename;
+    
+    document.body.appendChild(a);
+    console.log('[Download] QR code anchor element added to DOM');
+    
+    a.click();
+    console.log('[Download] QR code download triggered');
+    
+    // Add small delay before cleanup to ensure download initiates
+    setTimeout(() => {
+      document.body.removeChild(a);
+      console.log('[Download] QR code download cleanup complete');
+    }, 100);
+  } catch (error) {
+    console.error('[Download] QR code download failed:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    throw new Error(`QR code download failed: ${errorMessage}`);
+  }
 }
