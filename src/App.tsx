@@ -115,14 +115,21 @@ async function mockKimiAnalysis(
   ];
 
   // Generate mock element images - create different colored placeholders for each element
+  console.log('[Mock] Starting element image generation for', elements.length, 'elements');
   const elementImages: ElementImage[] = elements
     .filter((el) => el.src)
     .map((el, idx) => {
+      console.log('[Mock] Creating canvas for element:', el.name, 'bounds:', el.bounds);
       // Create a simple colored canvas as placeholder for each element
       // In real implementation, this would be cropped/extracted from full design
       const canvas = document.createElement('canvas');
-      canvas.width = el.bounds.width;
-      canvas.height = el.bounds.height;
+      canvas.width = el.bounds.width || 100;
+      canvas.height = el.bounds.height || 100;
+      
+      if (canvas.width === 0 || canvas.height === 0) {
+        console.error('[Mock] ERROR: Invalid canvas dimensions for', el.name);
+      }
+      
       const ctx = canvas.getContext('2d');
       if (ctx) {
         // Different colors for different element types
@@ -133,14 +140,27 @@ async function mockKimiAnalysis(
         ctx.font = '12px Arial';
         ctx.textAlign = 'center';
         ctx.fillText(el.name, canvas.width / 2, canvas.height / 2);
+        console.log('[Mock] Canvas created for', el.name, 'size:', canvas.width, 'x', canvas.height);
+      } else {
+        console.error('[Mock] Failed to get 2D context for', el.name);
       }
+      
+      const dataUrl = canvas.toDataURL('image/png');
+      console.log('[Mock] DataURL created, length:', dataUrl.length);
+      
+      if (!dataUrl || dataUrl.length < 100) {
+        console.error('[Mock] ERROR: Invalid or empty dataURL for', el.name);
+      }
+      
       return {
         name: el.src!,
-        dataUrl: canvas.toDataURL('image/png'),
+        dataUrl,
         bounds: el.bounds,
         type: el.type,
       };
     });
+  
+  console.log('[Mock] Element images generated, total:', elementImages.length, 'images');
 
   const config: WatchFaceConfig = {
     name: `AI_WatchFace_${Date.now()}`,

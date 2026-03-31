@@ -49,12 +49,21 @@ export async function buildZPK(options: ZPKBuildOptions): Promise<ZPKBuildResult
       console.log('[ZPK] Step 9: Background image added, size:', backgroundFile.size);
       
       // Add element images
-      console.log('[ZPK] Step 9b: Adding element images...');
+      console.log('[ZPK] Step 9b: Adding element images, count:', options.elementFiles.length);
+      if (options.elementFiles.length === 0) {
+        console.error('[ZPK] ERROR: No element files to add!');
+      }
+      
       for (const elementFile of options.elementFiles) {
         console.log('[ZPK] Adding element file:', elementFile.src, 'size:', elementFile.file.size);
+        if (elementFile.file.size === 0) {
+          console.error('[ZPK] ERROR: Element file is EMPTY:', elementFile.src);
+        }
         assets.file(elementFile.src, elementFile.file);
       }
       console.log('[ZPK] Element images added, total:', options.elementFiles.length);
+    } else {
+      console.error('[ZPK] ERROR: Failed to create assets folder!');
     }
     
     console.log('[ZPK] Step 10: Generating device.zip blob (no compression)...');
