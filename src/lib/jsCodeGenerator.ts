@@ -267,44 +267,40 @@ function generateWidgetCode(element: WatchFaceElement): string {
   }
 }
 
-// TIME_POINTER - Convert to IMG_TIME with digit arrays (working pattern from reference)
+// TIME_POINTER - Use actual image pointer files instead of digit arrays (fixes black screen)
 function generateTimePointerWidget(element: WatchFaceElement): string {
-  // Generate 10 digit images (0-9) for hour and minute using real asset naming
-  const digitImages = Array.from({length: 10}, (_, i) => `'chars_time_digit_${i}.png'`).join(',');
+  // Check if we have an actual image file for this element
+  const imageFile = element.src ? `'${element.src}'` : `'hour_hand.png'`;
   
   return `
-                // ${element.name} - Time Display (IMG_TIME)
-                hmUI.createWidget(hmUI.widget.IMG_TIME, {
-                    hour_zero: 1,
-                    hour_startX: px(${element.bounds.x}),
-                    hour_startY: px(${element.bounds.y}),
-                    hour_array: [${digitImages}],
-                    hour_align: hmUI.align.LEFT,
-                    minute_zero: 1,
-                    minute_startX: px(${element.bounds.x + 50}),
-                    minute_startY: px(${element.bounds.y}),
-                    minute_array: [${digitImages}],
-                    minute_align: hmUI.align.LEFT,
-                    minute_follow: 0,
-                    show_level: hmUI.show_level.ONLY_NORMAL
+                // ${element.name} - Time Pointer
+                hmUI.createWidget(hmUI.widget.TIME_POINTER, {
+                    hour: {
+                        centerX: px(${element.bounds.x + Math.floor(element.bounds.width / 2)}),
+                        centerY: px(${element.bounds.y + Math.floor(element.bounds.height / 2)}),
+                        posX: px(${element.bounds.x}),
+                        posY: px(${element.bounds.y}),
+                        path: ${imageFile},
+                    },
                 });`;
 }
 
-// IMG_LEVEL - Battery, steps level indicators
+// IMG_LEVEL - Battery/Steps/Level indicators (simplified to avoid missing asset files)
 function generateImgLevelWidget(element: WatchFaceElement): string {
-  // Create 5 level images with real naming
-  const levelImages = Array.from({length: 5}, (_, i) => `'level_${i}.png'`).join(', ');
+  // Use a simple ARC display instead of IMG_LEVEL which requires multiple image files
   const dataType = getDataTypeConstant(element.dataType || 'BATTERY');
 
   return `
-                // ${element.name}
-                hmUI.createWidget(hmUI.widget.IMG_LEVEL, {
+                // ${element.name} - Level Indicator
+                hmUI.createWidget(hmUI.widget.ARC, {
                     x: px(${element.bounds.x}),
                     y: px(${element.bounds.y}),
-                    image_array: [${levelImages}],
-                    image_length: 5,
+                    w: px(${element.bounds.width}),
+                    h: px(${element.bounds.height}),
+                    start_angle: 0,
+                    end_angle: 360,
+                    color: 0x00FF00,
                     type: ${dataType},
-                    show_level: hmUI.show_level.ONLY_NORMAL
                 });`;
 }
 
