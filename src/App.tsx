@@ -114,19 +114,20 @@ async function mockKimiAnalysis(
     },
   ];
 
-  // Generate mock element images - create different colored placeholders for each element
+  // Generate mock element images - create proper watch hand/element graphics
   console.log('[Mock] Starting element image generation for', elements.length, 'elements');
   const elementImages: ElementImage[] = [];
   
   elements
     .filter((el) => el.src)
-    .forEach((el, idx) => {
+    .forEach((el) => {
       console.log('[Mock] Creating canvas for element:', el.name, 'bounds:', el.bounds);
-      // Create a simple colored canvas as placeholder for each element
-      // In real implementation, this would be cropped/extracted from full design
+      
+      // Create canvas with minimum size to ensure renderability
+      const minSize = 200;  // Ensure minimum size for watch renderers
       const canvas = document.createElement('canvas');
-      canvas.width = el.bounds.width || 100;
-      canvas.height = el.bounds.height || 100;
+      canvas.width = Math.max(el.bounds.width || 100, minSize);
+      canvas.height = Math.max(el.bounds.height || 100, minSize);
       
       if (canvas.width === 0 || canvas.height === 0) {
         console.error('[Mock] ERROR: Invalid canvas dimensions for', el.name);
@@ -134,14 +135,49 @@ async function mockKimiAnalysis(
       
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        // Different colors for different element types
-        const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8'];
-        ctx.fillStyle = colors[idx % colors.length];
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = '#FFFFFF';
-        ctx.font = '12px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText(el.name, canvas.width / 2, canvas.height / 2);
+        // Transparent background
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Draw proper element graphics based on type
+        if (el.type === 'TIME_POINTER') {
+          // Draw watch hands with gradient
+          const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+          gradient.addColorStop(0, el.color || '#1A1A1A');
+          gradient.addColorStop(1, adjustBrightness(el.color || '#1A1A1A', -30));
+          ctx.fillStyle = gradient;
+          
+          // Draw hand shape (rectangle with rounded ends)
+          const handWidth = Math.max(4, canvas.width * 0.15);
+          const handX = (canvas.width - handWidth) / 2;
+          ctx.beginPath();
+          ctx.moveTo(handX, canvas.height * 0.3);
+          ctx.lineTo(handX + handWidth, canvas.height * 0.3);
+          ctx.lineTo(handX + handWidth, canvas.height * 0.9);
+          ctx.quadraticCurveTo(handX + handWidth / 2, canvas.height * 0.95, handX, canvas.height * 0.9);
+          ctx.closePath();
+          ctx.fill();
+          
+          // Add highlight
+          ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        } else if (el.type === 'IMG_LEVEL') {
+          // Draw segmented level indicator
+          ctx.fillStyle = el.color || '#FFD700';
+          const segmentCount = 5;
+          const segmentWidth = canvas.width / segmentCount;
+          for (let i = 0; i < segmentCount; i++) {
+            ctx.fillRect(segmentWidth * i + 2, canvas.height * 0.3, segmentWidth - 4, canvas.height * 0.4);
+          }
+        } else {
+          // Generic colored element
+          ctx.fillStyle = el.color || '#4ECDC4';
+          ctx.fillRect(canvas.width * 0.1, canvas.height * 0.1, canvas.width * 0.8, canvas.height * 0.8);
+          ctx.strokeStyle = adjustBrightness(el.color || '#4ECDC4', -50);
+          ctx.lineWidth = 2;
+          ctx.strokeRect(canvas.width * 0.1, canvas.height * 0.1, canvas.width * 0.8, canvas.height * 0.8);
+        }
+        
         console.log('[Mock] Canvas created for', el.name, 'size:', canvas.width, 'x', canvas.height);
       } else {
         console.error('[Mock] Failed to get 2D context for', el.name);
@@ -166,6 +202,18 @@ async function mockKimiAnalysis(
       // Update element to use dataURL for preview rendering
       el.src = dataUrl;
     });
+  
+  // Helper function to adjust color brightness
+  function adjustBrightness(color: string, percent: number): string {
+    const usePound = color[0] === "#";
+    const col = usePound ? color.slice(1) : color;
+    const num = parseInt(col, 16);
+    const amt = Math.round(2.55 * percent);
+    const R = Math.max(0, Math.min(255, (num >> 16) + amt));
+    const G = Math.max(0, Math.min(255, (num >> 8 & 0x00FF) + amt));
+    const B = Math.max(0, Math.min(255, (num & 0x0000FF) + amt));
+    return (usePound ? "#" : "") + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
+  }
   
   console.log('[Mock] Element images generated, total:', elementImages.length, 'images');
 
