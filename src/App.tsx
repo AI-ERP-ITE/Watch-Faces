@@ -15,7 +15,7 @@ import { ElementList } from '@/components/ElementList';
 
 import { useApp, actions } from '@/context/AppContext';
 import { buildZPK } from '@/lib/zpkBuilder';
-import { uploadToGitHub } from '@/lib/githubApi';
+import { uploadZPKWithQR } from '@/lib/githubApi';
 import { generateQRCode } from '@/lib/qrGenerator';
 import type { WatchFaceConfig, WatchFaceElement, ElementImage } from '@/types';
 import { generateId } from '@/lib/utils';
@@ -342,7 +342,7 @@ function App() {
 
       dispatch(actions.setZpkBlob(zpkResult.blob));
 
-      // Upload to GitHub
+      // Upload to GitHub with folder-based structure
       dispatch(actions.setLoadingMessage('Uploading to GitHub...'));
 
       const repoParts = state.githubRepo.split('/');
@@ -355,15 +355,28 @@ function App() {
         throw new Error(`Invalid GitHub repository format: "${state.githubRepo}". Expected format: "owner/repo"`);
       }
 
-      const uploadResult = await uploadToGitHub(
+      // Step 1: Generate QR code with the expected GitHub Pages URL
+      //  We use the watchface ID (timestamp-based) to create a predictable URL
+      const watchfaceId = state.watchFaceConfig.name.replace(/\s+/g, '_');
+      const expectedZpkUrl = `https://${owner}.github.io/${repo}/zpk/${watchfaceId}/face.zpk`;
+      
+      dispatch(actions.setLoadingMessage('Generating QR code...'));
+      console.log('[App] Generating QR with expected URL:', expectedZpkUrl);
+      const qrDataUrl = await generateQRCode(expectedZpkUrl);
+      console.log('[App] QR code generated');
+
+      // Step 2: Upload both ZPK and QR code to the same folder on GitHub
+      console.log('[App] Starting folder-based upload (ZPK + QR)...');
+      const uploadResult = await uploadZPKWithQR(
         {
           token: state.githubToken,
           owner,
           repo,
         },
-        zpkResult.filename,
+        watchfaceId,
         zpkResult.blob,
-        `Upload watch face: ${state.watchFaceConfig.name}`
+        qrDataUrl,
+        state.watchFaceConfig.name
       );
 
       if (!uploadResult.success) {
@@ -371,13 +384,11 @@ function App() {
         throw new Error(`GitHub upload failed: ${uploadResult.error || 'Unknown error'}`);
       }
       
-      console.log('[App] Upload successful, file at:', uploadResult.downloadUrl);
+      console.log('[App] Upload successful!');
+      console.log('[App] ZPK URL:', uploadResult.downloadUrl);
+      console.log('[App] QR URL:', uploadResult.qrUrl);
 
       dispatch(actions.setGithubUrl(uploadResult.downloadUrl || ''));
-
-      // Generate QR code
-      dispatch(actions.setLoadingMessage('Generating QR code...'));
-      const qrDataUrl = await generateQRCode(uploadResult.downloadUrl || '');
       dispatch(actions.setQrCode(qrDataUrl));
 
       dispatch(actions.setStep('success'));

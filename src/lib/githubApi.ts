@@ -137,25 +137,22 @@ export async function uploadToGitHub(
     
     // Construct GitHub Pages URL
     // GitHub Pages serves docs/ folder at root: https://owner.github.io/repo/
-    // So docs/zpk/file.zpk is accessible at: https://owner.github.io/repo/zpk/file.zpk
+    // So docs/zpk/watchface1/face.zpk is accessible at: https://owner.github.io/repo/zpk/watchface1/face.zpk
     const pagesUrl = `https://${owner}.github.io/${repo}/zpk/${filename}`;
     console.log('[GitHub] File uploaded to:', filepath);
     console.log('[GitHub] Accessible at:', pagesUrl);
     
-    // Return immediately - QR code can be generated with the URL right away
-    // GitHub Pages will deploy in the background
-    console.log('[GitHub] Returning URL for QR code generation (GitHub Pages deploying in background)...');
+    // Extract folder name for watchface ID (e.g., from "watchface1/face.zpk" extract "watchface1")
+    const folderMatch = filename.match(/^([^\/]+)\//);
+    const watchfaceId = folderMatch ? folderMatch[1] : filename.replace('.zpk', '').replace('-qr.png', '');
     
-    // Verify the file is accessible on GitHub Pages asynchronously (non-blocking)
-    // This logs the status but doesn't delay the QR code generation
-    verifyGitHubPagesAsync(pagesUrl).catch(err => {
-      console.warn('[GitHub] Background verification error:', err);
-    });
+    console.log('[GitHub] Watchface ID:', watchfaceId);
     
     return {
       success: true,
       url: data.content.html_url,
       downloadUrl: pagesUrl,
+      watchfaceId: watchfaceId,
     };
   } catch (error) {
     console.error('[GitHub] Upload failed:', error);
@@ -313,4 +310,112 @@ export async function listFiles(
   } catch {
     return [];
   }
+}
+
+// Complete upload flow: Upload ZPK + QR code to same folder, verify, and return both URLs
+export async function uploadZPKWithQR(
+  config: GitHubConfig,
+  watchfaceId: string,
+  zpkBlob: Blob,
+  qrDataUrl: string,
+  watchfaceName: string
+): Promise<GitHubUploadResult> {
+  try {
+    console.log('[GitHub] Starting folder-based ZPK+QR upload flow...');
+    console.log('[GitHub] Watchface ID:', watchfaceId);
+    
+    // Step 1: Upload ZPK to docs/zpk/{watchfaceId}/face.zpk
+    console.log('[GitHub] Step 1: Uploading ZPK file...');
+    const zpkPath = `${watchfaceId}/face.zpk`;
+    const zpkResult = await uploadToGitHub(
+      config,
+      zpkPath,
+      zpkBlob,
+      `Upload watch face ZPK: ${watchfaceName}`
+    );
+    
+    if (!zpkResult.success) {
+      throw new Error(`ZPK upload failed: ${zpkResult.error}`);
+    }
+    
+    console.log('[GitHub] ZPK uploaded successfully to:', zpkResult.downloadUrl);
+    
+    // Step 2: Convert QR data URL to Blob
+    console.log('[GitHub] Step 2: Converting QR code to blob...');
+    const qrBlob = await fetch(qrDataUrl).then(r => r.blob());
+    console.log('[GitHub] QR blob created, size:', qrBlob.size);
+    
+    // Step 3: Upload QR code to docs/zpk/{watchfaceId}/qr.png
+    console.log('[GitHub] Step 3: Uploading QR code...');
+    const qrPath = `${watchfaceId}/qr.png`;
+    const qrResult = await uploadToGitHub(
+      config,
+      qrPath,
+      qrBlob,
+      `Upload QR code for: ${watchfaceName}`
+    );
+    
+    if (!qrResult.success) {
+      throw new Error(`QR code upload failed: ${qrResult.error}`);
+    }
+    
+    console.log('[GitHub] QR code uploaded successfully to:', qrResult.downloadUrl);
+    
+    // Step 4: Verify both files are accessible on GitHub Pages
+    console.log('[GitHub] Step 4: Verifying file accessibility...');
+    const zpkAccessible = await verifyGitHubPagesSync(zpkResult.downloadUrl!);
+    const qrAccessible = await verifyGitHubPagesSync(qrResult.downloadUrl!);
+    
+    if (!zpkAccessible || !qrAccessible) {
+      console.warn('[GitHub] One or both files not yet accessible, starting background verification...');
+      // Continue anyway - verification will happen in background
+      verifyGitHubPagesAsync(zpkResult.downloadUrl!).catch(err => {
+        console.warn('[GitHub] Background ZPK verification error:', err);
+      });
+      verifyGitHubPagesAsync(qrResult.downloadUrl!).catch(err => {
+        console.warn('[GitHub] Background QR verification error:', err);
+      });
+    } else {
+      console.log('[GitHub] ✓ Both files verified accessible');
+    }
+    
+    console.log('[GitHub] Upload flow complete!');
+    return {
+      success: true,
+      url: zpkResult.url,
+      downloadUrl: zpkResult.downloadUrl,
+      qrUrl: qrResult.downloadUrl,
+      watchfaceId: watchfaceId,
+    };
+  } catch (error) {
+    console.error('[GitHub] Upload flow failed:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+// Synchronous verification (blocking, waits up to 10 seconds)
+async function verifyGitHubPagesSync(pagesUrl: string, maxWaitMs: number = 10000): Promise<boolean> {
+  console.log('[GitHub] Sync verification:', pagesUrl);
+  const startTime = Date.now();
+  
+  while (Date.now() - startTime < maxWaitMs) {
+    try {
+      const response = await fetch(pagesUrl, { method: 'HEAD', redirect: 'follow' });
+      if (response.ok) {
+        console.log('[GitHub] ✓ File accessible');
+        return true;
+      }
+    } catch (error) {
+      console.log('[GitHub] Still waiting...');
+    }
+    
+    // Wait 2 seconds before retry
+    await new Promise(r => setTimeout(r, 2000));
+  }
+  
+  console.log('[GitHub] Timeout waiting for file');
+  return false;
 }

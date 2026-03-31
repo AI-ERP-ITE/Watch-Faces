@@ -75,6 +75,8 @@ export interface GitHubUploadResult {
   success: boolean;
   url?: string;
   downloadUrl?: string;
+  watchfaceId?: string;  // For folder-based organization
+  qrUrl?: string;        // URL to access QR code from GitHub Pages
   error?: string;
 }
 
