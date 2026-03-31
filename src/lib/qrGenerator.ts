@@ -5,7 +5,9 @@ import QRCode from 'qrcode';
 // Generate QR code for ZPK installation
 export async function generateQRCode(zpkUrl: string): Promise<string> {
   // ZeppOS uses zpkd1:// protocol for watch face installation
-  const zpkd1Url = `zpkd1://${zpkUrl}`;
+  // Remove https:// if present, then wrap with zpkd1://
+  const cleanUrl = zpkUrl.replace(/^https:\/\//, '').replace(/^http:\/\//, '');
+  const zpkd1Url = `zpkd1://${cleanUrl}`;
   
   try {
     const dataUrl = await QRCode.toDataURL(zpkd1Url, {
@@ -34,7 +36,8 @@ export async function generateQRCodeCustom(
   } = {}
 ): Promise<string> {
   const { width = 400, darkColor = '#000000', lightColor = '#FFFFFF' } = options;
-  const zpkd1Url = `zpkd1://${zpkUrl}`;
+  const cleanUrl = zpkUrl.replace(/^https:\/\//, '').replace(/^http:\/\//, '');
+  const zpkd1Url = `zpkd1://${cleanUrl}`;
   
   try {
     const dataUrl = await QRCode.toDataURL(zpkd1Url, {
