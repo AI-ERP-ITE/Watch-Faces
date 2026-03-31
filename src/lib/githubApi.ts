@@ -143,35 +143,34 @@ export async function uploadToGitHub(
     console.log('[GitHub] Accessible at:', pagesUrl);
     
     // Verify the file is accessible on GitHub Pages with retry logic
-    // GitHub Pages can take 30-60 seconds to deploy new files
-    console.log('[GitHub] Verifying file on GitHub Pages (with retries)...');
-    const maxRetries = 5;
-    let lastStatus = 404;
+    // GitHub Pages can take 1-2 minutes to deploy new files
+    console.log('[GitHub] Verifying file on GitHub Pages (waiting up to 2 minutes)...');
+    const maxRetries = 8;
     
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        // Wait before checking (2s for retries, immediate for first attempt)
+        // Wait before checking
         if (attempt > 1) {
-          const waitTime = 10000; // 10 seconds between retries
-          console.log(`[GitHub] Retry ${attempt}/${maxRetries} - waiting ${waitTime}ms before checking...`);
+          const waitTime = 15000; // 15 seconds between retries
+          console.log(`[GitHub] Attempt ${attempt}/${maxRetries} - waiting ${waitTime/1000}s before checking...`);
           await new Promise(r => setTimeout(r, waitTime));
         }
         
         const verifyResponse = await fetch(pagesUrl, { method: 'HEAD', redirect: 'follow' });
-        lastStatus = verifyResponse.status;
-        console.log(`[GitHub] Verification attempt ${attempt}/${maxRetries} - status:`, verifyResponse.status);
+        const status = verifyResponse.status;
+        console.log(`[GitHub] [${attempt}/${maxRetries}] GitHub Pages status: ${status}`);
         
         if (verifyResponse.ok) {
           console.log('[GitHub] ✓ File successfully accessible at GitHub Pages URL');
           break; // Success, exit loop
         } else if (attempt === maxRetries) {
-          console.warn('[GitHub] ⚠ File verification incomplete after all retries. Status:', lastStatus);
-          console.warn('[GitHub] GitHub Pages may still be deploying. File should be available shortly.');
+          console.warn('[GitHub] ⚠ File verification incomplete after 2 minutes. GitHub Pages may need more time.');
+          console.warn('[GitHub] The file has been uploaded. It should be accessible within a few minutes.');
         }
       } catch (verifyError) {
-        console.warn(`[GitHub] Attempt ${attempt}/${maxRetries} - Network error:`, verifyError);
+        console.warn(`[GitHub] [${attempt}/${maxRetries}] Error checking file:`, verifyError);
         if (attempt === maxRetries) {
-          console.warn('[GitHub] Could not verify GitHub Pages access after all attempts.');
+          console.warn('[GitHub] Could not verify GitHub Pages access. File may still be deploying.');
         }
       }
     }
