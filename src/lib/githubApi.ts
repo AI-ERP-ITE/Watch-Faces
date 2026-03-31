@@ -142,6 +142,20 @@ export async function uploadToGitHub(
     console.log('[GitHub] File uploaded to:', filepath);
     console.log('[GitHub] Accessible at:', pagesUrl);
     
+    // Verify the file is accessible on GitHub Pages
+    console.log('[GitHub] Verifying file on GitHub Pages...');
+    try {
+      const verifyResponse = await fetch(pagesUrl, { method: 'HEAD', redirect: 'follow' });
+      console.log('[GitHub] GitHub Pages verification status:', verifyResponse.status);
+      if (verifyResponse.ok) {
+        console.log('[GitHub] ✓ File successfully accessible at GitHub Pages URL');
+      } else {
+        console.warn('[GitHub] ⚠ File may not be accessible yet (status:', verifyResponse.status, '). GitHub Pages may need time to propagate.');
+      }
+    } catch (verifyError) {
+      console.warn('[GitHub] ⚠ Could not verify GitHub Pages access (may be temporary):', verifyError);
+    }
+    
     return {
       success: true,
       url: data.content.html_url,
