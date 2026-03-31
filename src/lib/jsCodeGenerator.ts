@@ -42,8 +42,8 @@ function generateAppJson(config: WatchFaceConfig): string {
       },
       vender: 'AI-WatchFace-Creator',
       description: `Custom watch face - ${config.name}`,
-      icon: 'bg.png',
-      cover: ['bg.png'],
+      icon: 'assets/bg.png',
+      cover: ['assets/bg.png'],
     },
     permissions: [],
     runtime: {
@@ -55,7 +55,7 @@ function generateAppJson(config: WatchFaceConfig): string {
     },
     i18n: {
       'en-US': {
-        icon: 'bg.png',
+        icon: 'assets/bg.png',
         appName: config.name,
       },
     },
@@ -172,7 +172,7 @@ function generateWatchfaceIndexJs(config: WatchFaceConfig): string {
             y: 0,
             w: ${config.resolution.width},
             h: ${config.resolution.height},
-            src: '${config.background.src}',
+            src: 'bg.png',
         });
         
         // Widgets
@@ -215,7 +215,7 @@ function generateTimePointerWidget(element: WatchFaceElement): string {
                 centerY: px(${centerY}),
                 posX: px(${posX}),
                 posY: px(${posY}),
-                path: '${element.src}',
+                path: 'assets/${element.src}',
             },
         });`;
 }
@@ -230,7 +230,7 @@ function generateImgLevelWidget(element: WatchFaceElement): string {
         h.createWidget(hmUI.widget.IMG_LEVEL, {
             x: px(${element.bounds.x}),
             y: px(${element.bounds.y}),
-            image_array: [${images.map((img) => `'${img}'`).join(', ')}],
+            image_array: [${images.map((img) => `'assets/${img}'`).join(', ')}],
             image_length: ${images.length},
             type: ${dataType},
         });`;
@@ -255,6 +255,8 @@ function generateTextWidget(element: WatchFaceElement): string {
 
 // IMG - Static image
 function generateImgWidget(element: WatchFaceElement): string {
+  const src = element.src || element.images?.[0] || 'assets/bg.png';
+  const srcPath = src === 'bg.png' ? src : (src.startsWith('assets/') ? src : `assets/${src}`);
   return `
         // ${element.name}
         h.createWidget(hmUI.widget.IMG, {
@@ -262,7 +264,7 @@ function generateImgWidget(element: WatchFaceElement): string {
             y: px(${element.bounds.y}),
             w: px(${element.bounds.width}),
             h: px(${element.bounds.height}),
-            src: '${element.src}',
+            src: '${srcPath}',
         });`;
 }
 
