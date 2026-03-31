@@ -22,7 +22,7 @@ import { generateId } from '@/lib/utils';
 
 // Mock Kimi analysis - simulates AI analysis
 async function mockKimiAnalysis(
-  backgroundImage: string,
+  _backgroundImage: string,
   _fullDesignImage: string,
   watchModel: string
 ): Promise<{ config: WatchFaceConfig; elementImages: ElementImage[] }> {
@@ -114,15 +114,33 @@ async function mockKimiAnalysis(
     },
   ];
 
-  // Generate mock element images (using background as placeholder)
+  // Generate mock element images - create different colored placeholders for each element
   const elementImages: ElementImage[] = elements
     .filter((el) => el.src)
-    .map((el) => ({
-      name: el.src!,
-      dataUrl: backgroundImage, // In real implementation, this would be cropped
-      bounds: el.bounds,
-      type: el.type,
-    }));
+    .map((el, idx) => {
+      // Create a simple colored canvas as placeholder for each element
+      // In real implementation, this would be cropped/extracted from full design
+      const canvas = document.createElement('canvas');
+      canvas.width = el.bounds.width;
+      canvas.height = el.bounds.height;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        // Different colors for different element types
+        const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8'];
+        ctx.fillStyle = colors[idx % colors.length];
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(el.name, canvas.width / 2, canvas.height / 2);
+      }
+      return {
+        name: el.src!,
+        dataUrl: canvas.toDataURL('image/png'),
+        bounds: el.bounds,
+        type: el.type,
+      };
+    });
 
   const config: WatchFaceConfig = {
     name: `AI_WatchFace_${Date.now()}`,
@@ -261,8 +279,11 @@ function App() {
       );
 
       if (!uploadResult.success) {
-        throw new Error(uploadResult.error || 'Upload failed');
+        console.error('[App] Upload error:', uploadResult.error);
+        throw new Error(`GitHub upload failed: ${uploadResult.error || 'Unknown error'}`);
       }
+      
+      console.log('[App] Upload successful, file at:', uploadResult.downloadUrl);
 
       dispatch(actions.setGithubUrl(uploadResult.downloadUrl || ''));
 

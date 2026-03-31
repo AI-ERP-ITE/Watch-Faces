@@ -49,32 +49,8 @@ export async function uploadToGitHub(
     console.log('[GitHub] Starting upload...');
     console.log('[GitHub] Config:', { owner, repo, branch, filename });
     
-    // First, verify repository access
-    console.log('[GitHub] Verifying repository access...');
-    const repoCheckUrl = `https://api.github.com/repos/${owner}/${repo}`;
-    console.log('[GitHub] Repo check URL:', repoCheckUrl);
-    
-    const repoCheckResponse = await fetch(repoCheckUrl, {
-      headers: {
-        'Authorization': `token ${token}`,
-        'Accept': 'application/vnd.github.v3+json',
-      },
-    });
-    
-    console.log('[GitHub] Repo check status:', repoCheckResponse.status);
-    
-    if (!repoCheckResponse.ok) {
-      const repoError = await repoCheckResponse.json();
-      if (repoCheckResponse.status === 404) {
-        throw new Error(`Repository not found: ${owner}/${repo}. Check repository name and token permissions.`);
-      }
-      if (repoCheckResponse.status === 401) {
-        throw new Error('GitHub token is invalid or expired. Update your token in settings.');
-      }
-      throw new Error(`Repository access failed: ${repoError.message || repoCheckResponse.statusText}`);
-    }
-    
-    console.log('[GitHub] Repository verified, proceeding with upload');
+    // Skip repo verification for now - go directly to upload
+    console.log('[GitHub] Proceeding with file upload to:', `${owner}/${repo}`);
     
     // Upload to docs/zpk/ folder so it's accessible via GitHub Pages
     const filepath = `docs/zpk/${filename}`;
