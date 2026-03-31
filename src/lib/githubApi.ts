@@ -9,6 +9,8 @@ export interface GitHubConfig {
   branch?: string;
 }
 
+const MAX_FILE_SIZE = 6 * 1024 * 1024; // 6MB limit for GitHub API
+
 // Convert ArrayBuffer to base64 in chunks to avoid stack overflow
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
@@ -47,22 +49,65 @@ export async function uploadToGitHub(
     console.log('[GitHub] Starting upload...');
     console.log('[GitHub] Config:', { owner, repo, branch, filename });
     
+    // First, verify repository access
+    console.log('[GitHub] Verifying repository access...');
+    const repoCheckUrl = `https://api.github.com/repos/${owner}/${repo}`;
+    console.log('[GitHub] Repo check URL:', repoCheckUrl);
+    
+    const repoCheckResponse = await fetch(repoCheckUrl, {
+      headers: {
+        'Authorization': `token ${token}`,
+        'Accept': 'application/vnd.github.v3+json',
+      },
+    });
+    
+    console.log('[GitHub] Repo check status:', repoCheckResponse.status);
+    
+    if (!repoCheckResponse.ok) {
+      const repoError = await repoCheckResponse.json();
+      if (repoCheckResponse.status === 404) {
+        throw new Error(`Repository not found: ${owner}/${repo}. Check repository name and token permissions.`);
+      }
+      if (repoCheckResponse.status === 401) {
+        throw new Error('GitHub token is invalid or expired. Update your token in settings.');
+      }
+      throw new Error(`Repository access failed: ${repoError.message || repoCheckResponse.statusText}`);
+    }
+    
+    console.log('[GitHub] Repository verified, proceeding with upload');
+    
     // Upload to docs/zpk/ folder so it's accessible via GitHub Pages
     const filepath = `docs/zpk/${filename}`;
     console.log('[GitHub] Upload path:', filepath);
+    
     let base64Content: string;
+    let contentSize: number;
+    
     if (content instanceof Blob) {
-      console.log('[GitHub] Converting blob to base64, size:', content.size);
+      contentSize = content.size;
+      console.log('[GitHub] File size:', contentSize, 'bytes');
+      
+      if (contentSize > MAX_FILE_SIZE) {
+        console.warn(`[GitHub] File size (${contentSize}) exceeds single upload limit (${MAX_FILE_SIZE}). File may need to be split.`);
+      }
+      
+      console.log('[GitHub] Converting blob to base64...');
       const arrayBuffer = await content.arrayBuffer();
       base64Content = arrayBufferToBase64(arrayBuffer);
       console.log('[GitHub] Base64 conversion complete, length:', base64Content.length);
     } else {
+      contentSize = content.length;
       base64Content = btoa(content);
     }
     
     // Check if file already exists (to get SHA for update)
     console.log('[GitHub] Checking if file exists...');
     const existingFile = await getFileSha(config, filepath);
+    if (existingFile) {
+      console.log('[GitHub] File exists, will update (SHA:', existingFile.sha.substring(0, 8), '...')
+    } else {
+      console.log('[GitHub] File does not exist, will create new');
+    }
     
     // Prepare request body
     const body: Record<string, string> = {
@@ -94,8 +139,21 @@ export async function uploadToGitHub(
     );
     
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || `HTTP ${response.status}`);
+      console.error('[GitHub] Upload failed with status:', response.status);
+      const errorData = await response.json();
+      const errorMsg = errorData.message || `HTTP ${response.status}: ${response.statusText}`;
+      
+      if (response.status === 413) {
+        throw new Error(`File too large (${contentSize} bytes). Max: ${MAX_FILE_SIZE} bytes. Consider splitting the upload.`);
+      }
+      if (response.status === 422) {
+        throw new Error(`Invalid file upload: ${errorMsg}. The file may be corrupted or in wrong format.`);
+      }
+      if (response.status === 401) {
+        throw new Error('GitHub token is invalid or expired.');
+      }
+      
+      throw new Error(`Upload failed: ${errorMsg}`);
     }
     
     const data = await response.json();
