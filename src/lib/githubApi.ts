@@ -164,35 +164,6 @@ export async function uploadToGitHub(
 }
 
 // Verify file is accessible on GitHub Pages (non-blocking, runs in background)
-async function verifyGitHubPagesAsync(pagesUrl: string): Promise<void> {
-  console.log('[GitHub] Starting background verification...');
-  const maxRetries = 8;
-  
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      // Wait before checking
-      if (attempt > 1) {
-        const waitTime = 15000; // 15 seconds between retries
-        console.log(`[GitHub] Background check attempt ${attempt}/${maxRetries} - waiting ${waitTime/1000}s...`);
-        await new Promise(r => setTimeout(r, waitTime));
-      }
-      
-      const verifyResponse = await fetch(pagesUrl, { method: 'HEAD', redirect: 'follow' });
-      const status = verifyResponse.status;
-      console.log(`[GitHub] Background check [${attempt}/${maxRetries}] status: ${status}`);
-      
-      if (verifyResponse.ok) {
-        console.log('[GitHub] ✓ File now accessible on GitHub Pages');
-        return; // Success
-      } else if (attempt === maxRetries) {
-        console.warn('[GitHub] ⚠ File not yet accessible after 2 minutes (continuing in background)');
-      }
-    } catch (verifyError) {
-      console.warn(`[GitHub] Background check attempt ${attempt}/${maxRetries} error:`, verifyError);
-    }
-  }
-}
-
 // Get file SHA (for updating existing files)
 async function getFileSha(
   config: GitHubConfig,
@@ -361,23 +332,8 @@ export async function uploadZPKWithQR(
     
     console.log('[GitHub] QR code uploaded successfully to:', qrResult.downloadUrl);
     
-    // Step 4: Verify both files are accessible on GitHub Pages
-    console.log('[GitHub] Step 4: Verifying file accessibility...');
-    const zpkAccessible = await verifyGitHubPagesSync(zpkResult.downloadUrl!);
-    const qrAccessible = await verifyGitHubPagesSync(qrResult.downloadUrl!);
-    
-    if (!zpkAccessible || !qrAccessible) {
-      console.warn('[GitHub] One or both files not yet accessible, starting background verification...');
-      // Continue anyway - verification will happen in background
-      verifyGitHubPagesAsync(zpkResult.downloadUrl!).catch(err => {
-        console.warn('[GitHub] Background ZPK verification error:', err);
-      });
-      verifyGitHubPagesAsync(qrResult.downloadUrl!).catch(err => {
-        console.warn('[GitHub] Background QR verification error:', err);
-      });
-    } else {
-      console.log('[GitHub] ✓ Both files verified accessible');
-    }
+    // Note: Files may take 30-60 seconds to appear on GitHub Pages, but upload is successful
+    console.log('[GitHub] Upload complete! Files will be accessible on GitHub Pages shortly.');
     
     console.log('[GitHub] Upload flow complete!');
     return {
@@ -396,26 +352,3 @@ export async function uploadZPKWithQR(
   }
 }
 
-// Synchronous verification (blocking, waits up to 10 seconds)
-async function verifyGitHubPagesSync(pagesUrl: string, maxWaitMs: number = 10000): Promise<boolean> {
-  console.log('[GitHub] Sync verification:', pagesUrl);
-  const startTime = Date.now();
-  
-  while (Date.now() - startTime < maxWaitMs) {
-    try {
-      const response = await fetch(pagesUrl, { method: 'HEAD', redirect: 'follow' });
-      if (response.ok) {
-        console.log('[GitHub] ✓ File accessible');
-        return true;
-      }
-    } catch (error) {
-      console.log('[GitHub] Still waiting...');
-    }
-    
-    // Wait 2 seconds before retry
-    await new Promise(r => setTimeout(r, 2000));
-  }
-  
-  console.log('[GitHub] Timeout waiting for file');
-  return false;
-}

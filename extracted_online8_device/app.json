@@ -1,0 +1,65 @@
+{
+  "configVersion": "v2",
+  "app": {
+    "appIdType": 0,
+    "appId": 9560914,
+    "appName": "online8",
+    "appType": "watchface",
+    "version": {
+      "code": 1,
+      "name": "1.0.0"
+    },
+    "vender": "AI-WatchFace-Creator",
+    "description": "Custom watch face - online8",
+    "icon": "assets/bg.png",
+    "cover": [
+      "assets/bg.png"
+    ]
+  },
+  "permissions": [],
+  "runtime": {
+    "apiVersion": {
+      "compatible": "1.0.0",
+      "target": "1.0.1",
+      "minVersion": "1.0.0"
+    }
+  },
+  "i18n": {
+    "en-US": {
+      "icon": "assets/bg.png",
+      "appName": "online8"
+    }
+  },
+  "defaultLanguage": "en-US",
+  "debug": false,
+  "module": {
+    "watchface": {
+      "path": "watchface/index",
+      "main": 1,
+      "editable": 0,
+      "lockscreen": 1,
+      "hightCost": 0
+    }
+  },
+  "platforms": [
+    {
+      "name": "Balance 2",
+      "deviceSource": 8519936
+    },
+    {
+      "name": "Balance 2",
+      "deviceSource": 8519937
+    },
+    {
+      "name": "Balance 2",
+      "deviceSource": 8519939
+    }
+  ],
+  "designWidth": 480,
+  "packageInfo": {
+    "mode": "production",
+    "timeStamp": 1774980599,
+    "expiredTime": 172800,
+    "zpm": "2.8.2"
+  }
+}
