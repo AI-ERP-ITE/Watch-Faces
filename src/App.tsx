@@ -51,60 +51,86 @@ async function mockKimiAnalysis(
 
   const resolution = resolutions[watchModel] || { width: 466, height: 466 };
 
-  // Generate mock elements
+  // Generate mock elements - Based on Brushed Steel reference (working watchface)
+  // Simplified for V2 format compatibility
   const elements: WatchFaceElement[] = [
+    // Background element (always first, full screen)
     {
       id: generateId(),
       type: 'IMG',
-      subtype: 'hour',
-      name: 'Hour Hand',
-      bounds: { x: 220, y: 100, width: 40, height: 140 },
-      center: { x: 240, y: 240 },
-      color: '#1A1A1A',
-      src: 'hour_hand.png',
+      name: 'Background',
+      bounds: { x: 0, y: 0, width: 480, height: 480 },
+      src: 'background_ed15585c.png',
       visible: true,
-      zIndex: 10,
+      zIndex: 0,
     },
+    // Time Display - triggers IMG_TIME widget in V2 generator
     {
       id: generateId(),
       type: 'IMG',
-      subtype: 'minute',
-      name: 'Minute Hand',
-      bounds: { x: 230, y: 60, width: 20, height: 180 },
-      center: { x: 240, y: 240 },
-      color: '#333333',
-      src: 'minute_hand.png',
-      visible: true,
-      zIndex: 11,
-    },
-    {
-      id: generateId(),
-      type: 'IMG',
-      subtype: 'second',
-      name: 'Second Hand',
-      bounds: { x: 235, y: 50, width: 10, height: 190 },
-      center: { x: 240, y: 240 },
-      color: '#FF6B35',
-      src: 'second_hand.png',
-      visible: true,
-      zIndex: 12,
-    },
-    {
-      id: generateId(),
-      type: 'IMG',
-      name: 'Battery Indicator',
-      bounds: { x: 200, y: 400, width: 80, height: 20 },
-      src: 'battery_icon.png',
+      name: 'Time Display',
+      bounds: { x: 25, y: 220, width: 150, height: 60 },
+      src: 'time_digit_0.png',
       visible: true,
       zIndex: 5,
     },
+    // Weekday indicator - triggers IMG_WEEK widget in V2 generator
     {
       id: generateId(),
       type: 'IMG',
-      name: 'Date Display',
-      bounds: { x: 210, y: 280, width: 60, height: 24 },
-      color: '#FFFFFF',
-      src: 'date_display.png',
+      name: 'Weekday',
+      bounds: { x: 33, y: 198, width: 20, height: 30 },
+      src: 'week_0.png',
+      visible: true,
+      zIndex: 5,
+    },
+    // Date indicator - triggers IMG_DATE widget in V2 generator
+    {
+      id: generateId(),
+      type: 'IMG',
+      name: 'Date',
+      bounds: { x: 92, y: 198, width: 40, height: 30 },
+      src: 'date_digit_0.png',
+      visible: true,
+      zIndex: 5,
+    },
+    // Battery icon
+    {
+      id: generateId(),
+      type: 'IMG',
+      name: 'Battery',
+      bounds: { x: 189, y: 98, width: 33, height: 57 },
+      src: 'batt_1_33x57_h135s21b101.png',
+      visible: true,
+      zIndex: 5,
+    },
+    // Heart rate icon
+    {
+      id: generateId(),
+      type: 'IMG',
+      name: 'Heart Rate',
+      bounds: { x: 225, y: 176, width: 20, height: 20 },
+      src: 'heart_4_20x20_h108s16b123.png',
+      visible: true,
+      zIndex: 5,
+    },
+    // Steps icon
+    {
+      id: generateId(),
+      type: 'IMG',
+      name: 'Steps',
+      bounds: { x: 241, y: 223, width: 29, height: 30 },
+      src: 'step_12_29x30.png',
+      visible: true,
+      zIndex: 5,
+    },
+    // Activity/Arc indicator
+    {
+      id: generateId(),
+      type: 'IMG',
+      name: 'Activity Arc',
+      bounds: { x: 226, y: 280, width: 25, height: 25 },
+      src: 'arc_25x25_h114s26b120.png',
       visible: true,
       zIndex: 5,
     },
@@ -114,79 +140,139 @@ async function mockKimiAnalysis(
   console.log('[Mock] Starting element image generation for', elements.length, 'elements');
   const elementImages: ElementImage[] = [];
   
+  // Helper: create a canvas image and return as dataUrl
+  function createCanvasImage(width: number, height: number, drawFn: (ctx: CanvasRenderingContext2D, w: number, h: number) => void): string {
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.clearRect(0, 0, width, height);
+      drawFn(ctx, width, height);
+    }
+    return canvas.toDataURL('image/png');
+  }
+  
+  // Helper: draw a digit on canvas
+  function drawDigit(ctx: CanvasRenderingContext2D, w: number, h: number, digit: string, color: string) {
+    ctx.fillStyle = color;
+    ctx.font = `bold ${Math.floor(h * 0.7)}px Arial`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(digit, w / 2, h / 2);
+  }
+  
+  // Generate TIME digit images (0-9) - used by IMG_TIME for hours and minutes
+  const timeDigitSize = { w: 30, h: 50 };
+  for (let i = 0; i < 10; i++) {
+    const filename = `time_digit_${i}.png`;
+    const dataUrl = createCanvasImage(timeDigitSize.w, timeDigitSize.h, (ctx, w, h) => {
+      drawDigit(ctx, w, h, String(i), '#FFFFFF');
+    });
+    elementImages.push({
+      name: filename,
+      dataUrl,
+      bounds: { x: 0, y: 0, width: timeDigitSize.w, height: timeDigitSize.h },
+      type: 'IMG',
+    });
+  }
+  
+  // Generate DATE digit images (0-9) - used by IMG_DATE for day numbers
+  const dateDigitSize = { w: 20, h: 30 };
+  for (let i = 0; i < 10; i++) {
+    const filename = `date_digit_${i}.png`;
+    const dataUrl = createCanvasImage(dateDigitSize.w, dateDigitSize.h, (ctx, w, h) => {
+      drawDigit(ctx, w, h, String(i), '#CCCCCC');
+    });
+    elementImages.push({
+      name: filename,
+      dataUrl,
+      bounds: { x: 0, y: 0, width: dateDigitSize.w, height: dateDigitSize.h },
+      type: 'IMG',
+    });
+  }
+  
+  // Generate WEEK images (7 days) - used by IMG_WEEK
+  const weekDays = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+  const weekSize = { w: 40, h: 20 };
+  for (let i = 0; i < 7; i++) {
+    const filename = `week_${i}.png`;
+    const dataUrl = createCanvasImage(weekSize.w, weekSize.h, (ctx, w, h) => {
+      ctx.fillStyle = '#FFD700';
+      ctx.font = `bold ${Math.floor(h * 0.6)}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(weekDays[i], w / 2, h / 2);
+    });
+    elementImages.push({
+      name: filename,
+      dataUrl,
+      bounds: { x: 0, y: 0, width: weekSize.w, height: weekSize.h },
+      type: 'IMG',
+    });
+  }
+  
+  // Generate static element images (Battery, Heart, Steps, Arc, Background)
   elements
-    .filter((el) => el.src)
+    .filter((el) => el.src && !el.name.toLowerCase().includes('time') && !el.name.toLowerCase().includes('weekday') && !el.name.toLowerCase().includes('date'))
     .forEach((el) => {
       console.log('[Mock] Creating canvas for element:', el.name, 'bounds:', el.bounds);
       
-      // Create canvas with minimum size to ensure renderability
-      const minSize = 200;  // Ensure minimum size for watch renderers
+      const minSize = 200;
       const canvas = document.createElement('canvas');
       canvas.width = Math.max(el.bounds.width || 100, minSize);
       canvas.height = Math.max(el.bounds.height || 100, minSize);
       
-      if (canvas.width === 0 || canvas.height === 0) {
-        console.error('[Mock] ERROR: Invalid canvas dimensions for', el.name);
-      }
-      
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        // Transparent background
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const elementName = el.name.toLowerCase();
         
-        // Draw proper element graphics based on type
-        if (el.type === 'TIME_POINTER') {
-          // Draw watch hands with gradient
-          const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-          gradient.addColorStop(0, el.color || '#1A1A1A');
-          gradient.addColorStop(1, adjustBrightness(el.color || '#1A1A1A', -30));
-          ctx.fillStyle = gradient;
-          
-          // Draw hand shape (rectangle with rounded ends)
-          const handWidth = Math.max(4, canvas.width * 0.15);
-          const handX = (canvas.width - handWidth) / 2;
-          ctx.beginPath();
-          ctx.moveTo(handX, canvas.height * 0.3);
-          ctx.lineTo(handX + handWidth, canvas.height * 0.3);
-          ctx.lineTo(handX + handWidth, canvas.height * 0.9);
-          ctx.quadraticCurveTo(handX + handWidth / 2, canvas.height * 0.95, handX, canvas.height * 0.9);
-          ctx.closePath();
-          ctx.fill();
-          
-          // Add highlight
-          ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-          ctx.lineWidth = 1;
-          ctx.stroke();
-        } else if (el.type === 'IMG_LEVEL') {
-          // Draw segmented level indicator
-          ctx.fillStyle = el.color || '#FFD700';
-          const segmentCount = 5;
-          const segmentWidth = canvas.width / segmentCount;
-          for (let i = 0; i < segmentCount; i++) {
-            ctx.fillRect(segmentWidth * i + 2, canvas.height * 0.3, segmentWidth - 4, canvas.height * 0.4);
-          }
-        } else {
-          // Generic colored element
-          ctx.fillStyle = el.color || '#4ECDC4';
-          ctx.fillRect(canvas.width * 0.1, canvas.height * 0.1, canvas.width * 0.8, canvas.height * 0.8);
-          ctx.strokeStyle = adjustBrightness(el.color || '#4ECDC4', -50);
+        if (elementName.includes('battery')) {
+          ctx.fillStyle = '#4ECDC4';
+          ctx.fillRect(canvas.width * 0.2, canvas.height * 0.1, canvas.width * 0.6, canvas.height * 0.7);
+          ctx.strokeStyle = '#2C9A8F';
           ctx.lineWidth = 2;
-          ctx.strokeRect(canvas.width * 0.1, canvas.height * 0.1, canvas.width * 0.8, canvas.height * 0.8);
+          ctx.strokeRect(canvas.width * 0.2, canvas.height * 0.1, canvas.width * 0.6, canvas.height * 0.7);
+          ctx.fillStyle = '#2C9A8F';
+          ctx.fillRect(canvas.width * 0.35, canvas.height * 0.85, canvas.width * 0.3, canvas.height * 0.1);
+        } else if (elementName.includes('heart')) {
+          ctx.fillStyle = '#FF6B6B';
+          ctx.beginPath();
+          const x = canvas.width / 2;
+          const y = canvas.height / 2;
+          const size = Math.min(canvas.width, canvas.height) * 0.3;
+          ctx.moveTo(x, y + size);
+          ctx.bezierCurveTo(x - size, y + size * 0.3, x - size * 1.5, y - size * 0.5, x - size * 0.5, y - size * 0.5);
+          ctx.bezierCurveTo(x - size * 1.2, y - size * 0.8, x + size * 0.5, y - size * 1.2, x + size * 0.5, y - size * 0.5);
+          ctx.bezierCurveTo(x + size * 1.5, y - size * 0.5, x + size, y + size * 0.3, x, y + size);
+          ctx.fill();
+        } else if (elementName.includes('steps') || elementName.includes('activity')) {
+          ctx.strokeStyle = '#FFD93D';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(canvas.width * 0.2, canvas.height * 0.8);
+          ctx.lineTo(canvas.width * 0.35, canvas.height * 0.4);
+          ctx.lineTo(canvas.width * 0.5, canvas.height * 0.6);
+          ctx.lineTo(canvas.width * 0.65, canvas.height * 0.2);
+          ctx.lineTo(canvas.width * 0.8, canvas.height * 0.8);
+          ctx.stroke();
+        } else if (elementName.includes('arc')) {
+          ctx.fillStyle = '#6BCB77';
+          ctx.beginPath();
+          ctx.arc(canvas.width / 2, canvas.height / 2, Math.min(canvas.width, canvas.height) * 0.3, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = '#4CAF50';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        } else {
+          // Background or generic
+          ctx.fillStyle = el.color || '#333333';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
-        
-        console.log('[Mock] Canvas created for', el.name, 'size:', canvas.width, 'x', canvas.height);
-      } else {
-        console.error('[Mock] Failed to get 2D context for', el.name);
       }
       
       const dataUrl = canvas.toDataURL('image/png');
-      console.log('[Mock] DataURL created, length:', dataUrl.length);
-      
-      if (!dataUrl || dataUrl.length < 100) {
-        console.error('[Mock] ERROR: Invalid or empty dataURL for', el.name);
-      }
-      
-      // Store the original filename and dataURL for later use
       const originalFilename = el.src!;
       elementImages.push({
         name: originalFilename,
@@ -198,18 +284,6 @@ async function mockKimiAnalysis(
       // Update element to use dataURL for preview rendering
       el.src = dataUrl;
     });
-  
-  // Helper function to adjust color brightness
-  function adjustBrightness(color: string, percent: number): string {
-    const usePound = color[0] === "#";
-    const col = usePound ? color.slice(1) : color;
-    const num = parseInt(col, 16);
-    const amt = Math.round(2.55 * percent);
-    const R = Math.max(0, Math.min(255, (num >> 16) + amt));
-    const G = Math.max(0, Math.min(255, (num >> 8 & 0x00FF) + amt));
-    const B = Math.max(0, Math.min(255, (num & 0x0000FF) + amt));
-    return (usePound ? "#" : "") + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
-  }
   
   console.log('[Mock] Element images generated, total:', elementImages.length, 'images');
 
