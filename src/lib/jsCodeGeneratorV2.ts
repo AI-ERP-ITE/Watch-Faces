@@ -176,16 +176,25 @@ function generateAppJsV2(config: WatchFaceConfig): string {
 function generateWatchfaceIndexJsV2(config: WatchFaceConfig): string {
   const elements = config.elements.filter((el) => el.visible);
   
+  console.log('[JSGenV2] Total elements in config:', config.elements.length);
+  console.log('[JSGenV2] Visible elements after filter:', elements.length);
+  
   let widgetsCode = '';
   let widgetCounter = 6;
   
   for (const element of elements) {
+    console.log(`[JSGenV2] Processing element: ${element.name}, type: ${element.type}, src: ${element.src}, visible: ${element.visible}`);
     const code = generateWidgetCodeV2(element, widgetCounter);
     if (code) {
+      console.log(`[JSGenV2] Generated widget code for ${element.name}, code length: ${code.length}`);
       widgetsCode += code;
       widgetCounter++;
+    } else {
+      console.log(`[JSGenV2] No widget code generated for ${element.name}`);
     }
   }
+  
+  console.log('[JSGenV2] Total widgetsCode length:', widgetsCode.length);
   
   // Get background image from config or use basic color fallback
   const backgroundSrc = config.background?.src || 'background.png';
@@ -204,11 +213,12 @@ try {
         }
         const __$$module$$__ = __$$app$$__.current;
         const h = new DeviceRuntimeCore.WidgetFactory(new DeviceRuntimeCore.HmDomApi(__$$app$$__, __$$module$$__));
+        const {px} = __$$app$$__.__globals__;
         const logger = Logger.getLogger('WatchFaceEditor');
 
         __$$module$$__.module = DeviceRuntimeCore.WatchFace({
             init_view() {
-                // Background image - Fill entire screen (NO px() wrapping)
+                // Background image - Fill entire screen at native resolution
                 let widget_1 = hmUI.createWidget(hmUI.widget.IMG, {
                     x: 0,
                     y: 0,
