@@ -2,7 +2,7 @@
 
 export interface WatchFaceElement {
   id: string;
-  type: 'TIME_POINTER' | 'IMG_LEVEL' | 'TEXT' | 'IMG' | 'ARC_PROGRESS' | 'CIRCLE';
+  type: 'TIME_POINTER' | 'IMG_LEVEL' | 'TEXT' | 'IMG' | 'ARC_PROGRESS' | 'CIRCLE' | 'TEXT_IMG' | 'BUTTON' | 'IMG_STATUS';
   subtype?: string;
   name: string;
   bounds: {
@@ -24,6 +24,35 @@ export interface WatchFaceElement {
   font?: string;
   visible: boolean;
   zIndex: number;
+
+  // ARC_PROGRESS specific
+  radius?: number;
+  startAngle?: number;
+  endAngle?: number;
+  lineWidth?: number;
+
+  // TIME_POINTER specific
+  hourHandSrc?: string;
+  minuteHandSrc?: string;
+  secondHandSrc?: string;
+  coverSrc?: string;
+  pointerCenter?: { x: number; y: number };
+  hourPos?: { x: number; y: number };
+  minutePos?: { x: number; y: number };
+  secondPos?: { x: number; y: number };
+
+  // BUTTON specific
+  clickAction?: string;
+  pressSrc?: string;
+  normalSrc?: string;
+
+  // IMG_STATUS specific
+  statusType?: string;
+
+  // TEXT_IMG specific
+  fontArray?: string[];
+  hSpace?: number;
+  alignH?: string;
 }
 
 export interface WatchFaceConfig {

@@ -466,11 +466,35 @@ function generateWidgetCodeV2(element: WatchFaceElement, widgetIndex: number, is
     return '';
   }
   
+  const showLevel = isAod ? 'ONLY_AOD' : 'ONLY_NORMAL';
+  
+  // Dispatch by element type
+  switch (element.type) {
+    case 'ARC_PROGRESS':
+      return generateArcProgressWidget(element, widgetIndex, showLevel);
+    case 'TEXT_IMG':
+      return generateTextImgWidget(element, widgetIndex, showLevel);
+    case 'TIME_POINTER':
+      return generateTimePointerWidget(element, widgetIndex, showLevel);
+    case 'TEXT':
+      return generateTextWidget(element, widgetIndex, showLevel);
+    case 'BUTTON':
+      return generateButtonWidget(element, widgetIndex, showLevel);
+    case 'IMG_STATUS':
+      return generateImgStatusWidget(element, widgetIndex, showLevel);
+    case 'CIRCLE':
+      return generateCircleWidget(element, widgetIndex, showLevel);
+    case 'IMG_LEVEL':
+      return generateImgLevelWidget(element, widgetIndex, showLevel);
+    case 'IMG':
+    default:
+      break;
+  }
+  
   // Handle IMG elements (static images)
   if (element.type === 'IMG' && element.src) {
     const w = element.bounds.width || 50;
     const h = element.bounds.height || 50;
-    const showLevel = isAod ? 'ONLY_AOD' : 'ONLY_NORMAL';
     
     // Regular IMG elements (icons, indicators) - raw coordinates matching reference
     return `
@@ -486,22 +510,262 @@ function generateWidgetCodeV2(element: WatchFaceElement, widgetIndex: number, is
                 });`;
   }
   
-  // Handle IMG_LEVEL elements (level indicators)
-  if (element.type === 'IMG_LEVEL' && element.src) {
-    const showLevel = isAod ? 'ONLY_AOD' : 'ONLY_NORMAL';
-    return `
-                // ${element.name} Level Indicator
+  console.log(`[JSGenV2] No widget code generated for ${element.name} (type: ${element.type})`);
+  return ''; // Skip unsupported types
+}
+
+// ============================================================
+// ARC_PROGRESS - Arc progress indicator (battery, steps, etc.)
+// Pattern from Zepp OS v1.0 docs + ZeppPlayer engine
+// ============================================================
+function generateArcProgressWidget(element: WatchFaceElement, widgetIndex: number, showLevel: string): string {
+  const centerX = element.center?.x ?? (element.bounds.x + (element.bounds.width || 100) / 2);
+  const centerY = element.center?.y ?? (element.bounds.y + (element.bounds.height || 100) / 2);
+  const radius = element.radius ?? Math.min(element.bounds.width || 100, element.bounds.height || 100) / 2;
+  const startAngle = element.startAngle ?? -90;
+  const endAngle = element.endAngle ?? 270;
+  const lineWidth = element.lineWidth ?? 8;
+  const color = element.color ?? '0x00FF00';
+  const colorValue = color.startsWith('0x') ? color : `0x${color.replace('#', '')}`;
+
+  // If dataType is specified, use type for auto-binding
+  const typeParam = element.dataType
+    ? `\n                    type: hmUI.data_type.${element.dataType},`
+    : '';
+
+  return `
+                // ${element.name} - ARC_PROGRESS Widget
+                let widget_${widgetIndex} = hmUI.createWidget(hmUI.widget.ARC_PROGRESS, {
+                    center_x: ${centerX},
+                    center_y: ${centerY},
+                    radius: ${radius},
+                    start_angle: ${startAngle},
+                    end_angle: ${endAngle},
+                    color: ${colorValue},
+                    line_width: ${lineWidth},${typeParam}
+                    level: 50,
+                    show_level: hmUI.show_level.${showLevel}
+                });`;
+}
+
+// ============================================================
+// TEXT_IMG - Number display using image font arrays
+// Pattern from Zepp OS v1.0 docs + ZeppPlayer engine
+// ============================================================
+function generateTextImgWidget(element: WatchFaceElement, widgetIndex: number, showLevel: string): string {
+  // Build font_array from element.fontArray or element.images
+  const fontImages = element.fontArray || element.images || [];
+  let fontArrayStr: string;
+
+  if (fontImages.length > 0) {
+    fontArrayStr = `[${fontImages.map(f => `'${f}'`).join(', ')}]`;
+  } else {
+    // Default: generate 0-9 digit array using element name as prefix
+    const prefix = element.name.toLowerCase().replace(/\s+/g, '_');
+    const arr = [];
+    for (let i = 0; i < 10; i++) {
+      arr.push(`'${prefix}_${i}.png'`);
+    }
+    fontArrayStr = `[${arr.join(', ')}]`;
+  }
+
+  // If dataType is specified, use type for auto-binding (e.g., BATTERY, STEP, HEART)
+  const typeParam = element.dataType
+    ? `\n                    type: hmUI.data_type.${element.dataType},`
+    : '';
+
+  const hSpace = element.hSpace ?? 1;
+  const alignH = element.alignH ?? 'LEFT';
+
+  return `
+                // ${element.name} - TEXT_IMG Widget
+                let widget_${widgetIndex} = hmUI.createWidget(hmUI.widget.TEXT_IMG, {
+                    x: ${element.bounds.x},
+                    y: ${element.bounds.y},
+                    w: ${element.bounds.width || 100},
+                    h: ${element.bounds.height || 40},
+                    font_array: ${fontArrayStr},${typeParam}
+                    h_space: ${hSpace},
+                    align_h: hmUI.align.${alignH},
+                    show_level: hmUI.show_level.${showLevel}
+                });`;
+}
+
+// ============================================================
+// TIME_POINTER - Analog clock hands (hour/minute/second in ONE widget)
+// Pattern from Zepp OS watchface docs + reference watchfaces
+// ============================================================
+function generateTimePointerWidget(element: WatchFaceElement, widgetIndex: number, showLevel: string): string {
+  const centerX = element.center?.x ?? 240;
+  const centerY = element.center?.y ?? 240;
+  const hourPosX = element.hourPos?.x ?? 11;
+  const hourPosY = element.hourPos?.y ?? 70;
+  const minutePosX = element.minutePos?.x ?? 8;
+  const minutePosY = element.minutePos?.y ?? 100;
+  const secondPosX = element.secondPos?.x ?? 3;
+  const secondPosY = element.secondPos?.y ?? 120;
+  const hourSrc = element.hourHandSrc || 'hour_hand.png';
+  const minuteSrc = element.minuteHandSrc || 'minute_hand.png';
+  const secondSrc = element.secondHandSrc || 'second_hand.png';
+  const coverSrc = element.coverSrc;
+
+  let coverParams = '';
+  if (coverSrc) {
+    coverParams = `
+                    hour_cover_path: '${coverSrc}',
+                    hour_cover_x: ${centerX - 15},
+                    hour_cover_y: ${centerY - 15},`;
+  }
+
+  return `
+                // ${element.name} - TIME_POINTER Widget (Analog Clock)
+                let widget_${widgetIndex} = hmUI.createWidget(hmUI.widget.TIME_POINTER, {
+                    hour_centerX: ${centerX},
+                    hour_centerY: ${centerY},
+                    hour_posX: ${hourPosX},
+                    hour_posY: ${hourPosY},
+                    hour_path: '${hourSrc}',${coverParams}
+                    minute_centerX: ${centerX},
+                    minute_centerY: ${centerY},
+                    minute_posX: ${minutePosX},
+                    minute_posY: ${minutePosY},
+                    minute_path: '${minuteSrc}',
+                    second_centerX: ${centerX},
+                    second_centerY: ${centerY},
+                    second_posX: ${secondPosX},
+                    second_posY: ${secondPosY},
+                    second_path: '${secondSrc}',
+                    show_level: hmUI.show_level.${showLevel}
+                });`;
+}
+
+// ============================================================
+// TEXT - Dynamic text display (e.g., city name, sensor values)
+// Pattern from working Brushed Steel reference
+// ============================================================
+function generateTextWidget(element: WatchFaceElement, widgetIndex: number, showLevel: string): string {
+  const textSize = element.fontSize ?? 20;
+  const colorHex = element.color ?? '0xFFFFFFFF';
+  const colorValue = colorHex.startsWith('0x') ? colorHex : `0x${colorHex.replace('#', '')}`;
+  const textContent = element.text ?? '';
+
+  return `
+                // ${element.name} - TEXT Widget
+                let widget_${widgetIndex} = hmUI.createWidget(hmUI.widget.TEXT, {
+                    x: ${element.bounds.x},
+                    y: ${element.bounds.y},
+                    w: ${element.bounds.width || 100},
+                    h: ${element.bounds.height || 40},
+                    text_size: ${textSize},
+                    char_space: 0,
+                    color: ${colorValue},
+                    line_space: 0,
+                    align_v: hmUI.align.CENTER_V,
+                    text_style: hmUI.text_style.ELLIPSIS,
+                    align_h: hmUI.align.CENTER_H,
+                    text: '${textContent}',
+                    show_level: hmUI.show_level.${showLevel}
+                });`;
+}
+
+// ============================================================
+// BUTTON - Clickable shortcut button (launches app)
+// Pattern from working Brushed Steel reference
+// ============================================================
+function generateButtonWidget(element: WatchFaceElement, widgetIndex: number, showLevel: string): string {
+  const normalSrc = element.normalSrc || element.src || 'trasparente.png';
+  const pressSrc = element.pressSrc || normalSrc;
+  const clickAction = element.clickAction || '';
+
+  // Build click_func - either launch a native app or empty
+  let clickFunc: string;
+  if (clickAction) {
+    clickFunc = `() => {
+                hmApp.startApp({ url: '${clickAction}', native: true })
+                              }`;
+  } else {
+    clickFunc = `() => {}`;
+  }
+
+  return `
+                // ${element.name} - BUTTON Widget
+                let widget_${widgetIndex} = hmUI.createWidget(hmUI.widget.BUTTON, {
+                    x: ${element.bounds.x},
+                    y: ${element.bounds.y},
+                    w: ${element.bounds.width || 100},
+                    h: ${element.bounds.height || 35},
+                    text: '',
+                    press_src: '${pressSrc}',
+                    normal_src: '${normalSrc}',
+                    click_func: ${clickFunc},
+                    show_level: hmUI.show_level.${showLevel}
+                });`;
+}
+
+// ============================================================
+// IMG_STATUS - System status indicators (bluetooth, DND, lock)
+// Pattern from working Brushed Steel reference
+// ============================================================
+function generateImgStatusWidget(element: WatchFaceElement, widgetIndex: number, showLevel: string): string {
+  const statusType = element.statusType || 'DISCONNECT';
+  const src = element.src || 'bluetooth_5_b_30x30.png';
+
+  return `
+                // ${element.name} - IMG_STATUS Widget
+                let widget_${widgetIndex} = hmUI.createWidget(hmUI.widget.IMG_STATUS, {
+                    x: ${element.bounds.x},
+                    y: ${element.bounds.y},
+                    src: '${src}',
+                    type: hmUI.system_status.${statusType},
+                    show_level: hmUI.show_level.${showLevel}
+                });`;
+}
+
+// ============================================================
+// CIRCLE - Simple filled/stroked circle
+// Pattern from Zepp OS v1.0 docs
+// ============================================================
+function generateCircleWidget(element: WatchFaceElement, widgetIndex: number, showLevel: string): string {
+  const centerX = element.center?.x ?? (element.bounds.x + (element.bounds.width || 50) / 2);
+  const centerY = element.center?.y ?? (element.bounds.y + (element.bounds.height || 50) / 2);
+  const radius = element.radius ?? Math.min(element.bounds.width || 50, element.bounds.height || 50) / 2;
+  const colorHex = element.color ?? '0xFFFFFF';
+  const colorValue = colorHex.startsWith('0x') ? colorHex : `0x${colorHex.replace('#', '')}`;
+
+  return `
+                // ${element.name} - CIRCLE Widget
+                let widget_${widgetIndex} = hmUI.createWidget(hmUI.widget.CIRCLE, {
+                    center_x: ${centerX},
+                    center_y: ${centerY},
+                    radius: ${radius},
+                    color: ${colorValue},
+                    show_level: hmUI.show_level.${showLevel}
+                });`;
+}
+
+// ============================================================
+// IMG_LEVEL - Level-based image display (weather icons, etc.)
+// Pattern from working Brushed Steel reference (with data_type)
+// ============================================================
+function generateImgLevelWidget(element: WatchFaceElement, widgetIndex: number, showLevel: string): string {
+  // Build image_array from element.images or single element.src
+  const images = element.images || (element.src ? [element.src] : []);
+  const imageArrayStr = `[${images.map(img => `"${img}"`).join(', ')}]`;
+
+  // If dataType is specified, use type for auto-binding
+  const typeParam = element.dataType
+    ? `\n                    type: hmUI.data_type.${element.dataType},`
+    : '';
+
+  return `
+                // ${element.name} - IMG_LEVEL Widget
                 let widget_${widgetIndex} = hmUI.createWidget(hmUI.widget.IMG_LEVEL, {
                     x: ${element.bounds.x},
                     y: ${element.bounds.y},
-                    image_array: ['${element.src}'],
-                    image_length: 1,
+                    image_array: ${imageArrayStr},
+                    image_length: ${images.length},${typeParam}
                     show_level: hmUI.show_level.${showLevel}
                 });`;
-  }
-  
-  console.log(`[JSGenV2] No widget code generated for ${element.name} (type: ${element.type})`);
-  return ''; // Skip unsupported types
 }
 
 // Generate unique app ID
