@@ -102,7 +102,7 @@ function getDeviceSourcesV2(watchModel: string): number[] {
   return sources[watchModel] || [8519936, 8519937, 8519939];
 }
 
-// Generate app.js - V2 format (minimal, from brushed_steel reference)
+// Generate app.js - V2 format (EXACT copy of working reference app.js)
 function generateAppJsV2(config: WatchFaceConfig): string {
   return `try {
     (() => {
@@ -154,21 +154,55 @@ function generateAppJsV2(config: WatchFaceConfig): string {
         }
         let globalNS = getGlobal();
         if (typeof setTimeout === 'undefined' && isHmTimerDefined()) {
-            globalNS.setTimeout = timer.setTimeout;
+            globalNS.clearTimeout = function clearTimeout(timerRef) {
+                timerRef && timer.stopTimer(timerRef);
+            };
+            globalNS.setTimeout = function setTimeout2(func, ns) {
+                const timer1 = timer.createTimer(ns || 1, Number.MAX_SAFE_INTEGER, function () {
+                    globalNS.clearTimeout(timer1);
+                    func && func();
+                }, {});
+                return timer1;
+            };
+            globalNS.clearImmediate = function clearImmediate(timerRef) {
+                timerRef && timer.stopTimer(timerRef);
+            };
+            globalNS.setImmediate = function setImmediate(func) {
+                const timer1 = timer.createTimer(1, Number.MAX_SAFE_INTEGER, function () {
+                    globalNS.clearImmediate(timer1);
+                    func && func();
+                }, {});
+                return timer1;
+            };
+            globalNS.clearInterval = function clearInterval(timerRef) {
+                timerRef && timer.stopTimer(timerRef);
+            };
+            globalNS.setInterval = function setInterval(func, ms) {
+                const timer1 = timer.createTimer(1, ms, function () {
+                    func && func();
+                }, {});
+                return timer1;
+            };
         }
-        if (typeof setInterval === 'undefined' && isHmTimerDefined()) {
-            globalNS.setInterval = timer.setInterval;
-        }
-        if (typeof clearTimeout === 'undefined' && isHmTimerDefined()) {
-            globalNS.clearTimeout = timer.clearTimeout;
-        }
-        if (typeof clearInterval === 'undefined' && isHmTimerDefined()) {
-            globalNS.clearInterval = timer.clearInterval;
-        }
-        let __$$module$$__ = __$$app$$__.current;
+        __$$app$$__.app = DeviceRuntimeCore.App({
+            globalData: {},
+            onCreate(options) {
+            },
+            onDestroy(options) {
+            },
+            onError(error) {
+            },
+            onPageNotFound(obj) {
+            },
+            onUnhandledRejection(obj) {
+            }
+        });
+        ;
     })();
 } catch (e) {
-    console.log(e);
+    console.log('Mini Program Error', e);
+    e && e.stack && e.stack.split(/\\n/).forEach(i => console.log('error stack', i));
+    ;
 }`;
 }
 
@@ -300,31 +334,39 @@ ${normalWidgetsCode}
                 // ========== AOD MODE WIDGETS ==========
 ${aodWidgetsCode}
 
-                // Widget delegate for lifecycle management
+                // Widget delegate for lifecycle management (matches working reference)
                 const widgetDelegate = hmUI.createWidget(hmUI.widget.WIDGET_DELEGATE, {
                     resume_call() {
-                        logger.log('watchface resumed');
+                        console.log('resume_call()');
+                        let tipoSchermo = hmSetting.getScreenType();
+                        if (tipoSchermo === hmSetting.screen_type.WATCHFACE) {
+                            // NORMAL MODE updates
+                        } else if (tipoSchermo === hmSetting.screen_type.AOD) {
+                            // AOD MODE updates
+                        }
                     },
                     pause_call() {
-                        logger.log('watchface paused');
+                        console.log('pause_call()');
                     }
                 });
             },
             onInit() {
-                logger.log('Watchface initialized');
+                logger.log('index page.js on init invoke');
             },
             build() {
                 this.init_view();
-                logger.log('Watchface built and displayed');
+                logger.log('index page.js on ready invoke');
             },
             onDestroy() {
-                logger.log('Watchface destroyed, cleaning up');
+                logger.log('index page.js on destroy invoke');
             }
         });
+        ;
     })();
 } catch (e) {
-    console.log('Watchface Error', e);
+    console.log('Mini Program Error', e);
     e && e.stack && e.stack.split(/\\n/).forEach(i => console.log('error stack', i));
+    ;
 }`;
   
   return finalCode;
@@ -383,6 +425,7 @@ function generateIMGDateWidget(element: WatchFaceElement, widgetIndex: number, s
                     day_zero: 1,
                     day_space: 0,
                     day_align: hmUI.align.LEFT,
+                    day_is_character: false,
                     show_level: hmUI.show_level.${showLevel}
                 });`;
 }

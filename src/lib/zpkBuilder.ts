@@ -20,9 +20,32 @@ export async function buildZPK(options: ZPKBuildOptions): Promise<ZPKBuildResult
   const { config, backgroundFile } = options;
   
   try {
-    // Generate JavaScript code - elements already have correct filenames from mock
+    // Build a set of asset filenames from elementFiles for restoring data URLs
+    const assetFilenames = new Set(options.elementFiles.map(ef => ef.src));
+    
+    // Elements may have data URLs (from preview rendering) instead of filenames.
+    // Restore original filenames by matching element names to asset files.
+    const fixedElements = config.elements.map(el => {
+      if (el.src && el.src.startsWith('data:')) {
+        // Find the matching asset file by element name pattern
+        const name = el.name.toLowerCase();
+        for (const filename of assetFilenames) {
+          const fn = filename.toLowerCase();
+          if (name.includes('battery') && fn.includes('batt')) return { ...el, src: filename };
+          if (name.includes('heart') && fn.includes('heart')) return { ...el, src: filename };
+          if (name.includes('steps') && fn.includes('step')) return { ...el, src: filename };
+          if (name.includes('arc') && fn.includes('arc')) return { ...el, src: filename };
+          if (name.includes('background') && fn.includes('background')) return { ...el, src: filename };
+        }
+        console.warn('[ZPK] Could not restore filename for element:', el.name);
+      }
+      return el;
+    });
+    
+    const fixedConfig = { ...config, elements: fixedElements };
+    
     console.log('[ZPK] Step 1: Generating JS code...');
-    const code = generateWatchFaceCode(config);
+    const code = generateWatchFaceCode(fixedConfig);
     console.log('[ZPK] Step 2: JS code generated, app.json length:', code.appJson.length);
     
     // Create device.zip
