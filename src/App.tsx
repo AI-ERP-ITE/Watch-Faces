@@ -52,7 +52,7 @@ async function mockKimiAnalysis(
   const resolution = resolutions[watchModel] || { width: 466, height: 466 };
 
   // Generate mock elements - Based on Brushed Steel reference (working watchface)
-  // Simplified for V2 format compatibility
+  // Uses ALL supported widget types for V2 format
   const elements: WatchFaceElement[] = [
     // Background element (always first, full screen)
     {
@@ -94,45 +94,135 @@ async function mockKimiAnalysis(
       visible: true,
       zIndex: 5,
     },
-    // Battery icon
+    // Battery arc progress indicator (ARC_PROGRESS widget)
     {
       id: generateId(),
-      type: 'IMG',
-      name: 'Battery',
-      bounds: { x: 189, y: 98, width: 33, height: 57 },
-      src: 'batt_1_33x57_h135s21b101.png',
+      type: 'ARC_PROGRESS',
+      name: 'Battery Arc',
+      bounds: { x: 160, y: 50, width: 160, height: 160 },
+      center: { x: 240, y: 130 },
+      radius: 70,
+      startAngle: -90,
+      endAngle: 270,
+      lineWidth: 8,
+      color: '0x00CC88',
+      dataType: 'BATTERY',
       visible: true,
       zIndex: 5,
     },
-    // Heart rate icon
+    // Battery value display (TEXT_IMG widget)
     {
       id: generateId(),
-      type: 'IMG',
-      name: 'Heart Rate',
-      bounds: { x: 225, y: 176, width: 20, height: 20 },
-      src: 'heart_4_20x20_h108s16b123.png',
+      type: 'TEXT_IMG',
+      name: 'Battery Value',
+      bounds: { x: 215, y: 118, width: 50, height: 25 },
+      fontArray: ['batt_digit_0.png', 'batt_digit_1.png', 'batt_digit_2.png', 'batt_digit_3.png', 'batt_digit_4.png', 'batt_digit_5.png', 'batt_digit_6.png', 'batt_digit_7.png', 'batt_digit_8.png', 'batt_digit_9.png'],
+      dataType: 'BATTERY',
+      hSpace: 1,
+      alignH: 'CENTER_H',
       visible: true,
-      zIndex: 5,
+      zIndex: 6,
     },
-    // Steps icon
+    // Heart rate value display (TEXT_IMG widget)
     {
       id: generateId(),
-      type: 'IMG',
-      name: 'Steps',
-      bounds: { x: 241, y: 223, width: 29, height: 30 },
-      src: 'step_12_29x30.png',
+      type: 'TEXT_IMG',
+      name: 'Heart Rate Value',
+      bounds: { x: 150, y: 350, width: 80, height: 30 },
+      fontArray: ['heart_digit_0.png', 'heart_digit_1.png', 'heart_digit_2.png', 'heart_digit_3.png', 'heart_digit_4.png', 'heart_digit_5.png', 'heart_digit_6.png', 'heart_digit_7.png', 'heart_digit_8.png', 'heart_digit_9.png'],
+      dataType: 'HEART',
+      hSpace: 1,
+      alignH: 'CENTER_H',
       visible: true,
-      zIndex: 5,
+      zIndex: 6,
     },
-    // Activity/Arc indicator
+    // Steps value display (TEXT_IMG widget)
     {
       id: generateId(),
-      type: 'IMG',
+      type: 'TEXT_IMG',
+      name: 'Steps Value',
+      bounds: { x: 300, y: 350, width: 80, height: 30 },
+      fontArray: ['step_digit_0.png', 'step_digit_1.png', 'step_digit_2.png', 'step_digit_3.png', 'step_digit_4.png', 'step_digit_5.png', 'step_digit_6.png', 'step_digit_7.png', 'step_digit_8.png', 'step_digit_9.png'],
+      dataType: 'STEP',
+      hSpace: 1,
+      alignH: 'CENTER_H',
+      visible: true,
+      zIndex: 6,
+    },
+    // Activity arc progress (ARC_PROGRESS widget)
+    {
+      id: generateId(),
+      type: 'ARC_PROGRESS',
       name: 'Activity Arc',
-      bounds: { x: 226, y: 280, width: 25, height: 25 },
-      src: 'arc_25x25_h114s26b120.png',
+      bounds: { x: 140, y: 280, width: 200, height: 200 },
+      center: { x: 240, y: 380 },
+      radius: 50,
+      startAngle: -120,
+      endAngle: 120,
+      lineWidth: 6,
+      color: '0xFF6B6B',
+      dataType: 'STEP',
       visible: true,
       zIndex: 5,
+    },
+    // Bluetooth status indicator (IMG_STATUS widget)
+    {
+      id: generateId(),
+      type: 'IMG_STATUS',
+      name: 'Bluetooth Status',
+      bounds: { x: 225, y: 420, width: 30, height: 30 },
+      src: 'bluetooth_30x30.png',
+      statusType: 'DISCONNECT',
+      visible: true,
+      zIndex: 6,
+    },
+    // Battery shortcut button (BUTTON widget)
+    {
+      id: generateId(),
+      type: 'BUTTON',
+      name: 'Battery Shortcut',
+      bounds: { x: 190, y: 60, width: 100, height: 100 },
+      normalSrc: 'trasparente.png',
+      pressSrc: 'trasparente.png',
+      clickAction: 'Settings_batteryManagerScreen',
+      visible: true,
+      zIndex: 10,
+    },
+    // Heart shortcut button (BUTTON widget)
+    {
+      id: generateId(),
+      type: 'BUTTON',
+      name: 'Heart Shortcut',
+      bounds: { x: 120, y: 320, width: 90, height: 90 },
+      normalSrc: 'trasparente.png',
+      pressSrc: 'trasparente.png',
+      clickAction: 'heart_app_Screen',
+      visible: true,
+      zIndex: 10,
+    },
+    // Activity shortcut button (BUTTON widget)
+    {
+      id: generateId(),
+      type: 'BUTTON',
+      name: 'Activity Shortcut',
+      bounds: { x: 270, y: 320, width: 90, height: 90 },
+      normalSrc: 'trasparente.png',
+      pressSrc: 'trasparente.png',
+      clickAction: 'activityAppScreen',
+      visible: true,
+      zIndex: 10,
+    },
+    // City name text display (TEXT widget)
+    {
+      id: generateId(),
+      type: 'TEXT',
+      name: 'City Name',
+      bounds: { x: 170, y: 445, width: 140, height: 25 },
+      text: '',
+      fontSize: 18,
+      color: '0xCCCCCCFF',
+      visible: true,
+      zIndex: 6,
     },
   ];
 
@@ -212,76 +302,118 @@ async function mockKimiAnalysis(
     });
   }
   
-  // Generate static element images (Battery, Heart, Steps, Arc, Background)
+  // Generate BATTERY digit images (0-9) - used by TEXT_IMG for battery %
+  const battDigitSize = { w: 16, h: 25 };
+  for (let i = 0; i < 10; i++) {
+    const filename = `batt_digit_${i}.png`;
+    const dataUrl = createCanvasImage(battDigitSize.w, battDigitSize.h, (ctx, w, h) => {
+      drawDigit(ctx, w, h, String(i), '#00CC88');
+    });
+    elementImages.push({
+      name: filename,
+      dataUrl,
+      bounds: { x: 0, y: 0, width: battDigitSize.w, height: battDigitSize.h },
+      type: 'TEXT_IMG',
+    });
+  }
+
+  // Generate HEART RATE digit images (0-9) - used by TEXT_IMG
+  const heartDigitSize = { w: 18, h: 30 };
+  for (let i = 0; i < 10; i++) {
+    const filename = `heart_digit_${i}.png`;
+    const dataUrl = createCanvasImage(heartDigitSize.w, heartDigitSize.h, (ctx, w, h) => {
+      drawDigit(ctx, w, h, String(i), '#FF6B6B');
+    });
+    elementImages.push({
+      name: filename,
+      dataUrl,
+      bounds: { x: 0, y: 0, width: heartDigitSize.w, height: heartDigitSize.h },
+      type: 'TEXT_IMG',
+    });
+  }
+
+  // Generate STEPS digit images (0-9) - used by TEXT_IMG
+  const stepDigitSize = { w: 18, h: 30 };
+  for (let i = 0; i < 10; i++) {
+    const filename = `step_digit_${i}.png`;
+    const dataUrl = createCanvasImage(stepDigitSize.w, stepDigitSize.h, (ctx, w, h) => {
+      drawDigit(ctx, w, h, String(i), '#FFD93D');
+    });
+    elementImages.push({
+      name: filename,
+      dataUrl,
+      bounds: { x: 0, y: 0, width: stepDigitSize.w, height: stepDigitSize.h },
+      type: 'TEXT_IMG',
+    });
+  }
+
+  // Generate bluetooth icon for IMG_STATUS
+  const btSize = 30;
+  const btDataUrl = createCanvasImage(btSize, btSize, (ctx, w) => {
+    ctx.strokeStyle = '#4488FF';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(w * 0.35, w * 0.2);
+    ctx.lineTo(w * 0.65, w * 0.4);
+    ctx.lineTo(w * 0.5, w * 0.5);
+    ctx.lineTo(w * 0.65, w * 0.6);
+    ctx.lineTo(w * 0.35, w * 0.8);
+    ctx.moveTo(w * 0.5, w * 0.2);
+    ctx.lineTo(w * 0.5, w * 0.8);
+    ctx.stroke();
+  });
+  elementImages.push({
+    name: 'bluetooth_30x30.png',
+    dataUrl: btDataUrl,
+    bounds: { x: 0, y: 0, width: btSize, height: btSize },
+    type: 'IMG_STATUS',
+  });
+
+  // Generate transparent button image (1x1 transparent PNG)
+  const transpDataUrl = createCanvasImage(1, 1, () => {
+    // Transparent - no drawing needed
+  });
+  elementImages.push({
+    name: 'trasparente.png',
+    dataUrl: transpDataUrl,
+    bounds: { x: 0, y: 0, width: 1, height: 1 },
+    type: 'BUTTON',
+  });
+
+  // Generate background image for Background element
+  const bgDataUrl = createCanvasImage(480, 480, (ctx, w, h) => {
+    ctx.fillStyle = '#333333';
+    ctx.fillRect(0, 0, w, h);
+  });
+  elementImages.push({
+    name: 'background_ed15585c.png',
+    dataUrl: bgDataUrl,
+    bounds: { x: 0, y: 0, width: 480, height: 480 },
+    type: 'IMG',
+  });
+  // Update Background element src for preview rendering
+  const bgElement = elements.find(el => el.name === 'Background');
+  if (bgElement) bgElement.src = bgDataUrl;
+
+  // Generate static images for any remaining IMG-type elements with src
   elements
-    .filter((el) => el.src && !el.name.toLowerCase().includes('time') && !el.name.toLowerCase().includes('weekday') && !el.name.toLowerCase().includes('date'))
+    .filter((el) => el.type === 'IMG' && el.src && el.name !== 'Background' && !el.name.toLowerCase().includes('time') && !el.name.toLowerCase().includes('weekday') && !el.name.toLowerCase().includes('date'))
     .forEach((el) => {
-      console.log('[Mock] Creating canvas for element:', el.name, 'bounds:', el.bounds);
-      
-      const minSize = 200;
       const canvas = document.createElement('canvas');
-      canvas.width = Math.max(el.bounds.width || 100, minSize);
-      canvas.height = Math.max(el.bounds.height || 100, minSize);
-      
+      canvas.width = Math.max(el.bounds.width || 100, 200);
+      canvas.height = Math.max(el.bounds.height || 100, 200);
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        const elementName = el.name.toLowerCase();
-        
-        if (elementName.includes('battery')) {
-          ctx.fillStyle = '#4ECDC4';
-          ctx.fillRect(canvas.width * 0.2, canvas.height * 0.1, canvas.width * 0.6, canvas.height * 0.7);
-          ctx.strokeStyle = '#2C9A8F';
-          ctx.lineWidth = 2;
-          ctx.strokeRect(canvas.width * 0.2, canvas.height * 0.1, canvas.width * 0.6, canvas.height * 0.7);
-          ctx.fillStyle = '#2C9A8F';
-          ctx.fillRect(canvas.width * 0.35, canvas.height * 0.85, canvas.width * 0.3, canvas.height * 0.1);
-        } else if (elementName.includes('heart')) {
-          ctx.fillStyle = '#FF6B6B';
-          ctx.beginPath();
-          const x = canvas.width / 2;
-          const y = canvas.height / 2;
-          const size = Math.min(canvas.width, canvas.height) * 0.3;
-          ctx.moveTo(x, y + size);
-          ctx.bezierCurveTo(x - size, y + size * 0.3, x - size * 1.5, y - size * 0.5, x - size * 0.5, y - size * 0.5);
-          ctx.bezierCurveTo(x - size * 1.2, y - size * 0.8, x + size * 0.5, y - size * 1.2, x + size * 0.5, y - size * 0.5);
-          ctx.bezierCurveTo(x + size * 1.5, y - size * 0.5, x + size, y + size * 0.3, x, y + size);
-          ctx.fill();
-        } else if (elementName.includes('steps') || elementName.includes('activity')) {
-          ctx.strokeStyle = '#FFD93D';
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.moveTo(canvas.width * 0.2, canvas.height * 0.8);
-          ctx.lineTo(canvas.width * 0.35, canvas.height * 0.4);
-          ctx.lineTo(canvas.width * 0.5, canvas.height * 0.6);
-          ctx.lineTo(canvas.width * 0.65, canvas.height * 0.2);
-          ctx.lineTo(canvas.width * 0.8, canvas.height * 0.8);
-          ctx.stroke();
-        } else if (elementName.includes('arc')) {
-          ctx.fillStyle = '#6BCB77';
-          ctx.beginPath();
-          ctx.arc(canvas.width / 2, canvas.height / 2, Math.min(canvas.width, canvas.height) * 0.3, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.strokeStyle = '#4CAF50';
-          ctx.lineWidth = 2;
-          ctx.stroke();
-        } else {
-          // Background or generic
-          ctx.fillStyle = el.color || '#333333';
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-        }
+        ctx.fillStyle = el.color || '#555555';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
       }
-      
       const dataUrl = canvas.toDataURL('image/png');
-      const originalFilename = el.src!;
       elementImages.push({
-        name: originalFilename,
+        name: el.src!,
         dataUrl,
         bounds: el.bounds,
         type: el.type,
       });
-      
-      // Update element to use dataURL for preview rendering
       el.src = dataUrl;
     });
   

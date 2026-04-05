@@ -270,6 +270,10 @@ function generateWatchfaceIndexJsV2(config: WatchFaceConfig): string {
     if (element.name.toLowerCase().includes('time') || element.name.toLowerCase().includes('date') || element.name.toLowerCase().includes('week')) {
       continue;
     }
+    // Skip BUTTON in AOD mode - no touch interaction on AOD screen
+    if (element.type === 'BUTTON') {
+      continue;
+    }
     const code = generateWidgetCodeV2(element, aodWidgetCounter, true);
     if (code) {
       aodWidgetsCode += code;
