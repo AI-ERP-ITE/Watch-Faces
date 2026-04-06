@@ -18,7 +18,7 @@ import { buildZPK } from '@/lib/zpkBuilder';
 import { uploadZPKWithQR } from '@/lib/githubApi';
 import { generateQRCode } from '@/lib/qrGenerator';
 import { analyzeWatchfaceImage, testApiKey, type AIProvider, type AIServiceConfig } from '@/lib/aiService';
-import { generateAssets } from '@/lib/assetGenerator';
+import { expandAnalysisToElements } from '@/lib/assetGenerator';
 import type { WatchFaceConfig, WatchFaceElement, ElementImage } from '@/types';
 import { generateId } from '@/lib/utils';
 
@@ -1013,15 +1013,12 @@ function App() {
         const analysis = await analyzeWatchfaceImage(aiConfig, state.fullDesignFile!);
         
         console.log('[App] AI analysis result:', analysis.designDescription);
-        console.log('[App] Detected elements:', analysis.elements.length);
-        console.log('[App] Complications:', analysis.detectedComplications);
+        console.log('[App] Complications:', analysis.complications.length);
 
-        // Generate image assets based on analysis
-        dispatch(actions.setLoadingMessage('Generating image assets...'));
-        elementImages = await generateAssets(
-          analysis,
-          state.fullDesignFile!,
-        );
+        // Expand simplified AI analysis into full elements + Canvas-drawn assets
+        dispatch(actions.setLoadingMessage('Generating elements and assets...'));
+        const expanded = expandAnalysisToElements(analysis);
+        elementImages = expanded.images;
 
         // Parse resolution from watch model
         const resolutions: Record<string, { width: number; height: number }> = {
@@ -1041,16 +1038,11 @@ function App() {
         };
         const resolution = resolutions[watchModel] || { width: 480, height: 480 };
 
-        // Filter out any Background element the AI may have created — we handle it directly
-        const filteredElements = analysis.elements.filter(
-          el => el.name !== 'Background' && !(el.type === 'IMG' && el.bounds.x === 0 && el.bounds.y === 0 && el.bounds.width >= 470 && el.bounds.height >= 470)
-        );
-
         config = {
           name: `AI_WatchFace_${Date.now()}`,
           resolution,
           background: { src: 'background.png', format: 'TGA-P' },
-          elements: filteredElements,
+          elements: expanded.elements,
           watchModel,
         };
       }

@@ -2,7 +2,6 @@
 // Analyzes watchface images and returns WatchFaceElement[] for the V2 generator
 
 import { WATCHFACE_SYSTEM_PROMPT, WATCHFACE_USER_PROMPT, type WatchfaceAnalysisResult } from './watchfacePrompt';
-import type { WatchFaceElement } from '../types';
 
 export type AIProvider = 'gemini' | 'openai';
 
@@ -159,143 +158,42 @@ function parseAIResponse(rawText: string): WatchfaceAnalysisResult {
     // Try to recover truncated JSON by closing open arrays/objects
     let fixed = text;
     try {
-      // Find last complete object (ends with })
       const lastCompleteObj = fixed.lastIndexOf('}');
       if (lastCompleteObj > 0) {
         fixed = fixed.slice(0, lastCompleteObj + 1);
-        // Remove any trailing commas before we close brackets
         fixed = fixed.replace(/,\s*$/, '');
-        // Count unclosed brackets and close them in correct order
         const stack: string[] = [];
         for (const ch of fixed) {
           if (ch === '{') stack.push('}');
           else if (ch === '[') stack.push(']');
           else if (ch === '}' || ch === ']') stack.pop();
         }
-        // Close in reverse order (innermost first)
         fixed += stack.reverse().join('');
       }
       parsed = JSON.parse(fixed);
-      console.warn('[AI] Recovered truncated JSON response, elements:', (parsed.elements as unknown[])?.length);
+      console.warn('[AI] Recovered truncated JSON response');
     } catch (e2) {
       throw new Error(`Failed to parse AI response as JSON. Recovery also failed: ${(e2 as Error).message}. Raw response: ${text.slice(0, 500)}`);
     }
   }
 
-  if (!parsed.elements || !Array.isArray(parsed.elements)) {
-    throw new Error('AI response missing "elements" array');
+  // Validate required fields for the simplified analysis format
+  if (!parsed.time || typeof parsed.time !== 'object') {
+    throw new Error('AI response missing "time" object');
   }
 
-  // Validate and fix elements
-  const elements: WatchFaceElement[] = (parsed.elements as Record<string, unknown>[]).map((el, i) => 
-    validateElement(el, i)
-  );
+  const complications = Array.isArray(parsed.complications) ? parsed.complications : [];
 
   return {
-    elements,
     designDescription: (parsed.designDescription as string) || 'Watchface design',
-    dominantColors: (parsed.dominantColors as string[]) || ['#FFFFFF', '#000000'],
-    hasAnalogHands: (parsed.hasAnalogHands as boolean) ?? false,
-    hasDigitalTime: (parsed.hasDigitalTime as boolean) ?? false,
-    detectedComplications: (parsed.detectedComplications as string[]) || [],
+    dominantColors: Array.isArray(parsed.dominantColors) ? (parsed.dominantColors as string[]) : ['#FFFFFF', '#000000'],
+    time: parsed.time as WatchfaceAnalysisResult['time'],
+    date: parsed.date as WatchfaceAnalysisResult['date'],
+    month: parsed.month as WatchfaceAnalysisResult['month'],
+    weekday: parsed.weekday as WatchfaceAnalysisResult['weekday'],
+    complications: complications as WatchfaceAnalysisResult['complications'],
+    statusIcons: Array.isArray(parsed.statusIcons) ? (parsed.statusIcons as WatchfaceAnalysisResult['statusIcons']) : undefined,
   };
-}
-
-// Validate a single element from AI output, fixing common issues
-function validateElement(raw: Record<string, unknown>, index: number): WatchFaceElement {
-  const validTypes = ['TIME_POINTER', 'IMG_LEVEL', 'TEXT', 'IMG', 'ARC_PROGRESS', 'CIRCLE', 'TEXT_IMG', 'BUTTON', 'IMG_STATUS'] as const;
-  
-  const type = validTypes.includes(raw.type as typeof validTypes[number]) 
-    ? (raw.type as typeof validTypes[number])
-    : 'IMG';
-  
-  const bounds = raw.bounds as { x?: number; y?: number; width?: number; height?: number } || {};
-
-  const element: WatchFaceElement = {
-    id: (raw.id as string) || `el_${index + 1}`,
-    type,
-    name: (raw.name as string) || `Element ${index + 1}`,
-    bounds: {
-      x: clamp(bounds.x ?? 0, 0, 480),
-      y: clamp(bounds.y ?? 0, 0, 480),
-      width: clamp(bounds.width ?? 50, 1, 480),
-      height: clamp(bounds.height ?? 50, 1, 480),
-    },
-    visible: true,
-    zIndex: (raw.zIndex as number) ?? index,
-  };
-
-  // Copy optional fields based on type
-  if (raw.src) element.src = raw.src as string;
-  if (raw.color) element.color = raw.color as string;
-  if (raw.dataType) element.dataType = raw.dataType as string;
-  if (raw.text !== undefined) element.text = raw.text as string;
-  if (raw.fontSize) element.fontSize = raw.fontSize as number;
-
-  // TIME_POINTER
-  if (type === 'TIME_POINTER') {
-    const center = raw.center as { x?: number; y?: number };
-    element.center = { x: center?.x ?? 240, y: center?.y ?? 240 };
-    element.hourHandSrc = (raw.hourHandSrc as string) || 'hour_hand.png';
-    element.minuteHandSrc = (raw.minuteHandSrc as string) || 'minute_hand.png';
-    element.secondHandSrc = (raw.secondHandSrc as string) || 'second_hand.png';
-    element.coverSrc = (raw.coverSrc as string) || 'hand_cover.png';
-    element.hourPos = asXY(raw.hourPos, 11, 70);
-    element.minutePos = asXY(raw.minutePos, 8, 100);
-    element.secondPos = asXY(raw.secondPos, 3, 120);
-  }
-
-  // ARC_PROGRESS
-  if (type === 'ARC_PROGRESS') {
-    const center = raw.center as { x?: number; y?: number };
-    element.center = { x: center?.x ?? 240, y: center?.y ?? 240 };
-    element.radius = (raw.radius as number) || 40;
-    element.startAngle = (raw.startAngle as number) ?? -90;
-    element.endAngle = (raw.endAngle as number) ?? 270;
-    element.lineWidth = (raw.lineWidth as number) || 6;
-  }
-
-  // TEXT_IMG
-  if (type === 'TEXT_IMG') {
-    element.fontArray = (raw.fontArray as string[]) || [];
-    element.hSpace = (raw.hSpace as number) ?? 1;
-    element.alignH = (raw.alignH as string) || 'CENTER_H';
-  }
-
-  // BUTTON
-  if (type === 'BUTTON') {
-    element.normalSrc = (raw.normalSrc as string) || 'trasparente.png';
-    element.pressSrc = (raw.pressSrc as string) || 'trasparente.png';
-    element.clickAction = (raw.clickAction as string) || '';
-  }
-
-  // IMG_STATUS
-  if (type === 'IMG_STATUS') {
-    element.statusType = (raw.statusType as string) || 'DISCONNECT';
-  }
-
-  // CIRCLE
-  if (type === 'CIRCLE') {
-    const center = raw.center as { x?: number; y?: number };
-    element.center = { x: center?.x ?? 240, y: center?.y ?? 240 };
-    element.radius = (raw.radius as number) || 50;
-  }
-
-  // IMG_LEVEL
-  if (type === 'IMG_LEVEL') {
-    element.images = (raw.images as string[]) || [];
-  }
-
-  return element;
-}
-
-function clamp(val: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, val));
-}
-
-function asXY(val: unknown, defaultX: number, defaultY: number): { x: number; y: number } {
-  const obj = val as { x?: number; y?: number } | undefined;
-  return { x: obj?.x ?? defaultX, y: obj?.y ?? defaultY };
 }
 
 // ==================== PUBLIC API ====================
