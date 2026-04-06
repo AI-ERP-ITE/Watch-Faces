@@ -68,7 +68,12 @@ export function applyLayout(elements: NormalizedElement[]): LayoutElement[] {
     if (el.widget === 'ARC_PROGRESS' || el.widget === 'TIME_POINTER' || el.widget === 'IMG_TIME') {
       continue; // already handled
     }
-    peripheralBuckets[el.region].push(el);
+    // IMG_LEVEL (weather) at center overlaps arc rings — push to bottom
+    if (el.widget === 'IMG_LEVEL' && el.region === 'center') {
+      peripheralBuckets['bottom'].push(el);
+    } else {
+      peripheralBuckets[el.region].push(el);
+    }
   }
 
   for (const region of Object.keys(peripheralBuckets) as Region[]) {

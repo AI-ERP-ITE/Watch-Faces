@@ -113,7 +113,7 @@ function resolvedToWatchFaceElement(el: ResolvedElement, idx: number): WatchFace
     base.endAngle = el.endAngle;
     base.lineWidth = el.lineWidth;
     base.dataType = el.dataType;
-    base.color = '0x00FF00';
+    base.color = ARC_COLORS[el.dataType || ''] || '0x00FF00';
   }
 
   // TEXT_IMG specifics
@@ -162,6 +162,17 @@ function resolvedToWatchFaceElement(el: ResolvedElement, idx: number): WatchFace
 
   return base;
 }
+
+// ─── Per-data-type arc colors (hex for Zepp OS) ────────────────────────────────
+
+const ARC_COLORS: Record<string, string> = {
+  BATTERY:  '0x00CC88',
+  STEP:     '0xFFD93D',
+  HEART:    '0xFF6B6B',
+  SPO2:     '0xEE5A24',
+  CAL:      '0xFF9F43',
+  DISTANCE: '0x54A0FF',
+};
 
 // Map pipeline widget names back to WatchFaceElement.type
 // V2 generator uses element.type in the switch/case in generateWidgetCodeV2

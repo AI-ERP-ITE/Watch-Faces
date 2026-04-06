@@ -120,13 +120,13 @@ function generateWeatherIcons(): ElementImage[] {
   const symbols = ['☀', '⛅', '☁', '🌧', '🌩', '❄', '🌫'];
   return Array.from({ length: 29 }, (_, i) => ({
     name: `weather_${i}.png`,
-    dataUrl: createCanvasImage(40, 40, (ctx, w, h) => {
+    dataUrl: createCanvasImage(60, 60, (ctx, w, h) => {
       ctx.fillStyle = '#FFD700';
-      ctx.font = `${Math.floor(h * 0.6)}px serif`;
+      ctx.font = `${Math.floor(h * 0.55)}px serif`;
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText(symbols[i % symbols.length], w / 2, h / 2);
     }),
-    bounds: { x: 0, y: 0, width: 40, height: 40 },
+    bounds: { x: 0, y: 0, width: 60, height: 60 },
     type: 'IMG_LEVEL' as const,
   }));
 }
@@ -203,7 +203,7 @@ export function generatePipelineAssets(elements: ResolvedElement[]): ElementImag
 
       case 'IMG_TIME': {
         if (!generatedSets.has('time_digits')) {
-          images.push(...generateDigitImages('time_digit', 30, 50, '#FFFFFF'));
+          images.push(...generateDigitImages('time_digit', 60, 90, '#FFFFFF'));
           generatedSets.add('time_digits');
         }
         break;
@@ -214,12 +214,12 @@ export function generatePipelineAssets(elements: ResolvedElement[]): ElementImag
           if (!generatedSets.has('month_images')) {
             const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN',
                             'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-            images.push(...generateTextImages('month', months, 60, 24, '#CCCCCC'));
+            images.push(...generateTextImages('month', months, 100, 36, '#AAAAAA'));
             generatedSets.add('month_images');
           }
         } else {
           if (!generatedSets.has('date_digits')) {
-            images.push(...generateDigitImages('date_digit', 24, 36, '#CCCCCC'));
+            images.push(...generateDigitImages('date_digit', 36, 54, '#AAAAAA'));
             generatedSets.add('date_digits');
           }
         }
@@ -229,7 +229,7 @@ export function generatePipelineAssets(elements: ResolvedElement[]): ElementImag
       case 'IMG_WEEK': {
         if (!generatedSets.has('week_images')) {
           const days = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
-          images.push(...generateTextImages('week', days, 60, 24, '#CCCCCC'));
+          images.push(...generateTextImages('week', days, 100, 36, '#AAAAAA'));
           generatedSets.add('week_images');
         }
         break;
@@ -244,7 +244,7 @@ export function generatePipelineAssets(elements: ResolvedElement[]): ElementImag
         const prefix = el.dataType ? DATA_TYPE_PREFIXES[el.dataType] || 'digit' : 'digit';
         if (!generatedSets.has(`textimg_${prefix}`)) {
           const color = el.dataType ? DATA_TYPE_COLORS[el.dataType] || '#FFFFFF' : '#FFFFFF';
-          images.push(...generateDigitImages(prefix, 20, 32, color));
+          images.push(...generateDigitImages(prefix, 28, 44, color));
           generatedSets.add(`textimg_${prefix}`);
         }
         break;

@@ -35,27 +35,34 @@ const TYPE_TO_DATA_TYPE: Partial<Record<AIElementType, string>> = {
 
 // ─── Normalizer ─────────────────────────────────────────────────────────────────
 
+// Types that produce invisible or empty widgets when they have no data binding.
+// "arc" from AI = generic arc with no data type → firmware can't fill it → invisible.
+// "text" from AI = empty text label with no content → renders nothing.
+const DROP_TYPES = new Set<AIElementType>(['arc', 'text']);
+
 export function normalize(elements: AIElement[]): NormalizedElement[] {
-  return elements.map((el) => {
-    let widget = TYPE_TO_WIDGET[el.type];
+  return elements
+    .filter((el) => !DROP_TYPES.has(el.type))
+    .map((el) => {
+      let widget = TYPE_TO_WIDGET[el.type];
 
-    // Style override: digital time → IMG_TIME instead of TIME_POINTER
-    if (el.type === 'time' && el.style === 'digital') {
-      widget = 'IMG_TIME';
-    }
+      // Style override: digital time → IMG_TIME instead of TIME_POINTER
+      if (el.type === 'time' && el.style === 'digital') {
+        widget = 'IMG_TIME';
+      }
 
-    const normalized: NormalizedElement = {
-      id: el.id,
-      widget,
-      region: el.region,
-      sourceType: el.type,
-    };
+      const normalized: NormalizedElement = {
+        id: el.id,
+        widget,
+        region: el.region,
+        sourceType: el.type,
+      };
 
-    const dataType = TYPE_TO_DATA_TYPE[el.type];
-    if (dataType) {
-      normalized.dataType = dataType;
-    }
+      const dataType = TYPE_TO_DATA_TYPE[el.type];
+      if (dataType) {
+        normalized.dataType = dataType;
+      }
 
-    return normalized;
-  });
+      return normalized;
+    });
 }

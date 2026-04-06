@@ -36,14 +36,14 @@ const ARC_END_ANGLE = 405;
 // ─── Rectangular widget bounding boxes ──────────────────────────────────────────
 
 const WIDGET_SIZES: Record<string, { w: number; h: number }> = {
-  TEXT:       { w: 150, h: 40 },
-  TEXT_IMG:   { w: 120, h: 40 },
-  IMG_DATE:   { w: 100, h: 30 },
-  IMG_WEEK:   { w: 120, h: 30 },
-  IMG_TIME:   { w: 200, h: 60 },
-  IMG:        { w: 50,  h: 50 },
+  TEXT:       { w: 200, h: 40 },
+  TEXT_IMG:   { w: 160, h: 50 },
+  IMG_DATE:   { w: 130, h: 54 },
+  IMG_WEEK:   { w: 100, h: 36 },
+  IMG_TIME:   { w: 300, h: 90 },
+  IMG:        { w: 60,  h: 60 },
   IMG_STATUS: { w: 30,  h: 30 },
-  IMG_LEVEL:  { w: 50,  h: 50 },
+  IMG_LEVEL:  { w: 60,  h: 60 },
 };
 
 // ─── Geometry Solver ────────────────────────────────────────────────────────────
