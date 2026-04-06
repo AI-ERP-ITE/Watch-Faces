@@ -19,6 +19,8 @@ import { uploadZPKWithQR } from '@/lib/githubApi';
 import { generateQRCode } from '@/lib/qrGenerator';
 import { analyzeWatchfaceImage, testApiKey, type AIProvider, type AIServiceConfig } from '@/lib/aiService';
 import { expandAnalysisToElements } from '@/lib/assetGenerator';
+import { runPipeline } from '@/pipeline';
+import { extractElementsFromImage, type PipelineAIProvider } from '@/pipeline/pipelineAIService';
 import type { WatchFaceConfig, WatchFaceElement, ElementImage } from '@/types';
 import { generateId } from '@/lib/utils';
 
@@ -968,6 +970,9 @@ function App() {
   const [showApiKey, setShowApiKey] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [useMockAnalysis, setUseMockAnalysis] = useState(false);
+  const [usePipeline, setUsePipeline] = useState(
+    () => localStorage.getItem('use_pipeline') === 'true'
+  );
 
   // Persist AI settings
   const handleSetAiProvider = (provider: AIProvider) => {
@@ -1006,8 +1011,38 @@ function App() {
         );
         config = result.config;
         elementImages = result.elementImages;
+      } else if (usePipeline) {
+        // ─── Deterministic Pipeline Path ─────────────────────────────────
+        // AI extracts semantic data ONLY → pipeline computes all geometry
+        dispatch(actions.setLoadingMessage('Extracting elements with AI (pipeline mode)...'));
+        const aiElements = await extractElementsFromImage(
+          { provider: aiProvider as PipelineAIProvider, apiKey: aiApiKey },
+          state.fullDesignFile!,
+        );
+        console.log('[App] Pipeline AI elements:', aiElements.length);
+
+        dispatch(actions.setLoadingMessage('Running deterministic pipeline...'));
+        const generatedCode = runPipeline(aiElements, {
+          watchfaceName: watchFaceName?.trim() || `AI_WatchFace_${Date.now()}`,
+          watchModel,
+          backgroundSrc: 'background.png',
+        });
+
+        // Pipeline produces GeneratedCode directly — build a minimal config for preview
+        elementImages = [];
+        config = {
+          name: watchFaceName?.trim() || `AI_WatchFace_${Date.now()}`,
+          resolution: { width: 480, height: 480 },
+          background: { src: 'background.png', format: 'TGA-P' },
+          elements: [],  // Pipeline generates code directly, elements are embedded
+          watchModel,
+        };
+
+        // Store generated code directly so handleGenerate can use it
+        dispatch(actions.setGeneratedCode(generatedCode));
+        console.log('[App] Pipeline code generated successfully');
       } else {
-        // Real AI Vision analysis
+        // ─── Legacy AI Path (coordinates from AI) ────────────────────────
         dispatch(actions.setLoadingMessage('Sending image to AI for analysis...'));
         const aiConfig: AIServiceConfig = { provider: aiProvider, apiKey: aiApiKey };
         const analysis = await analyzeWatchfaceImage(aiConfig, state.fullDesignFile!);
@@ -1062,7 +1097,7 @@ function App() {
     } finally {
       dispatch(actions.setLoading(false));
     }
-  }, [state.backgroundImage, state.fullDesignImage, watchModel, watchFaceName, dispatch]);
+  }, [state.backgroundImage, state.fullDesignImage, watchModel, watchFaceName, usePipeline, aiProvider, aiApiKey, useMockAnalysis, dispatch]);
 
   // Handle generate ZPK
   const handleGenerate = useCallback(async () => {
@@ -1345,6 +1380,22 @@ function App() {
                         className="rounded border-zinc-600 bg-zinc-800 text-cyan-500 focus:ring-cyan-500/20"
                       />
                       <span className="text-sm text-zinc-400">Use mock analysis (no API call, demo data)</span>
+                    </label>
+                  </div>
+
+                  {/* Pipeline mode toggle */}
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={usePipeline}
+                        onChange={(e) => {
+                          setUsePipeline(e.target.checked);
+                          localStorage.setItem('use_pipeline', String(e.target.checked));
+                        }}
+                        className="rounded border-zinc-600 bg-zinc-800 text-emerald-500 focus:ring-emerald-500/20"
+                      />
+                      <span className="text-sm text-zinc-400">Use deterministic pipeline (AI for semantics only, no coordinates from AI)</span>
                     </label>
                   </div>
 
