@@ -68,8 +68,11 @@ async function callGemini(
       ],
       generationConfig: {
         temperature: 0.1,
-        maxOutputTokens: 2048,
+        maxOutputTokens: 8192,
         responseMimeType: 'application/json',
+        // Gemini 2.5 Flash uses thinking tokens by default which consume the output budget.
+        // Disable thinking so all tokens go to the actual JSON response.
+        thinkingConfig: { thinkingBudget: 0 },
       },
     }),
   });
