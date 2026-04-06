@@ -22,6 +22,7 @@ export interface PipelineOptions {
 export interface PipelineResult {
   config: WatchFaceConfig;
   code: GeneratedCode;
+  resolved: ResolvedElement[];
 }
 
 export function runPipeline(
@@ -49,7 +50,7 @@ export function runPipeline(
   // Stage 5: Bridge to existing V2 code generator
   const config = bridgeToWatchFaceConfig(resolved, options);
   const code = generateWatchFaceCodeV2(config);
-  return { config, code };
+  return { config, code, resolved };
 }
 
 // ─── Bridge: ResolvedElement[] → WatchFaceConfig ────────────────────────────────

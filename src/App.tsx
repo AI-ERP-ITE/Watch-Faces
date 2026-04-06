@@ -21,6 +21,7 @@ import { analyzeWatchfaceImage, testApiKey, type AIProvider, type AIServiceConfi
 import { expandAnalysisToElements } from '@/lib/assetGenerator';
 import { runPipeline } from '@/pipeline';
 import { extractElementsFromImage, type PipelineAIProvider } from '@/pipeline/pipelineAIService';
+import { generatePipelineAssets } from '@/pipeline/assetImageGenerator';
 import type { WatchFaceConfig, WatchFaceElement, ElementImage } from '@/types';
 import { generateId } from '@/lib/utils';
 
@@ -1030,8 +1031,8 @@ function App() {
 
         // Pipeline returns both the WatchFaceConfig (with elements) and generated code
         config = pipelineResult.config;
-        elementImages = [];
-        console.log('[App] Pipeline produced', config.elements.length, 'elements');
+        elementImages = generatePipelineAssets(pipelineResult.resolved);
+        console.log('[App] Pipeline produced', config.elements.length, 'elements,', elementImages.length, 'asset images');
       } else {
         // ─── Legacy AI Path (coordinates from AI) ────────────────────────
         dispatch(actions.setLoadingMessage('Sending image to AI for analysis...'));

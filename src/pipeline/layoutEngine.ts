@@ -7,60 +7,75 @@ import type { NormalizedElement, LayoutElement, Region } from '@/types/pipeline'
 
 const SCREEN_W = 480;
 const SCREEN_H = 480;
+const SCREEN_CX = SCREEN_W / 2;
+const SCREEN_CY = SCREEN_H / 2;
+const SAFE_MARGIN = 30; // keep elements away from edges of round screen
 
-// ─── Region → Center-Point Map ──────────────────────────────────────────────────
+// ─── Region definition ──────────────────────────────────────────────────────────
+// Each region has an anchor point and a layout axis.
+// Multiple elements in the same region spread along that axis, centered on anchor.
 
-const REGION_MAP: Record<Region, { x: number; y: number }> = {
-  center: { x: 240, y: 240 },
-  top:    { x: 240, y: 80 },
-  bottom: { x: 240, y: 400 },
-  left:   { x: 80,  y: 240 },
-  right:  { x: 400, y: 240 },
-};
+interface RegionDef {
+  anchorX: number;
+  anchorY: number;
+  axis: 'horizontal' | 'vertical';
+  spacing: number; // gap between element centers
+}
 
-// ─── Collision avoidance ────────────────────────────────────────────────────────
-// When multiple elements share a region, offset them so they don't stack.
-
-const REGION_OFFSETS: Record<Region, { dx: number; dy: number }> = {
-  center: { dx: 0,   dy: 50 },
-  top:    { dx: 60,  dy: 0 },
-  bottom: { dx: 60,  dy: 0 },
-  left:   { dx: 0,   dy: 50 },
-  right:  { dx: 0,   dy: 50 },
+const REGION_DEFS: Record<Region, RegionDef> = {
+  center: { anchorX: SCREEN_CX, anchorY: SCREEN_CY, axis: 'vertical',   spacing: 50 },
+  top:    { anchorX: SCREEN_CX, anchorY: 90,         axis: 'horizontal', spacing: 65 },
+  bottom: { anchorX: SCREEN_CX, anchorY: 390,        axis: 'horizontal', spacing: 65 },
+  left:   { anchorX: 100,       anchorY: SCREEN_CY,  axis: 'vertical',   spacing: 55 },
+  right:  { anchorX: 380,       anchorY: SCREEN_CY,  axis: 'vertical',   spacing: 55 },
 };
 
 // ─── Layout Engine ──────────────────────────────────────────────────────────────
 
 export function applyLayout(elements: NormalizedElement[]): LayoutElement[] {
-  // Track how many elements have been placed per region for offset calculation
-  const regionCount: Record<Region, number> = {
-    center: 0,
-    top: 0,
-    bottom: 0,
-    left: 0,
-    right: 0,
+  // Group elements by region first
+  const regionBuckets: Record<Region, NormalizedElement[]> = {
+    center: [], top: [], bottom: [], left: [], right: [],
   };
+  for (const el of elements) {
+    regionBuckets[el.region].push(el);
+  }
 
-  return elements.map((el) => {
-    const base = REGION_MAP[el.region];
-    const offset = REGION_OFFSETS[el.region];
-    const idx = regionCount[el.region];
+  const results: LayoutElement[] = [];
 
-    // First element in region gets exact center; subsequent elements are offset
-    // Spread evenly: subtract half the total offset, then add per-element
-    let centerX = base.x + offset.dx * idx;
-    let centerY = base.y + offset.dy * idx;
+  for (const region of Object.keys(regionBuckets) as Region[]) {
+    const bucket = regionBuckets[region];
+    if (bucket.length === 0) continue;
 
-    // Clamp to screen bounds
-    centerX = Math.max(0, Math.min(SCREEN_W, centerX));
-    centerY = Math.max(0, Math.min(SCREEN_H, centerY));
+    const def = REGION_DEFS[region];
+    const n = bucket.length;
 
-    regionCount[el.region]++;
+    // Center the group: first element goes at -(n-1)/2 * spacing from anchor
+    const startOffset = -((n - 1) / 2) * def.spacing;
 
-    return {
-      ...el,
-      centerX,
-      centerY,
-    };
-  });
+    for (let i = 0; i < n; i++) {
+      const offset = startOffset + i * def.spacing;
+      let cx: number, cy: number;
+
+      if (def.axis === 'horizontal') {
+        cx = def.anchorX + offset;
+        cy = def.anchorY;
+      } else {
+        cx = def.anchorX;
+        cy = def.anchorY + offset;
+      }
+
+      // Clamp to safe screen bounds
+      cx = Math.max(SAFE_MARGIN, Math.min(SCREEN_W - SAFE_MARGIN, cx));
+      cy = Math.max(SAFE_MARGIN, Math.min(SCREEN_H - SAFE_MARGIN, cy));
+
+      results.push({
+        ...bucket[i],
+        centerX: Math.round(cx),
+        centerY: Math.round(cy),
+      });
+    }
+  }
+
+  return results;
 }
