@@ -4,6 +4,7 @@
 
 import type { ElementImage } from '@/types';
 import type { ResolvedElement } from '@/types/pipeline';
+import { TIME_DIGIT, DATE_DIGIT, MONTH_LABEL, WEEK_LABEL, WEATHER_ICON, TEXT_IMG_DIGIT } from './constants';
 
 // ─── Canvas Utility ─────────────────────────────────────────────────────────────
 
@@ -120,13 +121,13 @@ function generateWeatherIcons(): ElementImage[] {
   const symbols = ['☀', '⛅', '☁', '🌧', '🌩', '❄', '🌫'];
   return Array.from({ length: 29 }, (_, i) => ({
     name: `weather_${i}.png`,
-    dataUrl: createCanvasImage(60, 60, (ctx, w, h) => {
+    dataUrl: createCanvasImage(WEATHER_ICON.w, WEATHER_ICON.h, (ctx, w, h) => {
       ctx.fillStyle = '#FFD700';
       ctx.font = `${Math.floor(h * 0.55)}px serif`;
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText(symbols[i % symbols.length], w / 2, h / 2);
     }),
-    bounds: { x: 0, y: 0, width: 60, height: 60 },
+    bounds: { x: 0, y: 0, width: WEATHER_ICON.w, height: WEATHER_ICON.h },
     type: 'IMG_LEVEL' as const,
   }));
 }
@@ -203,7 +204,7 @@ export function generatePipelineAssets(elements: ResolvedElement[]): ElementImag
 
       case 'IMG_TIME': {
         if (!generatedSets.has('time_digits')) {
-          images.push(...generateDigitImages('time_digit', 60, 90, '#FFFFFF'));
+          images.push(...generateDigitImages('time_digit', TIME_DIGIT.w, TIME_DIGIT.h, '#FFFFFF'));
           generatedSets.add('time_digits');
         }
         break;
@@ -214,12 +215,12 @@ export function generatePipelineAssets(elements: ResolvedElement[]): ElementImag
           if (!generatedSets.has('month_images')) {
             const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN',
                             'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-            images.push(...generateTextImages('month', months, 100, 36, '#AAAAAA'));
+            images.push(...generateTextImages('month', months, MONTH_LABEL.w, MONTH_LABEL.h, '#AAAAAA'));
             generatedSets.add('month_images');
           }
         } else {
           if (!generatedSets.has('date_digits')) {
-            images.push(...generateDigitImages('date_digit', 36, 54, '#AAAAAA'));
+            images.push(...generateDigitImages('date_digit', DATE_DIGIT.w, DATE_DIGIT.h, '#AAAAAA'));
             generatedSets.add('date_digits');
           }
         }
@@ -229,7 +230,7 @@ export function generatePipelineAssets(elements: ResolvedElement[]): ElementImag
       case 'IMG_WEEK': {
         if (!generatedSets.has('week_images')) {
           const days = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
-          images.push(...generateTextImages('week', days, 100, 36, '#AAAAAA'));
+          images.push(...generateTextImages('week', days, WEEK_LABEL.w, WEEK_LABEL.h, '#AAAAAA'));
           generatedSets.add('week_images');
         }
         break;
@@ -244,7 +245,7 @@ export function generatePipelineAssets(elements: ResolvedElement[]): ElementImag
         const prefix = el.dataType ? DATA_TYPE_PREFIXES[el.dataType] || 'digit' : 'digit';
         if (!generatedSets.has(`textimg_${prefix}`)) {
           const color = el.dataType ? DATA_TYPE_COLORS[el.dataType] || '#FFFFFF' : '#FFFFFF';
-          images.push(...generateDigitImages(prefix, 28, 44, color));
+          images.push(...generateDigitImages(prefix, TEXT_IMG_DIGIT.w, TEXT_IMG_DIGIT.h, color));
           generatedSets.add(`textimg_${prefix}`);
         }
         break;

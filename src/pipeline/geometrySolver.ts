@@ -4,14 +4,17 @@
 // KEY DESIGN: Polar/radial model for watchfaces.
 // - Arcs are concentric: share same center, differ by radius (layer index)
 // - Time hands share screen center
-// - Rectangular widgets use bounding-box from center point
+// - Rectangular widgets use positions from layout engine (which already accounts for content size)
 
 import type { LayoutElement, GeometryElement } from '@/types/pipeline';
+import {
+  SCREEN, ARC_BASE_RADIUS, ARC_SPACING, ARC_LINE_WIDTH,
+  ARC_START_ANGLE, ARC_END_ANGLE,
+  TIME_DIGIT, HOUR_CONTENT_W, TIME_COLON_GAP,
+  DATE_DIGIT, MONTH_LABEL, WEEK_LABEL, WEATHER_ICON,
+} from './constants';
 
-// ─── Screen center ──────────────────────────────────────────────────────────────
-
-const CX = 240;
-const CY = 240;
+const { CX, CY } = SCREEN;
 
 // ─── Clock hand dimensions ──────────────────────────────────────────────────────
 
@@ -21,29 +24,14 @@ const HAND_DIMENSIONS = {
   second: { w: 6,  h: 240 },
 };
 
-// ─── Arc stacking — concentric radii ────────────────────────────────────────────
-// All arcs share (240,240). Each arc gets a smaller radius.
-
-const ARC_BASE_RADIUS = 200;
-const ARC_SPACING = 30;
-const ARC_LINE_WIDTH = 12;
-
-// Standardized arc sweep: 270° partial circle (135° to 405°)
-// This is the most common watchface arc style — gap at bottom-left
-const ARC_START_ANGLE = 135;
-const ARC_END_ANGLE = 405;
-
 // ─── Rectangular widget bounding boxes ──────────────────────────────────────────
+// These are used ONLY for widget types that don't have specific solvers below.
 
-const WIDGET_SIZES: Record<string, { w: number; h: number }> = {
+const DEFAULT_SIZES: Record<string, { w: number; h: number }> = {
   TEXT:       { w: 200, h: 40 },
   TEXT_IMG:   { w: 160, h: 50 },
-  IMG_DATE:   { w: 130, h: 54 },
-  IMG_WEEK:   { w: 100, h: 36 },
-  IMG_TIME:   { w: 300, h: 90 },
   IMG:        { w: 60,  h: 60 },
   IMG_STATUS: { w: 30,  h: 30 },
-  IMG_LEVEL:  { w: 60,  h: 60 },
 };
 
 // ─── Geometry Solver ────────────────────────────────────────────────────────────
@@ -85,6 +73,18 @@ export function solveGeometry(elements: LayoutElement[]): GeometryElement[] {
       case 'TIME_POINTER':
         results.push(solveTimePointer(el));
         break;
+      case 'IMG_TIME':
+        results.push(solveImgTime(el));
+        break;
+      case 'IMG_DATE':
+        results.push(solveImgDate(el));
+        break;
+      case 'IMG_WEEK':
+        results.push(solveImgWeek(el));
+        break;
+      case 'IMG_LEVEL':
+        results.push(solveImgLevel(el));
+        break;
       default:
         results.push(solveRectangular(el));
         break;
@@ -110,10 +110,48 @@ function solveTimePointer(el: LayoutElement): GeometryElement {
   };
 }
 
+// ─── IMG_TIME ───────────────────────────────────────────────────────────────────
+// Layout engine provides (centerX, centerY) as the top-left of the hour group.
+// We pass these through directly — the V2 generator uses them as hour_startX/Y
+// and computes minute_startX from shared constants.
+
+function solveImgTime(el: LayoutElement): GeometryElement {
+  return {
+    ...el,
+    x: el.centerX,   // hour_startX (already computed by layout engine)
+    y: el.centerY,   // hour_startY
+    w: HOUR_CONTENT_W + TIME_COLON_GAP + HOUR_CONTENT_W,  // total content width
+    h: TIME_DIGIT.h,
+  };
+}
+
+// ─── IMG_DATE ───────────────────────────────────────────────────────────────────
+// Layout engine provides top-left corner for day or month.
+
+function solveImgDate(el: LayoutElement): GeometryElement {
+  if (el.sourceType === 'month') {
+    return { ...el, x: el.centerX, y: el.centerY, w: MONTH_LABEL.w, h: MONTH_LABEL.h };
+  }
+  // Day digits — 2 digits side by side
+  return { ...el, x: el.centerX, y: el.centerY, w: DATE_DIGIT.w * 2, h: DATE_DIGIT.h };
+}
+
+// ─── IMG_WEEK ───────────────────────────────────────────────────────────────────
+
+function solveImgWeek(el: LayoutElement): GeometryElement {
+  return { ...el, x: el.centerX, y: el.centerY, w: WEEK_LABEL.w, h: WEEK_LABEL.h };
+}
+
+// ─── IMG_LEVEL ──────────────────────────────────────────────────────────────────
+
+function solveImgLevel(el: LayoutElement): GeometryElement {
+  return { ...el, x: el.centerX, y: el.centerY, w: WEATHER_ICON.w, h: WEATHER_ICON.h };
+}
+
 // ─── Rectangular widgets ────────────────────────────────────────────────────────
 
 function solveRectangular(el: LayoutElement): GeometryElement {
-  const size = WIDGET_SIZES[el.widget] || { w: 100, h: 40 };
+  const size = DEFAULT_SIZES[el.widget] || { w: 100, h: 40 };
 
   return {
     ...el,

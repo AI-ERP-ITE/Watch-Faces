@@ -3,6 +3,7 @@
 // Compatible with Amazfit Balance 2, Balance, Active Max (older Zepp OS)
 
 import type { WatchFaceConfig, WatchFaceElement, GeneratedCode } from '@/types';
+import { HOUR_CONTENT_W, TIME_COLON_GAP } from '@/pipeline/constants';
 
 export function generateWatchFaceCodeV2(config: WatchFaceConfig): GeneratedCode {
   console.log('[JSGenV2] Starting v2 code generation for:', config.name);
@@ -408,7 +409,7 @@ function generateIMGTimeWidget(element: WatchFaceElement, widgetIndex: number, s
                     hour_space: 0,
                     hour_align: hmUI.align.LEFT,
                     minute_zero: 1,
-                    minute_startX: ${x + 70},
+                    minute_startX: ${x + HOUR_CONTENT_W + TIME_COLON_GAP},
                     minute_startY: ${y},
                     minute_array: ${digitArrayStr},
                     minute_space: 0,
