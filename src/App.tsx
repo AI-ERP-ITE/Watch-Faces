@@ -224,6 +224,43 @@ async function mockKimiAnalysis(
       visible: true,
       zIndex: 6,
     },
+    // Analog clock hands (TIME_POINTER widget) - all 3 hands in ONE widget
+    {
+      id: generateId(),
+      type: 'TIME_POINTER',
+      name: 'Analog Clock Hands',
+      bounds: { x: 200, y: 200, width: 80, height: 80 },
+      center: { x: 240, y: 240 },
+      hourHandSrc: 'hour_hand.png',
+      minuteHandSrc: 'minute_hand.png',
+      secondHandSrc: 'second_hand.png',
+      coverSrc: 'hand_cover.png',
+      hourPos: { x: 11, y: 70 },
+      minutePos: { x: 8, y: 100 },
+      secondPos: { x: 3, y: 120 },
+      visible: true,
+      zIndex: 15,
+    },
+    // Weather icon level display (IMG_LEVEL widget)
+    {
+      id: generateId(),
+      type: 'IMG_LEVEL',
+      name: 'Weather Icon',
+      bounds: { x: 60, y: 420, width: 40, height: 40 },
+      images: [
+        'weather_0.png', 'weather_1.png', 'weather_2.png', 'weather_3.png',
+        'weather_4.png', 'weather_5.png', 'weather_6.png', 'weather_7.png',
+        'weather_8.png', 'weather_9.png', 'weather_10.png', 'weather_11.png',
+        'weather_12.png', 'weather_13.png', 'weather_14.png', 'weather_15.png',
+        'weather_16.png', 'weather_17.png', 'weather_18.png', 'weather_19.png',
+        'weather_20.png', 'weather_21.png', 'weather_22.png', 'weather_23.png',
+        'weather_24.png', 'weather_25.png', 'weather_26.png', 'weather_27.png',
+        'weather_28.png',
+      ],
+      dataType: 'WEATHER_CURRENT',
+      visible: true,
+      zIndex: 6,
+    },
   ];
 
   // Generate mock element images - create proper watch hand/element graphics
@@ -379,6 +416,112 @@ async function mockKimiAnalysis(
     bounds: { x: 0, y: 0, width: 1, height: 1 },
     type: 'BUTTON',
   });
+
+  // Generate clock hand images for TIME_POINTER
+  // Hour hand: shorter, wider (22x140, pivot at bottom-center: posX=11, posY=70)
+  const hourHandDataUrl = createCanvasImage(22, 140, (ctx, w, h) => {
+    ctx.fillStyle = '#CCCCCC';
+    // Tapered hand shape
+    ctx.beginPath();
+    ctx.moveTo(w / 2 - 4, h);        // bottom-left
+    ctx.lineTo(w / 2 - 1, 10);       // top-left narrow
+    ctx.lineTo(w / 2, 0);            // tip
+    ctx.lineTo(w / 2 + 1, 10);       // top-right narrow
+    ctx.lineTo(w / 2 + 4, h);        // bottom-right
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#999999';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  });
+  elementImages.push({
+    name: 'hour_hand.png',
+    dataUrl: hourHandDataUrl,
+    bounds: { x: 0, y: 0, width: 22, height: 140 },
+    type: 'TIME_POINTER',
+  });
+
+  // Minute hand: longer, thinner (16x200, pivot at bottom-center: posX=8, posY=100)
+  const minuteHandDataUrl = createCanvasImage(16, 200, (ctx, w, h) => {
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.moveTo(w / 2 - 3, h);
+    ctx.lineTo(w / 2 - 1, 10);
+    ctx.lineTo(w / 2, 0);
+    ctx.lineTo(w / 2 + 1, 10);
+    ctx.lineTo(w / 2 + 3, h);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#AAAAAA';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  });
+  elementImages.push({
+    name: 'minute_hand.png',
+    dataUrl: minuteHandDataUrl,
+    bounds: { x: 0, y: 0, width: 16, height: 200 },
+    type: 'TIME_POINTER',
+  });
+
+  // Second hand: longest, thinnest, red (6x240, pivot at bottom-center: posX=3, posY=120)
+  const secondHandDataUrl = createCanvasImage(6, 240, (ctx, w, h) => {
+    ctx.fillStyle = '#FF3333';
+    ctx.fillRect(w / 2 - 1, 0, 2, h);
+    // Small circle at pivot
+    ctx.beginPath();
+    ctx.arc(w / 2, 120, 3, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  elementImages.push({
+    name: 'second_hand.png',
+    dataUrl: secondHandDataUrl,
+    bounds: { x: 0, y: 0, width: 6, height: 240 },
+    type: 'TIME_POINTER',
+  });
+
+  // Cover (center cap over hands) - small circle 30x30
+  const coverDataUrl = createCanvasImage(30, 30, (ctx, w, h) => {
+    ctx.fillStyle = '#888888';
+    ctx.beginPath();
+    ctx.arc(w / 2, h / 2, 12, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#AAAAAA';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  });
+  elementImages.push({
+    name: 'hand_cover.png',
+    dataUrl: coverDataUrl,
+    bounds: { x: 0, y: 0, width: 30, height: 30 },
+    type: 'TIME_POINTER',
+  });
+
+  // Generate 29 weather level icons for IMG_LEVEL (matches Brushed Steel reference count)
+  const weatherSize = 40;
+  const weatherSymbols = [
+    '\u2600', '\u26C5', '\u2601', '\u{1F327}', '\u{1F329}', '\u2744', '\u{1F32B}', // sun, part-cloud, cloud, rain, thunder, snow, fog
+    '\u2600', '\u26C5', '\u2601', '\u{1F327}', '\u{1F329}', '\u2744', '\u{1F32B}', // repeat
+    '\u2600', '\u26C5', '\u2601', '\u{1F327}', '\u{1F329}', '\u2744', '\u{1F32B}', // repeat
+    '\u2600', '\u26C5', '\u2601', '\u{1F327}', '\u{1F329}', '\u2744', '\u{1F32B}', // repeat
+    '\u2600',  // one more to reach 29
+  ];
+  for (let i = 0; i < 29; i++) {
+    const filename = `weather_${i}.png`;
+    const symbol = weatherSymbols[i] || '\u2600';
+    const dataUrl = createCanvasImage(weatherSize, weatherSize, (ctx, w, h) => {
+      ctx.fillStyle = '#FFD700';
+      ctx.font = `${Math.floor(h * 0.6)}px serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(symbol, w / 2, h / 2);
+    });
+    elementImages.push({
+      name: filename,
+      dataUrl,
+      bounds: { x: 0, y: 0, width: weatherSize, height: weatherSize },
+      type: 'IMG_LEVEL',
+    });
+  }
 
   // Generate background image for Background element
   const bgDataUrl = createCanvasImage(480, 480, (ctx, w, h) => {
