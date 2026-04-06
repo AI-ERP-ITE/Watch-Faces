@@ -51,20 +51,22 @@ async function mockKimiAnalysis(
 
   const resolution = resolutions[watchModel] || { width: 466, height: 466 };
 
-  // Generate mock elements - Based on Brushed Steel reference (working watchface)
-  // Uses ALL supported widget types for V2 format
+  // Generate mock elements - ALL widget types for Balance 2 V2 format
+  // Covers every generator code path + all proven data_types from Zepp OS v1.0
+  const cx = Math.floor(resolution.width / 2);
+  const cy = Math.floor(resolution.height / 2);
   const elements: WatchFaceElement[] = [
-    // Background element (always first, full screen)
+    // ===== BACKGROUND =====
     {
       id: generateId(),
       type: 'IMG',
       name: 'Background',
-      bounds: { x: 0, y: 0, width: 480, height: 480 },
+      bounds: { x: 0, y: 0, width: resolution.width, height: resolution.height },
       src: 'background_ed15585c.png',
       visible: true,
       zIndex: 0,
     },
-    // Time Display - triggers IMG_TIME widget in V2 generator
+    // ===== TIME (IMG_TIME - name-matched) =====
     {
       id: generateId(),
       type: 'IMG',
@@ -74,17 +76,7 @@ async function mockKimiAnalysis(
       visible: true,
       zIndex: 5,
     },
-    // Weekday indicator - triggers IMG_WEEK widget in V2 generator
-    {
-      id: generateId(),
-      type: 'IMG',
-      name: 'Weekday',
-      bounds: { x: 33, y: 198, width: 20, height: 30 },
-      src: 'week_0.png',
-      visible: true,
-      zIndex: 5,
-    },
-    // Date indicator - triggers IMG_DATE widget in V2 generator
+    // ===== DATE (IMG_DATE day - name-matched) =====
     {
       id: generateId(),
       type: 'IMG',
@@ -94,143 +86,33 @@ async function mockKimiAnalysis(
       visible: true,
       zIndex: 5,
     },
-    // Battery arc progress indicator (ARC_PROGRESS widget)
+    // ===== MONTH (IMG_DATE month - name-matched) =====
     {
       id: generateId(),
-      type: 'ARC_PROGRESS',
-      name: 'Battery Arc',
-      bounds: { x: 160, y: 50, width: 160, height: 160 },
-      center: { x: 240, y: 130 },
-      radius: 70,
-      startAngle: -90,
-      endAngle: 270,
-      lineWidth: 8,
-      color: '0x00CC88',
-      dataType: 'BATTERY',
+      type: 'IMG',
+      name: 'Month',
+      bounds: { x: 130, y: 198, width: 40, height: 30 },
+      src: 'month_0.png',
       visible: true,
       zIndex: 5,
     },
-    // Battery value display (TEXT_IMG widget)
+    // ===== WEEKDAY (IMG_WEEK - name-matched) =====
     {
       id: generateId(),
-      type: 'TEXT_IMG',
-      name: 'Battery Value',
-      bounds: { x: 215, y: 118, width: 50, height: 25 },
-      fontArray: ['batt_digit_0.png', 'batt_digit_1.png', 'batt_digit_2.png', 'batt_digit_3.png', 'batt_digit_4.png', 'batt_digit_5.png', 'batt_digit_6.png', 'batt_digit_7.png', 'batt_digit_8.png', 'batt_digit_9.png'],
-      dataType: 'BATTERY',
-      hSpace: 1,
-      alignH: 'CENTER_H',
-      visible: true,
-      zIndex: 6,
-    },
-    // Heart rate value display (TEXT_IMG widget)
-    {
-      id: generateId(),
-      type: 'TEXT_IMG',
-      name: 'Heart Rate Value',
-      bounds: { x: 150, y: 350, width: 80, height: 30 },
-      fontArray: ['heart_digit_0.png', 'heart_digit_1.png', 'heart_digit_2.png', 'heart_digit_3.png', 'heart_digit_4.png', 'heart_digit_5.png', 'heart_digit_6.png', 'heart_digit_7.png', 'heart_digit_8.png', 'heart_digit_9.png'],
-      dataType: 'HEART',
-      hSpace: 1,
-      alignH: 'CENTER_H',
-      visible: true,
-      zIndex: 6,
-    },
-    // Steps value display (TEXT_IMG widget)
-    {
-      id: generateId(),
-      type: 'TEXT_IMG',
-      name: 'Steps Value',
-      bounds: { x: 300, y: 350, width: 80, height: 30 },
-      fontArray: ['step_digit_0.png', 'step_digit_1.png', 'step_digit_2.png', 'step_digit_3.png', 'step_digit_4.png', 'step_digit_5.png', 'step_digit_6.png', 'step_digit_7.png', 'step_digit_8.png', 'step_digit_9.png'],
-      dataType: 'STEP',
-      hSpace: 1,
-      alignH: 'CENTER_H',
-      visible: true,
-      zIndex: 6,
-    },
-    // Activity arc progress (ARC_PROGRESS widget)
-    {
-      id: generateId(),
-      type: 'ARC_PROGRESS',
-      name: 'Activity Arc',
-      bounds: { x: 140, y: 280, width: 200, height: 200 },
-      center: { x: 240, y: 380 },
-      radius: 50,
-      startAngle: -120,
-      endAngle: 120,
-      lineWidth: 6,
-      color: '0xFF6B6B',
-      dataType: 'STEP',
+      type: 'IMG',
+      name: 'Weekday',
+      bounds: { x: 33, y: 198, width: 20, height: 30 },
+      src: 'week_0.png',
       visible: true,
       zIndex: 5,
     },
-    // Bluetooth status indicator (IMG_STATUS widget)
-    {
-      id: generateId(),
-      type: 'IMG_STATUS',
-      name: 'Bluetooth Status',
-      bounds: { x: 225, y: 420, width: 30, height: 30 },
-      src: 'bluetooth_30x30.png',
-      statusType: 'DISCONNECT',
-      visible: true,
-      zIndex: 6,
-    },
-    // Battery shortcut button (BUTTON widget)
-    {
-      id: generateId(),
-      type: 'BUTTON',
-      name: 'Battery Shortcut',
-      bounds: { x: 190, y: 60, width: 100, height: 100 },
-      normalSrc: 'trasparente.png',
-      pressSrc: 'trasparente.png',
-      clickAction: 'Settings_batteryManagerScreen',
-      visible: true,
-      zIndex: 10,
-    },
-    // Heart shortcut button (BUTTON widget)
-    {
-      id: generateId(),
-      type: 'BUTTON',
-      name: 'Heart Shortcut',
-      bounds: { x: 120, y: 320, width: 90, height: 90 },
-      normalSrc: 'trasparente.png',
-      pressSrc: 'trasparente.png',
-      clickAction: 'heart_app_Screen',
-      visible: true,
-      zIndex: 10,
-    },
-    // Activity shortcut button (BUTTON widget)
-    {
-      id: generateId(),
-      type: 'BUTTON',
-      name: 'Activity Shortcut',
-      bounds: { x: 270, y: 320, width: 90, height: 90 },
-      normalSrc: 'trasparente.png',
-      pressSrc: 'trasparente.png',
-      clickAction: 'activityAppScreen',
-      visible: true,
-      zIndex: 10,
-    },
-    // City name text display (TEXT widget)
-    {
-      id: generateId(),
-      type: 'TEXT',
-      name: 'City Name',
-      bounds: { x: 170, y: 445, width: 140, height: 25 },
-      text: '',
-      fontSize: 18,
-      color: '0xCCCCCCFF',
-      visible: true,
-      zIndex: 6,
-    },
-    // Analog clock hands (TIME_POINTER widget) - all 3 hands in ONE widget
+    // ===== ANALOG CLOCK HANDS (TIME_POINTER) =====
     {
       id: generateId(),
       type: 'TIME_POINTER',
       name: 'Analog Clock Hands',
-      bounds: { x: 200, y: 200, width: 80, height: 80 },
-      center: { x: 240, y: 240 },
+      bounds: { x: cx - 40, y: cy - 40, width: 80, height: 80 },
+      center: { x: cx, y: cy },
       hourHandSrc: 'hour_hand.png',
       minuteHandSrc: 'minute_hand.png',
       secondHandSrc: 'second_hand.png',
@@ -241,25 +123,380 @@ async function mockKimiAnalysis(
       visible: true,
       zIndex: 15,
     },
-    // Weather icon level display (IMG_LEVEL widget)
+    // ===== BATTERY ARC (ARC_PROGRESS) =====
+    {
+      id: generateId(),
+      type: 'ARC_PROGRESS',
+      name: 'Battery Arc',
+      bounds: { x: cx - 80, y: 50, width: 160, height: 160 },
+      center: { x: cx, y: 130 },
+      radius: 70,
+      startAngle: -90,
+      endAngle: 270,
+      lineWidth: 8,
+      color: '0x00CC88',
+      dataType: 'BATTERY',
+      visible: true,
+      zIndex: 5,
+    },
+    // ===== BATTERY VALUE (TEXT_IMG) =====
+    {
+      id: generateId(),
+      type: 'TEXT_IMG',
+      name: 'Battery Value',
+      bounds: { x: cx - 25, y: 118, width: 50, height: 25 },
+      fontArray: Array.from({length: 10}, (_, i) => `batt_digit_${i}.png`),
+      dataType: 'BATTERY',
+      hSpace: 1,
+      alignH: 'CENTER_H',
+      visible: true,
+      zIndex: 6,
+    },
+    // ===== HEART RATE ARC (ARC_PROGRESS) =====
+    {
+      id: generateId(),
+      type: 'ARC_PROGRESS',
+      name: 'Heart Rate Arc',
+      bounds: { x: 30, y: cy - 50, width: 100, height: 100 },
+      center: { x: 80, y: cy },
+      radius: 40,
+      startAngle: -90,
+      endAngle: 270,
+      lineWidth: 6,
+      color: '0xFF6B6B',
+      dataType: 'HEART',
+      visible: true,
+      zIndex: 5,
+    },
+    // ===== HEART RATE VALUE (TEXT_IMG) =====
+    {
+      id: generateId(),
+      type: 'TEXT_IMG',
+      name: 'Heart Rate Value',
+      bounds: { x: 55, y: cy - 12, width: 50, height: 25 },
+      fontArray: Array.from({length: 10}, (_, i) => `heart_digit_${i}.png`),
+      dataType: 'HEART',
+      hSpace: 1,
+      alignH: 'CENTER_H',
+      visible: true,
+      zIndex: 6,
+    },
+    // ===== STEPS ARC (ARC_PROGRESS) =====
+    {
+      id: generateId(),
+      type: 'ARC_PROGRESS',
+      name: 'Steps Arc',
+      bounds: { x: resolution.width - 130, y: cy - 50, width: 100, height: 100 },
+      center: { x: resolution.width - 80, y: cy },
+      radius: 40,
+      startAngle: -90,
+      endAngle: 270,
+      lineWidth: 6,
+      color: '0xFFD93D',
+      dataType: 'STEP',
+      visible: true,
+      zIndex: 5,
+    },
+    // ===== STEPS VALUE (TEXT_IMG) =====
+    {
+      id: generateId(),
+      type: 'TEXT_IMG',
+      name: 'Steps Value',
+      bounds: { x: resolution.width - 105, y: cy - 12, width: 50, height: 25 },
+      fontArray: Array.from({length: 10}, (_, i) => `step_digit_${i}.png`),
+      dataType: 'STEP',
+      hSpace: 1,
+      alignH: 'CENTER_H',
+      visible: true,
+      zIndex: 6,
+    },
+    // ===== CALORIES VALUE (TEXT_IMG) =====
+    {
+      id: generateId(),
+      type: 'TEXT_IMG',
+      name: 'Calories Value',
+      bounds: { x: 55, y: cy + 60, width: 60, height: 25 },
+      fontArray: Array.from({length: 10}, (_, i) => `cal_digit_${i}.png`),
+      dataType: 'CAL',
+      hSpace: 1,
+      alignH: 'CENTER_H',
+      visible: true,
+      zIndex: 6,
+    },
+    // ===== DISTANCE VALUE (TEXT_IMG) =====
+    {
+      id: generateId(),
+      type: 'TEXT_IMG',
+      name: 'Distance Value',
+      bounds: { x: resolution.width - 115, y: cy + 60, width: 60, height: 25 },
+      fontArray: Array.from({length: 10}, (_, i) => `dist_digit_${i}.png`),
+      dataType: 'DIST',
+      hSpace: 1,
+      alignH: 'CENTER_H',
+      visible: true,
+      zIndex: 6,
+    },
+    // ===== PAI/BIO CHARGE VALUE (TEXT_IMG) =====
+    {
+      id: generateId(),
+      type: 'TEXT_IMG',
+      name: 'PAI Value',
+      bounds: { x: cx - 30, y: resolution.height - 80, width: 60, height: 25 },
+      fontArray: Array.from({length: 10}, (_, i) => `pai_digit_${i}.png`),
+      dataType: 'PAI_DAILY',
+      hSpace: 1,
+      alignH: 'CENTER_H',
+      visible: true,
+      zIndex: 6,
+    },
+    // ===== SPO2 VALUE (TEXT_IMG) =====
+    {
+      id: generateId(),
+      type: 'TEXT_IMG',
+      name: 'SpO2 Value',
+      bounds: { x: cx - 30, y: 50, width: 60, height: 25 },
+      fontArray: Array.from({length: 10}, (_, i) => `spo2_digit_${i}.png`),
+      dataType: 'SPO2',
+      hSpace: 1,
+      alignH: 'CENTER_H',
+      visible: true,
+      zIndex: 6,
+    },
+    // ===== HUMIDITY VALUE (TEXT_IMG) =====
+    {
+      id: generateId(),
+      type: 'TEXT_IMG',
+      name: 'Humidity Value',
+      bounds: { x: 30, y: resolution.height - 55, width: 50, height: 25 },
+      fontArray: Array.from({length: 10}, (_, i) => `hum_digit_${i}.png`),
+      dataType: 'HUMIDITY',
+      hSpace: 1,
+      alignH: 'CENTER_H',
+      visible: true,
+      zIndex: 6,
+    },
+    // ===== UVI VALUE (TEXT_IMG) =====
+    {
+      id: generateId(),
+      type: 'TEXT_IMG',
+      name: 'UV Index Value',
+      bounds: { x: resolution.width - 80, y: resolution.height - 55, width: 50, height: 25 },
+      fontArray: Array.from({length: 10}, (_, i) => `uvi_digit_${i}.png`),
+      dataType: 'UVI',
+      hSpace: 1,
+      alignH: 'CENTER_H',
+      visible: true,
+      zIndex: 6,
+    },
+    // ===== ACTIVITY ARC (ARC_PROGRESS) =====
+    {
+      id: generateId(),
+      type: 'ARC_PROGRESS',
+      name: 'Activity Arc',
+      bounds: { x: cx - 55, y: resolution.height - 120, width: 110, height: 110 },
+      center: { x: cx, y: resolution.height - 65 },
+      radius: 50,
+      startAngle: -120,
+      endAngle: 120,
+      lineWidth: 6,
+      color: '0x6BCB77',
+      dataType: 'STEP',
+      visible: true,
+      zIndex: 5,
+    },
+    // ===== WEATHER ICON (IMG_LEVEL) =====
     {
       id: generateId(),
       type: 'IMG_LEVEL',
       name: 'Weather Icon',
-      bounds: { x: 60, y: 420, width: 40, height: 40 },
-      images: [
-        'weather_0.png', 'weather_1.png', 'weather_2.png', 'weather_3.png',
-        'weather_4.png', 'weather_5.png', 'weather_6.png', 'weather_7.png',
-        'weather_8.png', 'weather_9.png', 'weather_10.png', 'weather_11.png',
-        'weather_12.png', 'weather_13.png', 'weather_14.png', 'weather_15.png',
-        'weather_16.png', 'weather_17.png', 'weather_18.png', 'weather_19.png',
-        'weather_20.png', 'weather_21.png', 'weather_22.png', 'weather_23.png',
-        'weather_24.png', 'weather_25.png', 'weather_26.png', 'weather_27.png',
-        'weather_28.png',
-      ],
+      bounds: { x: 60, y: resolution.height - 60, width: 40, height: 40 },
+      images: Array.from({length: 29}, (_, i) => `weather_${i}.png`),
       dataType: 'WEATHER_CURRENT',
       visible: true,
       zIndex: 6,
+    },
+    // ===== BLUETOOTH STATUS (IMG_STATUS) =====
+    {
+      id: generateId(),
+      type: 'IMG_STATUS',
+      name: 'Bluetooth Status',
+      bounds: { x: cx - 15, y: resolution.height - 60, width: 30, height: 30 },
+      src: 'bluetooth_30x30.png',
+      statusType: 'DISCONNECT',
+      visible: true,
+      zIndex: 6,
+    },
+    // ===== DND STATUS (IMG_STATUS) =====
+    {
+      id: generateId(),
+      type: 'IMG_STATUS',
+      name: 'DND Status',
+      bounds: { x: cx + 20, y: resolution.height - 60, width: 30, height: 30 },
+      src: 'dnd_30x30.png',
+      statusType: 'DISTURB',
+      visible: true,
+      zIndex: 6,
+    },
+    // ===== ALARM STATUS (IMG_STATUS) =====
+    {
+      id: generateId(),
+      type: 'IMG_STATUS',
+      name: 'Alarm Status',
+      bounds: { x: cx + 55, y: resolution.height - 60, width: 30, height: 30 },
+      src: 'alarm_30x30.png',
+      statusType: 'CLOCK',
+      visible: true,
+      zIndex: 6,
+    },
+    // ===== CITY NAME (TEXT) =====
+    {
+      id: generateId(),
+      type: 'TEXT',
+      name: 'City Name',
+      bounds: { x: cx - 70, y: resolution.height - 35, width: 140, height: 25 },
+      text: '',
+      fontSize: 18,
+      color: '0xCCCCCCFF',
+      visible: true,
+      zIndex: 6,
+    },
+    // ===== BATTERY DECORATION (CIRCLE) =====
+    {
+      id: generateId(),
+      type: 'CIRCLE',
+      name: 'Battery Ring Decor',
+      bounds: { x: cx - 80, y: 48, width: 160, height: 160 },
+      center: { x: cx, y: 130 },
+      radius: 78,
+      color: '0x333333',
+      visible: true,
+      zIndex: 4,
+    },
+    // ===== HEART DECORATION (CIRCLE) =====
+    {
+      id: generateId(),
+      type: 'CIRCLE',
+      name: 'Heart Ring Decor',
+      bounds: { x: 28, y: cy - 52, width: 104, height: 104 },
+      center: { x: 80, y: cy },
+      radius: 48,
+      color: '0x333333',
+      visible: true,
+      zIndex: 4,
+    },
+    // ===== STEPS DECORATION (CIRCLE) =====
+    {
+      id: generateId(),
+      type: 'CIRCLE',
+      name: 'Steps Ring Decor',
+      bounds: { x: resolution.width - 132, y: cy - 52, width: 104, height: 104 },
+      center: { x: resolution.width - 80, y: cy },
+      radius: 48,
+      color: '0x333333',
+      visible: true,
+      zIndex: 4,
+    },
+    // ===== HEART ICON (static IMG) =====
+    {
+      id: generateId(),
+      type: 'IMG',
+      name: 'Heart Icon',
+      bounds: { x: 68, y: cy - 35, width: 24, height: 20 },
+      src: 'icon_heart_24x20.png',
+      visible: true,
+      zIndex: 7,
+    },
+    // ===== STEPS ICON (static IMG) =====
+    {
+      id: generateId(),
+      type: 'IMG',
+      name: 'Steps Icon',
+      bounds: { x: resolution.width - 92, y: cy - 35, width: 24, height: 24 },
+      src: 'icon_steps_24x24.png',
+      visible: true,
+      zIndex: 7,
+    },
+    // ===== BATTERY ICON (static IMG) =====
+    {
+      id: generateId(),
+      type: 'IMG',
+      name: 'Battery Icon Label',
+      bounds: { x: cx - 12, y: 96, width: 24, height: 14 },
+      src: 'icon_batt_24x14.png',
+      visible: true,
+      zIndex: 7,
+    },
+    // ===== BUTTON: Battery Shortcut =====
+    {
+      id: generateId(),
+      type: 'BUTTON',
+      name: 'Battery Shortcut',
+      bounds: { x: cx - 50, y: 60, width: 100, height: 100 },
+      normalSrc: 'trasparente.png',
+      pressSrc: 'trasparente.png',
+      clickAction: 'Settings_batteryManagerScreen',
+      visible: true,
+      zIndex: 10,
+    },
+    // ===== BUTTON: Heart Shortcut =====
+    {
+      id: generateId(),
+      type: 'BUTTON',
+      name: 'Heart Shortcut',
+      bounds: { x: 30, y: cy - 50, width: 100, height: 100 },
+      normalSrc: 'trasparente.png',
+      pressSrc: 'trasparente.png',
+      clickAction: 'heart_app_Screen',
+      visible: true,
+      zIndex: 10,
+    },
+    // ===== BUTTON: Steps/Activity Shortcut =====
+    {
+      id: generateId(),
+      type: 'BUTTON',
+      name: 'Activity Shortcut',
+      bounds: { x: resolution.width - 130, y: cy - 50, width: 100, height: 100 },
+      normalSrc: 'trasparente.png',
+      pressSrc: 'trasparente.png',
+      clickAction: 'activityAppScreen',
+      visible: true,
+      zIndex: 10,
+    },
+    // ===== BUTTON: Weather Shortcut =====
+    {
+      id: generateId(),
+      type: 'BUTTON',
+      name: 'Weather Shortcut',
+      bounds: { x: 30, y: resolution.height - 100, width: 90, height: 90 },
+      normalSrc: 'trasparente.png',
+      pressSrc: 'trasparente.png',
+      clickAction: 'WeatherScreen',
+      visible: true,
+      zIndex: 10,
+    },
+    // ===== BUTTON: Stress Shortcut =====
+    {
+      id: generateId(),
+      type: 'BUTTON',
+      name: 'Stress Shortcut',
+      bounds: { x: resolution.width - 120, y: resolution.height - 100, width: 90, height: 90 },
+      normalSrc: 'trasparente.png',
+      pressSrc: 'trasparente.png',
+      clickAction: 'StressHomeScreen',
+      visible: true,
+      zIndex: 10,
+    },
+    // ===== BUTTON: PAI/Bio Charge Shortcut =====
+    {
+      id: generateId(),
+      type: 'BUTTON',
+      name: 'PAI Shortcut',
+      bounds: { x: cx - 45, y: resolution.height - 100, width: 90, height: 90 },
+      normalSrc: 'trasparente.png',
+      pressSrc: 'trasparente.png',
+      clickAction: 'BioChargeHomeScreen',
+      visible: true,
+      zIndex: 10,
     },
   ];
 
@@ -383,6 +620,144 @@ async function mockKimiAnalysis(
       type: 'TEXT_IMG',
     });
   }
+
+  // Generate CALORIES digit images (0-9) - used by TEXT_IMG CAL
+  const calDigitSize = { w: 16, h: 25 };
+  for (let i = 0; i < 10; i++) {
+    const filename = `cal_digit_${i}.png`;
+    const dataUrl = createCanvasImage(calDigitSize.w, calDigitSize.h, (ctx, w, h) => {
+      drawDigit(ctx, w, h, String(i), '#FF9F43');
+    });
+    elementImages.push({ name: filename, dataUrl, bounds: { x: 0, y: 0, width: calDigitSize.w, height: calDigitSize.h }, type: 'TEXT_IMG' });
+  }
+
+  // Generate DISTANCE digit images (0-9) - used by TEXT_IMG DIST
+  const distDigitSize = { w: 16, h: 25 };
+  for (let i = 0; i < 10; i++) {
+    const filename = `dist_digit_${i}.png`;
+    const dataUrl = createCanvasImage(distDigitSize.w, distDigitSize.h, (ctx, w, h) => {
+      drawDigit(ctx, w, h, String(i), '#54A0FF');
+    });
+    elementImages.push({ name: filename, dataUrl, bounds: { x: 0, y: 0, width: distDigitSize.w, height: distDigitSize.h }, type: 'TEXT_IMG' });
+  }
+
+  // Generate PAI digit images (0-9) - used by TEXT_IMG PAI_DAILY
+  const paiDigitSize = { w: 16, h: 25 };
+  for (let i = 0; i < 10; i++) {
+    const filename = `pai_digit_${i}.png`;
+    const dataUrl = createCanvasImage(paiDigitSize.w, paiDigitSize.h, (ctx, w, h) => {
+      drawDigit(ctx, w, h, String(i), '#5F27CD');
+    });
+    elementImages.push({ name: filename, dataUrl, bounds: { x: 0, y: 0, width: paiDigitSize.w, height: paiDigitSize.h }, type: 'TEXT_IMG' });
+  }
+
+  // Generate SPO2 digit images (0-9) - used by TEXT_IMG SPO2
+  const spo2DigitSize = { w: 16, h: 25 };
+  for (let i = 0; i < 10; i++) {
+    const filename = `spo2_digit_${i}.png`;
+    const dataUrl = createCanvasImage(spo2DigitSize.w, spo2DigitSize.h, (ctx, w, h) => {
+      drawDigit(ctx, w, h, String(i), '#EE5A24');
+    });
+    elementImages.push({ name: filename, dataUrl, bounds: { x: 0, y: 0, width: spo2DigitSize.w, height: spo2DigitSize.h }, type: 'TEXT_IMG' });
+  }
+
+  // Generate HUMIDITY digit images (0-9) - used by TEXT_IMG HUMIDITY
+  const humDigitSize = { w: 16, h: 25 };
+  for (let i = 0; i < 10; i++) {
+    const filename = `hum_digit_${i}.png`;
+    const dataUrl = createCanvasImage(humDigitSize.w, humDigitSize.h, (ctx, w, h) => {
+      drawDigit(ctx, w, h, String(i), '#0ABDE3');
+    });
+    elementImages.push({ name: filename, dataUrl, bounds: { x: 0, y: 0, width: humDigitSize.w, height: humDigitSize.h }, type: 'TEXT_IMG' });
+  }
+
+  // Generate UVI digit images (0-9) - used by TEXT_IMG UVI
+  const uviDigitSize = { w: 16, h: 25 };
+  for (let i = 0; i < 10; i++) {
+    const filename = `uvi_digit_${i}.png`;
+    const dataUrl = createCanvasImage(uviDigitSize.w, uviDigitSize.h, (ctx, w, h) => {
+      drawDigit(ctx, w, h, String(i), '#FFC312');
+    });
+    elementImages.push({ name: filename, dataUrl, bounds: { x: 0, y: 0, width: uviDigitSize.w, height: uviDigitSize.h }, type: 'TEXT_IMG' });
+  }
+
+  // Generate MONTH images (0-11) - used by IMG_DATE month (12-image array)
+  const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+  const monthSize = { w: 40, h: 20 };
+  for (let i = 0; i < 12; i++) {
+    const filename = `month_${i}.png`;
+    const dataUrl = createCanvasImage(monthSize.w, monthSize.h, (ctx, w, h) => {
+      ctx.fillStyle = '#AAAAAA';
+      ctx.font = `bold ${Math.floor(h * 0.6)}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(monthNames[i], w / 2, h / 2);
+    });
+    elementImages.push({ name: filename, dataUrl, bounds: { x: 0, y: 0, width: monthSize.w, height: monthSize.h }, type: 'IMG' });
+  }
+
+  // Generate DND icon for IMG_STATUS (DISTURB)
+  const dndSize = 30;
+  const dndDataUrl = createCanvasImage(dndSize, dndSize, (ctx, w) => {
+    ctx.strokeStyle = '#FF6B6B';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(w / 2, w / 2, w * 0.35, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(w * 0.25, w / 2);
+    ctx.lineTo(w * 0.75, w / 2);
+    ctx.stroke();
+  });
+  elementImages.push({ name: 'dnd_30x30.png', dataUrl: dndDataUrl, bounds: { x: 0, y: 0, width: dndSize, height: dndSize }, type: 'IMG_STATUS' });
+
+  // Generate Alarm icon for IMG_STATUS (CLOCK)
+  const alarmSize = 30;
+  const alarmDataUrl = createCanvasImage(alarmSize, alarmSize, (ctx, w) => {
+    ctx.strokeStyle = '#FFD93D';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(w / 2, w * 0.55, w * 0.3, 0, Math.PI * 2);
+    ctx.stroke();
+    // Bell top
+    ctx.beginPath();
+    ctx.moveTo(w * 0.35, w * 0.25);
+    ctx.lineTo(w / 2, w * 0.1);
+    ctx.lineTo(w * 0.65, w * 0.25);
+    ctx.stroke();
+  });
+  elementImages.push({ name: 'alarm_30x30.png', dataUrl: alarmDataUrl, bounds: { x: 0, y: 0, width: alarmSize, height: alarmSize }, type: 'IMG_STATUS' });
+
+  // Generate static label icons for decorative IMG elements
+  // Heart icon (24x20)
+  const heartIconDataUrl = createCanvasImage(24, 20, (ctx, w, h) => {
+    ctx.fillStyle = '#FF6B6B';
+    ctx.font = `${Math.floor(h * 0.9)}px serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('\u2665', w / 2, h / 2);
+  });
+  elementImages.push({ name: 'icon_heart_24x20.png', dataUrl: heartIconDataUrl, bounds: { x: 0, y: 0, width: 24, height: 20 }, type: 'IMG' });
+
+  // Steps icon (24x24) - shoe/footprint
+  const stepsIconDataUrl = createCanvasImage(24, 24, (ctx, w, h) => {
+    ctx.fillStyle = '#FFD93D';
+    ctx.font = `${Math.floor(h * 0.7)}px serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('\u{1F463}', w / 2, h / 2);
+  });
+  elementImages.push({ name: 'icon_steps_24x24.png', dataUrl: stepsIconDataUrl, bounds: { x: 0, y: 0, width: 24, height: 24 }, type: 'IMG' });
+
+  // Battery icon (24x14) - simple battery shape
+  const battIconDataUrl = createCanvasImage(24, 14, (ctx, w, h) => {
+    ctx.strokeStyle = '#00CC88';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(1, 2, w - 5, h - 4);
+    ctx.fillStyle = '#00CC88';
+    ctx.fillRect(w - 4, h * 0.3, 3, h * 0.4);
+  });
+  elementImages.push({ name: 'icon_batt_24x14.png', dataUrl: battIconDataUrl, bounds: { x: 0, y: 0, width: 24, height: 14 }, type: 'IMG' });
 
   // Generate bluetooth icon for IMG_STATUS
   const btSize = 30;
@@ -540,7 +915,7 @@ async function mockKimiAnalysis(
 
   // Generate static images for any remaining IMG-type elements with src
   elements
-    .filter((el) => el.type === 'IMG' && el.src && el.name !== 'Background' && !el.name.toLowerCase().includes('time') && !el.name.toLowerCase().includes('weekday') && !el.name.toLowerCase().includes('date'))
+    .filter((el) => el.type === 'IMG' && el.src && el.name !== 'Background' && !el.name.toLowerCase().includes('time') && !el.name.toLowerCase().includes('weekday') && !el.name.toLowerCase().includes('date') && !el.name.toLowerCase().includes('month') && !el.name.toLowerCase().includes('icon'))
     .forEach((el) => {
       const canvas = document.createElement('canvas');
       canvas.width = Math.max(el.bounds.width || 100, 200);

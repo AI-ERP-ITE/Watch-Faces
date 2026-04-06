@@ -219,7 +219,8 @@ function generateWatchfaceIndexJsV2(config: WatchFaceConfig): string {
   let normalWidgetsCode = '';
   let normalWidgetCounter = 2;
   const timeElement = elements.find(e => e.name.toLowerCase().includes('time'));
-  const dateElement = elements.find(e => e.name.toLowerCase().includes('date'));
+  const dateElement = elements.find(e => e.name.toLowerCase().includes('date') && !e.name.toLowerCase().includes('month'));
+  const monthElement = elements.find(e => e.name.toLowerCase().includes('month'));
   const weekElement = elements.find(e => e.name.toLowerCase().includes('week'));
   
   // Add IMG_TIME widget if time element exists
@@ -231,6 +232,11 @@ function generateWatchfaceIndexJsV2(config: WatchFaceConfig): string {
   if (dateElement) {
     normalWidgetsCode += generateIMGDateWidget(dateElement, normalWidgetCounter++, 'ONLY_NORMAL');
   }
+
+  // Add IMG_DATE (month) widget if month element exists
+  if (monthElement) {
+    normalWidgetsCode += generateIMGMonthWidget(monthElement, normalWidgetCounter++, 'ONLY_NORMAL');
+  }
   
   // Add IMG_WEEK widget if week element exists
   if (weekElement) {
@@ -239,7 +245,7 @@ function generateWatchfaceIndexJsV2(config: WatchFaceConfig): string {
   
   // Add other static elements for NORMAL mode
   for (const element of elements) {
-    if (element.name.toLowerCase().includes('time') || element.name.toLowerCase().includes('date') || element.name.toLowerCase().includes('week')) {
+    if (element.name.toLowerCase().includes('time') || element.name.toLowerCase().includes('date') || element.name.toLowerCase().includes('week') || element.name.toLowerCase().includes('month')) {
       continue; // Skip, already handled above
     }
     const code = generateWidgetCodeV2(element, normalWidgetCounter);
@@ -260,6 +266,10 @@ function generateWatchfaceIndexJsV2(config: WatchFaceConfig): string {
   if (dateElement) {
     aodWidgetsCode += generateIMGDateWidget(dateElement, aodWidgetCounter++, 'ONLY_AOD');
   }
+
+  if (monthElement) {
+    aodWidgetsCode += generateIMGMonthWidget(monthElement, aodWidgetCounter++, 'ONLY_AOD');
+  }
   
   if (weekElement) {
     aodWidgetsCode += generateIMGWeekWidget(weekElement, aodWidgetCounter++, 'ONLY_AOD');
@@ -267,7 +277,7 @@ function generateWatchfaceIndexJsV2(config: WatchFaceConfig): string {
   
   // Add other static elements for AOD mode
   for (const element of elements) {
-    if (element.name.toLowerCase().includes('time') || element.name.toLowerCase().includes('date') || element.name.toLowerCase().includes('week')) {
+    if (element.name.toLowerCase().includes('time') || element.name.toLowerCase().includes('date') || element.name.toLowerCase().includes('week') || element.name.toLowerCase().includes('month')) {
       continue;
     }
     // Skip BUTTON in AOD mode - no touch interaction on AOD screen
@@ -430,6 +440,35 @@ function generateIMGDateWidget(element: WatchFaceElement, widgetIndex: number, s
                     day_space: 0,
                     day_align: hmUI.align.LEFT,
                     day_is_character: false,
+                    show_level: hmUI.show_level.${showLevel}
+                });`;
+}
+
+// Generate IMG_DATE (month) widget with month arrays (12 images)
+// Pattern from working Brushed Steel reference: month_startX/Y, month_sc/tc/en_array, month_is_character
+function generateIMGMonthWidget(element: WatchFaceElement, widgetIndex: number, showLevel: string): string {
+  const x = element.bounds.x || 105;
+  const y = element.bounds.y || 198;
+  
+  // Use month_N.png naming — 12 images for Jan-Dec (0-indexed)
+  const monthArray = [];
+  for (let i = 0; i < 12; i++) {
+    monthArray.push(`'month_${i}.png'`);
+  }
+  const monthArrayStr = `[${monthArray.join(', ')}]`;
+  
+  return `
+                // ${element.name} - IMG_DATE Month Widget
+                let widget_${widgetIndex} = hmUI.createWidget(hmUI.widget.IMG_DATE, {
+                    month_startX: ${x},
+                    month_startY: ${y},
+                    month_sc_array: ${monthArrayStr},
+                    month_tc_array: ${monthArrayStr},
+                    month_en_array: ${monthArrayStr},
+                    month_zero: 0,
+                    month_space: 0,
+                    month_is_character: true,
+                    month_align: hmUI.align.LEFT,
                     show_level: hmUI.show_level.${showLevel}
                 });`;
 }
