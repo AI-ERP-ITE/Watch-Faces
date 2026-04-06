@@ -405,11 +405,13 @@ function generateIMGTimeWidget(element: WatchFaceElement, widgetIndex: number, s
                     hour_startX: ${x},
                     hour_startY: ${y},
                     hour_array: ${digitArrayStr},
+                    hour_space: 0,
                     hour_align: hmUI.align.LEFT,
                     minute_zero: 1,
                     minute_startX: ${x + 70},
                     minute_startY: ${y},
                     minute_array: ${digitArrayStr},
+                    minute_space: 0,
                     minute_align: hmUI.align.LEFT,
                     minute_follow: 0,
                     show_level: hmUI.show_level.${showLevel}
@@ -491,6 +493,8 @@ function generateIMGWeekWidget(element: WatchFaceElement, widgetIndex: number, s
                     x: ${x},
                     y: ${y},
                     week_en: ${weekArrayStr},
+                    week_sc: ${weekArrayStr},
+                    week_tc: ${weekArrayStr},
                     show_level: hmUI.show_level.${showLevel}
                 });`;
 }
@@ -586,7 +590,6 @@ function generateArcProgressWidget(element: WatchFaceElement, widgetIndex: numbe
                     end_angle: ${endAngle},
                     color: ${colorValue},
                     line_width: ${lineWidth},${typeParam}
-                    level: 50,
                     show_level: hmUI.show_level.${showLevel}
                 });`;
 }
