@@ -79,7 +79,7 @@ function resolvedToWatchFaceElement(el: ResolvedElement, idx: number): WatchFace
   const base: WatchFaceElement = {
     id: el.id,
     type: mapWidgetToElementType(el.widget),
-    name: `${el.widget}_${el.sourceType}_${idx}`,
+    name: mapWidgetToName(el.widget, el.sourceType, idx),
     bounds: {
       x: el.x ?? el.centerX,
       y: el.y ?? el.centerY,
@@ -121,26 +121,22 @@ function resolvedToWatchFaceElement(el: ResolvedElement, idx: number): WatchFace
     base.dataType = el.dataType;
   }
 
-  // IMG_TIME specifics — set as time with the expected naming pattern
+  // IMG_TIME specifics
   if (el.widget === 'IMG_TIME') {
-    base.name = `Digital Time ${idx}`;
     base.images = el.assets.fontArray;
   }
 
   // IMG_DATE specifics
   if (el.widget === 'IMG_DATE') {
     if (el.sourceType === 'month') {
-      base.name = `Month ${idx}`;
       base.images = el.assets.monthArray;
     } else {
-      base.name = `Date ${idx}`;
       base.images = el.assets.fontArray;
     }
   }
 
   // IMG_WEEK specifics
   if (el.widget === 'IMG_WEEK') {
-    base.name = `Weekday ${idx}`;
     base.images = el.assets.weekArray;
   }
 
@@ -167,22 +163,47 @@ function resolvedToWatchFaceElement(el: ResolvedElement, idx: number): WatchFace
 }
 
 // Map pipeline widget names back to WatchFaceElement.type
+// V2 generator uses element.type in the switch/case in generateWidgetCodeV2
 function mapWidgetToElementType(
   widget: string,
 ): WatchFaceElement['type'] {
   const map: Record<string, WatchFaceElement['type']> = {
     TIME_POINTER: 'TIME_POINTER',
-    IMG_TIME:     'IMG',       // IMG_TIME uses the IMG handler path with time name
-    IMG_DATE:     'IMG',       // IMG_DATE uses the IMG handler path with date name
-    IMG_WEEK:     'IMG',       // IMG_WEEK uses the IMG handler path with week name
     ARC_PROGRESS: 'ARC_PROGRESS',
     TEXT:         'TEXT',
     TEXT_IMG:     'TEXT_IMG',
     IMG:          'IMG',
     IMG_STATUS:   'IMG_STATUS',
     IMG_LEVEL:    'IMG_LEVEL',
+    // IMG_TIME, IMG_DATE, IMG_WEEK are routed by NAME in V2 generator,
+    // so their type doesn't matter for the switch/case. Set to IMG as fallback.
+    IMG_TIME:     'IMG',
+    IMG_DATE:     'IMG',
+    IMG_WEEK:     'IMG',
   };
   return map[widget] || 'IMG';
+}
+
+// Map widget to a name the V2 generator's name-based routing expects.
+// V2 generator checks: name.includes('time'), name.includes('date'),
+// name.includes('week'), name.includes('month')
+function mapWidgetToName(
+  widget: string,
+  sourceType: string,
+  idx: number,
+): string {
+  switch (widget) {
+    case 'TIME_POINTER': return `Analog Time ${idx}`;
+    case 'IMG_TIME':     return `Digital Time ${idx}`;
+    case 'IMG_DATE':     return sourceType === 'month' ? `Month ${idx}` : `Date ${idx}`;
+    case 'IMG_WEEK':     return `Weekday ${idx}`;
+    case 'ARC_PROGRESS': return `Arc ${sourceType} ${idx}`;
+    case 'TEXT_IMG':     return `Value ${sourceType} ${idx}`;
+    case 'TEXT':         return `Text ${sourceType} ${idx}`;
+    case 'IMG_STATUS':   return `Status ${idx}`;
+    case 'IMG_LEVEL':    return `Level ${sourceType} ${idx}`;
+    default:             return `Element ${idx}`;
+  }
 }
 
 // ─── Re-exports for convenience ─────────────────────────────────────────────────
