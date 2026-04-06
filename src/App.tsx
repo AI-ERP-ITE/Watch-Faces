@@ -1022,25 +1022,16 @@ function App() {
         console.log('[App] Pipeline AI elements:', aiElements.length);
 
         dispatch(actions.setLoadingMessage('Running deterministic pipeline...'));
-        const generatedCode = runPipeline(aiElements, {
+        const pipelineResult = runPipeline(aiElements, {
           watchfaceName: watchFaceName?.trim() || `AI_WatchFace_${Date.now()}`,
           watchModel,
           backgroundSrc: 'background.png',
         });
 
-        // Pipeline produces GeneratedCode directly — build a minimal config for preview
+        // Pipeline returns both the WatchFaceConfig (with elements) and generated code
+        config = pipelineResult.config;
         elementImages = [];
-        config = {
-          name: watchFaceName?.trim() || `AI_WatchFace_${Date.now()}`,
-          resolution: { width: 480, height: 480 },
-          background: { src: 'background.png', format: 'TGA-P' },
-          elements: [],  // Pipeline generates code directly, elements are embedded
-          watchModel,
-        };
-
-        // Store generated code directly so handleGenerate can use it
-        dispatch(actions.setGeneratedCode(generatedCode));
-        console.log('[App] Pipeline code generated successfully');
+        console.log('[App] Pipeline produced', config.elements.length, 'elements');
       } else {
         // ─── Legacy AI Path (coordinates from AI) ────────────────────────
         dispatch(actions.setLoadingMessage('Sending image to AI for analysis...'));

@@ -19,10 +19,15 @@ export interface PipelineOptions {
   backgroundSrc?: string;
 }
 
+export interface PipelineResult {
+  config: WatchFaceConfig;
+  code: GeneratedCode;
+}
+
 export function runPipeline(
   aiOutput: AIElement[],
   options: PipelineOptions = {},
-): GeneratedCode {
+): PipelineResult {
   // Stage 0: Validate AI output (reject coordinates, unknown types, etc.)
   validateAIOutput(aiOutput);
 
@@ -43,7 +48,8 @@ export function runPipeline(
 
   // Stage 5: Bridge to existing V2 code generator
   const config = bridgeToWatchFaceConfig(resolved, options);
-  return generateWatchFaceCodeV2(config);
+  const code = generateWatchFaceCodeV2(config);
+  return { config, code };
 }
 
 // ─── Bridge: ResolvedElement[] → WatchFaceConfig ────────────────────────────────
