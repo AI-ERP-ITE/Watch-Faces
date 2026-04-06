@@ -65,18 +65,19 @@ export async function buildZPK(options: ZPKBuildOptions): Promise<ZPKBuildResult
     console.log('[ZPK] Step 7: Creating assets folder...');
     const assets = deviceZip.folder('assets');
     if (assets) {
-      // Add background image
+      // Add background image directly from uploaded file (no conversion)
       console.log('[ZPK] Step 8: Adding background image...');
-      assets.file('bg.png', backgroundFile);
+      assets.file('background.png', backgroundFile);
       console.log('[ZPK] Step 9: Background image added, size:', backgroundFile.size);
       
-      // Add element images
-      console.log('[ZPK] Step 9b: Adding element images, count:', options.elementFiles.length);
-      if (options.elementFiles.length === 0) {
+      // Add element images (skip background.png since we already added it directly)
+      const filteredElements = options.elementFiles.filter(ef => ef.src !== 'background.png');
+      console.log('[ZPK] Step 9b: Adding element images, count:', filteredElements.length);
+      if (filteredElements.length === 0) {
         console.error('[ZPK] ERROR: No element files to add!');
       }
       
-      for (const elementFile of options.elementFiles) {
+      for (const elementFile of filteredElements) {
         console.log('[ZPK] Adding element file:', elementFile.src, 'size:', elementFile.file.size);
         if (elementFile.file.size === 0) {
           console.error('[ZPK] ERROR: Element file is EMPTY:', elementFile.src);

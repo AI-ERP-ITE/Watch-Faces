@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { ArrowRight, RefreshCw, Sparkles, Wand2 } from 'lucide-react';
+import { ArrowRight, RefreshCw, Sparkles, Wand2, Settings, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,6 +17,8 @@ import { useApp, actions } from '@/context/AppContext';
 import { buildZPK } from '@/lib/zpkBuilder';
 import { uploadZPKWithQR } from '@/lib/githubApi';
 import { generateQRCode } from '@/lib/qrGenerator';
+import { analyzeWatchfaceImage, testApiKey, type AIProvider, type AIServiceConfig } from '@/lib/aiService';
+import { generateAssets } from '@/lib/assetGenerator';
 import type { WatchFaceConfig, WatchFaceElement, ElementImage } from '@/types';
 import { generateId } from '@/lib/utils';
 
@@ -956,6 +958,27 @@ function App() {
   const [watchModel, setWatchModel] = useState('Balance 2');
   const [watchFaceName, setWatchFaceName] = useState('');
 
+  // AI Provider settings (persisted in localStorage)
+  const [aiProvider, setAiProvider] = useState<AIProvider>(
+    () => (localStorage.getItem('ai_provider') as AIProvider) || 'gemini'
+  );
+  const [aiApiKey, setAiApiKey] = useState(
+    () => localStorage.getItem('ai_api_key') || ''
+  );
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [useMockAnalysis, setUseMockAnalysis] = useState(false);
+
+  // Persist AI settings
+  const handleSetAiProvider = (provider: AIProvider) => {
+    setAiProvider(provider);
+    localStorage.setItem('ai_provider', provider);
+  };
+  const handleSetApiKey = (key: string) => {
+    setAiApiKey(key);
+    localStorage.setItem('ai_api_key', key);
+  };
+
   // Handle continue to analysis
   const handleAnalyze = useCallback(async () => {
     if (!state.backgroundImage || !state.fullDesignImage) {
@@ -968,20 +991,77 @@ function App() {
     dispatch(actions.setStep('analyzing'));
 
     try {
-      // Call Kimi analysis (mock for now)
-      const result = await mockKimiAnalysis(
-        state.backgroundImage,
-        state.fullDesignImage,
-        watchModel
-      );
+      let config: WatchFaceConfig;
+      let elementImages: ElementImage[];
+
+      if (useMockAnalysis || !aiApiKey) {
+        // Fallback to mock analysis
+        if (!aiApiKey && !useMockAnalysis) {
+          toast.info('No API key set — using mock analysis. Open Settings to add your key.');
+        }
+        const result = await mockKimiAnalysis(
+          state.backgroundImage,
+          state.fullDesignImage,
+          watchModel
+        );
+        config = result.config;
+        elementImages = result.elementImages;
+      } else {
+        // Real AI Vision analysis
+        dispatch(actions.setLoadingMessage('Sending image to AI for analysis...'));
+        const aiConfig: AIServiceConfig = { provider: aiProvider, apiKey: aiApiKey };
+        const analysis = await analyzeWatchfaceImage(aiConfig, state.fullDesignFile!);
+        
+        console.log('[App] AI analysis result:', analysis.designDescription);
+        console.log('[App] Detected elements:', analysis.elements.length);
+        console.log('[App] Complications:', analysis.detectedComplications);
+
+        // Generate image assets based on analysis
+        dispatch(actions.setLoadingMessage('Generating image assets...'));
+        elementImages = await generateAssets(
+          analysis,
+          state.fullDesignFile!,
+        );
+
+        // Parse resolution from watch model
+        const resolutions: Record<string, { width: number; height: number }> = {
+          'Balance 2': { width: 480, height: 480 },
+          'Balance': { width: 480, height: 480 },
+          'Active Max': { width: 480, height: 480 },
+          'Active 3 Premium': { width: 466, height: 466 },
+          'Active 2 Round': { width: 466, height: 466 },
+          'Active 2 Square': { width: 390, height: 450 },
+          'Active': { width: 390, height: 450 },
+          'Pop 3S (PIB)': { width: 410, height: 502 },
+          'GTR4': { width: 466, height: 466 },
+          'GTS4': { width: 390, height: 450 },
+          'Cheetah Pro': { width: 466, height: 466 },
+          'T-Rex 2': { width: 454, height: 454 },
+          'Falcon': { width: 416, height: 416 },
+        };
+        const resolution = resolutions[watchModel] || { width: 480, height: 480 };
+
+        // Filter out any Background element the AI may have created — we handle it directly
+        const filteredElements = analysis.elements.filter(
+          el => el.name !== 'Background' && !(el.type === 'IMG' && el.bounds.x === 0 && el.bounds.y === 0 && el.bounds.width >= 470 && el.bounds.height >= 470)
+        );
+
+        config = {
+          name: `AI_WatchFace_${Date.now()}`,
+          resolution,
+          background: { src: 'background.png', format: 'TGA-P' },
+          elements: filteredElements,
+          watchModel,
+        };
+      }
 
       // Update state with results
       if (watchFaceName?.trim()) {
-        result.config.name = watchFaceName.trim();
+        config.name = watchFaceName.trim();
       }
 
-      dispatch(actions.setWatchFaceConfig(result.config));
-      dispatch(actions.setElementImages(result.elementImages));
+      dispatch(actions.setWatchFaceConfig(config));
+      dispatch(actions.setElementImages(elementImages));
       dispatch(actions.setStep('preview'));
       toast.success('Analysis complete!');
     } catch (error) {
@@ -1192,6 +1272,97 @@ function App() {
                   className="bg-[#0F0F0F] border-zinc-700 text-white placeholder:text-zinc-600"
                 />
               </div>
+            </div>
+
+            {/* AI Settings Panel */}
+            <div className="border border-zinc-700 rounded-lg overflow-hidden">
+              <button
+                onClick={() => setShowSettings(!showSettings)}
+                className="w-full flex items-center justify-between px-4 py-3 bg-[#141414] hover:bg-[#1A1A1A] transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <Settings className="h-4 w-4 text-zinc-400" />
+                  <span className="text-sm font-medium text-zinc-300">AI Settings</span>
+                  {aiApiKey ? (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-green-900/50 text-green-400">
+                      {aiProvider === 'gemini' ? 'Gemini' : 'GPT-4o'} configured
+                    </span>
+                  ) : (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-900/50 text-yellow-400">
+                      Mock mode
+                    </span>
+                  )}
+                </div>
+                <span className="text-zinc-500 text-xs">{showSettings ? '▲' : '▼'}</span>
+              </button>
+
+              {showSettings && (
+                <div className="px-4 py-4 space-y-4 border-t border-zinc-800">
+                  {/* Provider selector */}
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label className="text-sm text-zinc-300">AI Provider</Label>
+                      <select
+                        value={aiProvider}
+                        onChange={(e) => handleSetAiProvider(e.target.value as AIProvider)}
+                        className="w-full h-10 px-3 rounded-md bg-[#0F0F0F] border border-zinc-700 text-white text-sm focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/20"
+                      >
+                        <option value="gemini">Google Gemini 2.0 Flash (cheapest)</option>
+                        <option value="openai">OpenAI GPT-4o (most reliable)</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm text-zinc-300">API Key</Label>
+                      <div className="relative">
+                        <Input
+                          type={showApiKey ? 'text' : 'password'}
+                          value={aiApiKey}
+                          onChange={(e) => handleSetApiKey(e.target.value)}
+                          placeholder={aiProvider === 'gemini' ? 'AIza...' : 'sk-...'}
+                          className="bg-[#0F0F0F] border-zinc-700 text-white placeholder:text-zinc-600 pr-20"
+                        />
+                        <div className="absolute right-1 top-1 flex gap-1">
+                          <button
+                            onClick={() => setShowApiKey(!showApiKey)}
+                            className="p-1.5 text-zinc-500 hover:text-zinc-300"
+                          >
+                            {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                          <button
+                            onClick={async () => {
+                              if (!aiApiKey) return;
+                              const valid = await testApiKey({ provider: aiProvider, apiKey: aiApiKey });
+                              toast[valid ? 'success' : 'error'](valid ? 'API key is valid!' : 'API key is invalid');
+                            }}
+                            className="px-2 py-1 text-xs rounded bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
+                          >
+                            Test
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Mock mode toggle */}
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={useMockAnalysis}
+                        onChange={(e) => setUseMockAnalysis(e.target.checked)}
+                        className="rounded border-zinc-600 bg-zinc-800 text-cyan-500 focus:ring-cyan-500/20"
+                      />
+                      <span className="text-sm text-zinc-400">Use mock analysis (no API call, demo data)</span>
+                    </label>
+                  </div>
+
+                  <p className="text-xs text-zinc-600">
+                    {aiProvider === 'gemini'
+                      ? 'Get your API key from Google AI Studio: aistudio.google.com/apikey'
+                      : 'Get your API key from OpenAI: platform.openai.com/api-keys'}
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Upload zones */}
