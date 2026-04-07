@@ -31,8 +31,9 @@ export const DATE_MONTH_GAP = 10;
 
 // ─── Arc Configuration ─────────────────────────────────────────────────────────
 
-export const ARC_BASE_RADIUS = 200;
-export const ARC_SPACING = 30;
-export const ARC_LINE_WIDTH = 12;
+export const ARC_BASE_RADIUS = 180;
+export const ARC_SPACING = 25;
+export const ARC_LINE_WIDTH = 12;       // base thickness for priority 0
+export const ARC_LINE_WIDTH_STEP = 2;   // thickness decreases per priority level
 export const ARC_START_ANGLE = 135;
-export const ARC_END_ANGLE = 405;
+export const ARC_MAX_SWEEP = 300;       // maximum sweep angle (data-driven)

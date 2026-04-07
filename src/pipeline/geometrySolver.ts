@@ -9,10 +9,11 @@
 import type { LayoutElement, GeometryElement } from '@/types/pipeline';
 import {
   SCREEN, ARC_BASE_RADIUS, ARC_SPACING, ARC_LINE_WIDTH,
-  ARC_START_ANGLE, ARC_END_ANGLE,
+  ARC_LINE_WIDTH_STEP, ARC_START_ANGLE, ARC_MAX_SWEEP,
   TIME_DIGIT, HOUR_CONTENT_W, TIME_COLON_GAP,
   DATE_DIGIT, MONTH_LABEL, WEEK_LABEL, WEATHER_ICON,
 } from './constants';
+import { getPriority, getMockValue } from './semanticPriority';
 
 const { CX, CY } = SCREEN;
 
@@ -51,19 +52,25 @@ export function solveGeometry(elements: LayoutElement[]): GeometryElement[] {
 
   const results: GeometryElement[] = [];
 
-  // --- Arcs: concentric stacking ---
-  for (let i = 0; i < arcElements.length; i++) {
-    const el = arcElements[i];
-    const radius = ARC_BASE_RADIUS - (i * ARC_SPACING);
+  // --- Arcs: priority-based concentric stacking ---
+  // Elements arrive pre-sorted by semantic priority (sortArcsByPriority in orchestrator).
+  // Each arc's radius, sweep, and thickness derive from its dataType priority.
+  for (const el of arcElements) {
+    const priority = getPriority(el.dataType);
+    const mockValue = getMockValue(el.dataType);
+
+    const radius = ARC_BASE_RADIUS - (priority * ARC_SPACING);
+    const sweep = mockValue * ARC_MAX_SWEEP;
+    const lineWidth = Math.max(ARC_LINE_WIDTH - (priority * ARC_LINE_WIDTH_STEP), 4);
 
     results.push({
       ...el,
-      centerX: CX,  // enforce shared center (override layout engine, belt-and-suspenders)
+      centerX: CX,
       centerY: CY,
-      radius: Math.max(radius, 40), // floor at 40px
+      radius: Math.max(radius, 40),
       startAngle: ARC_START_ANGLE,
-      endAngle: ARC_END_ANGLE,
-      lineWidth: ARC_LINE_WIDTH,
+      endAngle: ARC_START_ANGLE + sweep,
+      lineWidth,
     });
   }
 

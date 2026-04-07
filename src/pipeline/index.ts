@@ -8,6 +8,7 @@ import type { WatchFaceConfig, WatchFaceElement, GeneratedCode } from '@/types';
 
 import { validateAIOutput, validateNormalized, validateLayout, validateGeometry } from './validators';
 import { normalize } from './normalizer';
+import { sortArcsByPriority } from './semanticPriority';
 import { applyLayout } from './layoutEngine';
 import { solveGeometry } from './geometrySolver';
 import { resolveAssets } from './assetResolver';
@@ -84,6 +85,11 @@ export async function runPipeline(
     normalized = assignFallbackDataTypes(normalized);
     validateNormalized(normalized);
   }
+
+  // ─── Semantic Priority: Sort arcs by visual hierarchy ──────────────────
+  log('Applying semantic priority...');
+  normalized = sortArcsByPriority(normalized);
+  console.log('[Pipeline] Semantic priority applied — arcs sorted by data type');
 
   // ─── Stage C: Layout (deterministic region map) ──────────────────────────
   log('Stage C: Computing layout...');
@@ -299,6 +305,7 @@ function mapWidgetToName(
 
 export { validateAIOutput } from './validators';
 export { normalize } from './normalizer';
+export { sortArcsByPriority } from './semanticPriority';
 export { applyLayout } from './layoutEngine';
 export { solveGeometry } from './geometrySolver';
 export { resolveAssets } from './assetResolver';
