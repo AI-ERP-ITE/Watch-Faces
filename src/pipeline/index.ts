@@ -1,7 +1,9 @@
-// Pipeline Orchestrator — Runs all stages in sequence with validation between each.
-// AI → Validate → Normalize → Validate → Layout → Geometry → Assets → V2 Bridge
+// Pipeline Orchestrator — Multi-stage pipeline with AI calls + deterministic stages.
+// Stage A (AI) → Validate → Stage B (AI) → Validate → Layout → Geometry → Assets → V2 Bridge
+// Stage B uses cheaper text-only AI. Falls back to code-only normalizer if AI fails.
+// Call 3 resolves remaining ambiguities (only if needed).
 
-import type { AIElement, ResolvedElement } from '@/types/pipeline';
+import type { AIElement, NormalizedElement, ResolvedElement } from '@/types/pipeline';
 import type { WatchFaceConfig, WatchFaceElement, GeneratedCode } from '@/types';
 
 import { validateAIOutput, validateNormalized, validateLayout, validateGeometry } from './validators';
@@ -10,6 +12,7 @@ import { applyLayout } from './layoutEngine';
 import { solveGeometry } from './geometrySolver';
 import { resolveAssets } from './assetResolver';
 import { generateWatchFaceCodeV2 } from '@/lib/jsCodeGeneratorV2';
+import { normalizeWithAI, resolveAmbiguities, type PipelineAIConfig } from './pipelineAIService';
 
 // ─── Pipeline Orchestrator ──────────────────────────────────────────────────────
 
@@ -17,6 +20,10 @@ export interface PipelineOptions {
   watchfaceName?: string;
   watchModel?: string;
   backgroundSrc?: string;
+  /** AI config for Stage B normalization + Call 3 ambiguity resolution */
+  aiConfig?: PipelineAIConfig;
+  /** Progress callback for UI status messages */
+  onProgress?: (message: string) => void;
 }
 
 export interface PipelineResult {
@@ -25,32 +32,102 @@ export interface PipelineResult {
   resolved: ResolvedElement[];
 }
 
-export function runPipeline(
+export async function runPipeline(
   aiOutput: AIElement[],
   options: PipelineOptions = {},
-): PipelineResult {
-  // Stage 0: Validate AI output (reject coordinates, unknown types, etc.)
-  validateAIOutput(aiOutput);
+): Promise<PipelineResult> {
+  const log = options.onProgress ?? (() => {});
 
-  // Stage 1: Normalize AI types → Zepp widgets
-  const normalized = normalize(aiOutput);
+  // ─── Stage 0: Validate AI output (reject coordinates, unknown types) ─────
+  validateAIOutput(aiOutput);
+  console.log('[Pipeline] Stage A validated:', aiOutput.length, 'elements');
+
+  // ─── Stage B: Normalize AI types → Zepp widgets (AI call or code fallback) ─
+  let normalized: NormalizedElement[];
+
+  if (options.aiConfig) {
+    log('Stage B: Normalizing elements with AI...');
+    try {
+      normalized = await normalizeWithAI(options.aiConfig, aiOutput);
+      console.log('[Pipeline] Stage B (AI) normalized:', normalized.length, 'elements');
+    } catch (err) {
+      console.warn('[Pipeline] Stage B AI failed, falling back to code normalizer:', err);
+      log('Stage B: AI failed, using code fallback...');
+      normalized = normalize(aiOutput);
+      console.log('[Pipeline] Stage B (code fallback) normalized:', normalized.length, 'elements');
+    }
+  } else {
+    normalized = normalize(aiOutput);
+    console.log('[Pipeline] Stage B (code-only) normalized:', normalized.length, 'elements');
+  }
+
   validateNormalized(normalized);
 
-  // Stage 2: Compute layout positions (deterministic, per-region)
+  // ─── Call 3: Resolve remaining ambiguities (if any ARC missing dataType) ──
+  const unresolvedArcs = normalized.filter(
+    el => el.widget === 'ARC_PROGRESS' && !el.dataType,
+  );
+
+  if (unresolvedArcs.length > 0 && options.aiConfig) {
+    log('Call 3: Resolving arc ambiguities with AI...');
+    try {
+      normalized = await resolveAmbiguities(options.aiConfig, normalized);
+      console.log('[Pipeline] Call 3 resolved ambiguities');
+    } catch (err) {
+      console.warn('[Pipeline] Call 3 failed, assigning fallback data types:', err);
+      // Code fallback: assign remaining metrics deterministically
+      normalized = assignFallbackDataTypes(normalized);
+    }
+    validateNormalized(normalized);
+  } else if (unresolvedArcs.length > 0) {
+    // No AI config — assign fallbacks in code
+    normalized = assignFallbackDataTypes(normalized);
+    validateNormalized(normalized);
+  }
+
+  // ─── Stage C: Layout (deterministic region map) ──────────────────────────
+  log('Stage C: Computing layout...');
   const layouted = applyLayout(normalized);
   validateLayout(layouted);
+  console.log('[Pipeline] Stage C layout:', layouted.length, 'elements');
 
-  // Stage 3: Solve geometry (pivots, radii, angles, bounding boxes)
+  // ─── Stage D: Geometry (deterministic) ──────────────────────────────────
+  log('Stage D: Solving geometry...');
   const geometry = solveGeometry(layouted);
   validateGeometry(geometry);
+  console.log('[Pipeline] Stage D geometry:', geometry.length, 'elements');
 
-  // Stage 4: Resolve asset paths
+  // ─── Stage E: Asset resolution ──────────────────────────────────────────
+  log('Stage E: Resolving assets...');
   const resolved = resolveAssets(geometry);
+  console.log('[Pipeline] Stage E assets resolved');
 
-  // Stage 5: Bridge to existing V2 code generator
+  // ─── Stage F: Bridge to V2 code generator ──────────────────────────────
+  log('Stage F: Generating code...');
   const config = bridgeToWatchFaceConfig(resolved, options);
   const code = generateWatchFaceCodeV2(config);
+  console.log('[Pipeline] Stage F code generated');
+
   return { config, code, resolved };
+}
+
+// ─── Fallback: Assign dataTypes to unresolved ARC_PROGRESS elements ────────────
+
+const ARC_FALLBACK_PRIORITY = ['BATTERY', 'STEP', 'HEART', 'SPO2', 'CAL'];
+
+function assignFallbackDataTypes(elements: NormalizedElement[]): NormalizedElement[] {
+  const used = new Set(elements.map(e => e.dataType).filter(Boolean));
+
+  return elements.map(el => {
+    if (el.widget === 'ARC_PROGRESS' && !el.dataType) {
+      const fallback = ARC_FALLBACK_PRIORITY.find(dt => !used.has(dt));
+      if (fallback) {
+        used.add(fallback);
+        return { ...el, dataType: fallback };
+      }
+    }
+    return el;
+  });
 }
 
 // ─── Bridge: ResolvedElement[] → WatchFaceConfig ────────────────────────────────
@@ -205,7 +282,7 @@ function mapWidgetToName(
   idx: number,
 ): string {
   switch (widget) {
-    case 'TIME_POINTER': return `Analog Time ${idx}`;
+    case 'TIME_POINTER': return `Clock Hands ${idx}`;
     case 'IMG_TIME':     return `Digital Time ${idx}`;
     case 'IMG_DATE':     return sourceType === 'month' ? `Month ${idx}` : `Date ${idx}`;
     case 'IMG_WEEK':     return `Weekday ${idx}`;
@@ -226,3 +303,4 @@ export { applyLayout } from './layoutEngine';
 export { solveGeometry } from './geometrySolver';
 export { resolveAssets } from './assetResolver';
 export type { AIElement, AIExtractionResult, ResolvedElement } from '@/types/pipeline';
+export type { PipelineAIConfig } from './pipelineAIService';

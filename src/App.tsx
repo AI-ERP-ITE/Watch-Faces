@@ -1023,10 +1023,12 @@ function App() {
         console.log('[App] Pipeline AI elements:', aiElements.length);
 
         dispatch(actions.setLoadingMessage('Running deterministic pipeline...'));
-        const pipelineResult = runPipeline(aiElements, {
+        const pipelineResult = await runPipeline(aiElements, {
           watchfaceName: watchFaceName?.trim() || `AI_WatchFace_${Date.now()}`,
           watchModel,
           backgroundSrc: 'background.png',
+          aiConfig: { provider: aiProvider as PipelineAIProvider, apiKey: aiApiKey },
+          onProgress: (msg) => dispatch(actions.setLoadingMessage(msg)),
         });
 
         // Pipeline returns both the WatchFaceConfig (with elements) and generated code
