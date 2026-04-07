@@ -1,10 +1,17 @@
-// Geometry Solver — Computes all spatial properties for each widget type.
+// Geometry Solver — THE layer that controls SIZE, SHAPE, and SPATIAL INTELLIGENCE.
 // Deterministic. No AI. No randomness.
 //
-// KEY DESIGN: Polar/radial model for watchfaces.
-// - Arcs are concentric: share same center, differ by radius (layer index)
-// - Time hands share screen center
-// - Rectangular widgets use positions from layout engine (which already accounts for content size)
+// OWNERSHIP (5-layer model):
+//   Layout Engine → WHERE (anchor point only)
+//   Geometry Solver → HOW (radius, sweep, thickness, offsets, visual weight)
+//
+// Steps:
+//   A – Extract arcs
+//   B – Assign semantic priority (via semanticPriority module)
+//   C – Radius from priority (NOT region)
+//   D – Arc sweep (data-driven, mock values)
+//   E – Thickness scaling
+//   F – Time offset (calibrated override, NOT Layout Engine)
 
 import type { LayoutElement, GeometryElement } from '@/types/pipeline';
 import {
@@ -25,8 +32,13 @@ const HAND_DIMENSIONS = {
   second: { w: 6,  h: 240 },
 };
 
+// ─── Calibrated time offset (from real watchface analysis) ──────────────────────
+// TIME_POINTER and IMG_TIME anchor left of center for visual balance.
+
+const TIME_CENTER_X = 140;
+const TIME_CENTER_Y = CY;   // 240
+
 // ─── Rectangular widget bounding boxes ──────────────────────────────────────────
-// These are used ONLY for widget types that don't have specific solvers below.
 
 const DEFAULT_SIZES: Record<string, { w: number; h: number }> = {
   TEXT:       { w: 200, h: 40 },
@@ -38,7 +50,7 @@ const DEFAULT_SIZES: Record<string, { w: number; h: number }> = {
 // ─── Geometry Solver ────────────────────────────────────────────────────────────
 
 export function solveGeometry(elements: LayoutElement[]): GeometryElement[] {
-  // Collect arcs for concentric stacking (order = layer index)
+  // ── STEP A: Extract arcs ──────────────────────────────────────────────────
   const arcElements: LayoutElement[] = [];
   const otherElements: LayoutElement[] = [];
 
@@ -52,16 +64,21 @@ export function solveGeometry(elements: LayoutElement[]): GeometryElement[] {
 
   const results: GeometryElement[] = [];
 
-  // --- Arcs: priority-based concentric stacking ---
+  // ── STEPS B-E: Priority-based concentric arc stacking ─────────────────────
   // Elements arrive pre-sorted by semantic priority (sortArcsByPriority in orchestrator).
-  // Each arc's radius, sweep, and thickness derive from its dataType priority.
+  // STEP B: Priority comes from semanticPriority module (getPriority).
+  // STEP C: Radius = BASE_RADIUS - (priority * SPACING). NOT region-based.
+  // STEP D: Sweep = mockValue * MAX_SWEEP. Data-driven, not fixed.
+  // STEP E: Thickness = base lineWidth - (priority * step). Outer = thicker.
   for (const el of arcElements) {
-    const priority = getPriority(el.dataType);
+    const priority = getPriority(el.dataType);       // Step B
     const mockValue = getMockValue(el.dataType);
 
-    const radius = ARC_BASE_RADIUS - (priority * ARC_SPACING);
-    const sweep = mockValue * ARC_MAX_SWEEP;
-    const lineWidth = Math.max(ARC_LINE_WIDTH - (priority * ARC_LINE_WIDTH_STEP), 4);
+    const radius = ARC_BASE_RADIUS - (priority * ARC_SPACING);      // Step C
+    const sweep = mockValue * ARC_MAX_SWEEP;                         // Step D
+    const lineWidth = Math.max(                                      // Step E
+      ARC_LINE_WIDTH - (priority * ARC_LINE_WIDTH_STEP), 4,
+    );
 
     results.push({
       ...el,
@@ -74,7 +91,7 @@ export function solveGeometry(elements: LayoutElement[]): GeometryElement[] {
     });
   }
 
-  // --- Everything else ---
+  // ── STEP F + widget-specific solvers ──────────────────────────────────────
   for (const el of otherElements) {
     switch (el.widget) {
       case 'TIME_POINTER':
@@ -101,13 +118,15 @@ export function solveGeometry(elements: LayoutElement[]): GeometryElement[] {
   return results;
 }
 
-// ─── TIME_POINTER ───────────────────────────────────────────────────────────────
+// ─── TIME_POINTER (STEP F: calibrated offset) ──────────────────────────────────
+// Geometry Solver intentionally overrides Layout Engine's anchor.
+// TIME_CENTER_X = 140 (calibrated from real watchface), not screen center.
 
 function solveTimePointer(el: LayoutElement): GeometryElement {
   return {
     ...el,
-    centerX: CX,  // enforce screen center
-    centerY: CY,
+    centerX: TIME_CENTER_X,   // Step F override
+    centerY: TIME_CENTER_Y,
     hourPosX:   Math.round(HAND_DIMENSIONS.hour.w / 2),
     hourPosY:   Math.round(HAND_DIMENSIONS.hour.h / 2),
     minutePosX: Math.round(HAND_DIMENSIONS.minute.w / 2),
@@ -117,17 +136,15 @@ function solveTimePointer(el: LayoutElement): GeometryElement {
   };
 }
 
-// ─── IMG_TIME ───────────────────────────────────────────────────────────────────
-// Layout engine provides (centerX, centerY) as the top-left of the hour group.
-// We pass these through directly — the V2 generator uses them as hour_startX/Y
-// and computes minute_startX from shared constants.
+// ─── IMG_TIME (STEP F: calibrated offset) ───────────────────────────────────────
+// Same calibrated offset as TIME_POINTER for visual alignment.
 
 function solveImgTime(el: LayoutElement): GeometryElement {
   return {
     ...el,
-    x: el.centerX,   // hour_startX (already computed by layout engine)
-    y: el.centerY,   // hour_startY
-    w: HOUR_CONTENT_W + TIME_COLON_GAP + HOUR_CONTENT_W,  // total content width
+    x: TIME_CENTER_X,        // Step F override — hour_startX
+    y: TIME_CENTER_Y,        // hour_startY
+    w: HOUR_CONTENT_W + TIME_COLON_GAP + HOUR_CONTENT_W,
     h: TIME_DIGIT.h,
   };
 }

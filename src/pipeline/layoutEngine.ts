@@ -1,9 +1,10 @@
-// Layout Engine — Pure region-to-position map for 480×480 round watchface.
-// NO AI. Deterministic. Simple rule: region → fixed anchor point.
+// Layout Engine — ANCHOR ONLY. Provides WHERE the system is anchored.
+// NO AI. Deterministic. Minimal.
 //
-// Widgets that share a center (ARC_PROGRESS, TIME_POINTER) stay at dead center;
-// the geometry solver handles concentric stacking / pivots.
-// Other widgets in the same region are spread vertically to avoid overlap.
+// Responsibility: region → anchor point. That's it.
+// Geometry Solver owns: size, radius, angles, offsets, visual weight.
+// Widgets that share a center (ARC_PROGRESS, TIME_POINTER, IMG_TIME) go to dead center;
+// everything else spreads vertically from their region anchor.
 
 import type { NormalizedElement, LayoutElement, Region } from '@/types/pipeline';
 import { SCREEN } from './constants';
@@ -20,8 +21,8 @@ const REGION_POSITIONS: Record<Region, { x: number; y: number }> = {
   right:  { x: 400, y: CY },    // 400, 240
 };
 
-// Widgets that always stay at the exact anchor (stacked by geometry solver)
-const CENTER_LOCKED_WIDGETS = new Set(['ARC_PROGRESS', 'TIME_POINTER']);
+// Widgets that always stay at the exact anchor (geometry solver controls everything else)
+const CENTER_LOCKED_WIDGETS = new Set(['ARC_PROGRESS', 'TIME_POINTER', 'IMG_TIME']);
 
 // Vertical spread (px) between sibling elements in the same region
 const SPREAD_PX = 40;
