@@ -116,8 +116,13 @@ export async function uploadToGitHub(
     
     if (!response.ok) {
       console.error('[GitHub] Upload failed with status:', response.status);
-      const errorData = await response.json();
-      const errorMsg = errorData.message || `HTTP ${response.status}: ${response.statusText}`;
+      let errorMsg = `HTTP ${response.status}: ${response.statusText}`;
+      try {
+        const errorData = await response.json();
+        errorMsg = errorData.message || errorMsg;
+      } catch {
+        // Response body empty or not JSON — use status text
+      }
       
       if (response.status === 413) {
         throw new Error(`File too large (${contentSize} bytes). Max: ${MAX_FILE_SIZE} bytes. Consider splitting the upload.`);
@@ -132,7 +137,16 @@ export async function uploadToGitHub(
       throw new Error(`Upload failed: ${errorMsg}`);
     }
     
-    const data = await response.json();
+    // Parse response — guard against empty body (can happen on large uploads)
+    let data: Record<string, unknown> | null = null;
+    try {
+      const text = await response.text();
+      if (text) {
+        data = JSON.parse(text);
+      }
+    } catch {
+      console.warn('[GitHub] Could not parse response body, proceeding with URL construction');
+    }
     console.log('[GitHub] Upload successful!');
     
     // Construct GitHub Pages URL
@@ -150,7 +164,7 @@ export async function uploadToGitHub(
     
     return {
       success: true,
-      url: data.content.html_url,
+      url: (data as Record<string, Record<string, string>> | null)?.content?.html_url || pagesUrl,
       downloadUrl: pagesUrl,
       watchfaceId: watchfaceId,
     };
