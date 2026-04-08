@@ -15,6 +15,44 @@ export interface PipelineAIConfig {
   apiKey: string;
 }
 
+// ─── Retry Config for Transient Errors ──────────────────────────────────────────
+
+const MAX_RETRIES = 3;
+const RETRY_BASE_MS = 1000;                    // 1s → 2s → 4s
+const RETRYABLE_STATUS = new Set([429, 503]);  // Rate limit + Unavailable only
+
+async function fetchWithRetry(
+  url: string,
+  init: RequestInit,
+  label: string,
+): Promise<Response> {
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    const response = await fetch(url, init);
+
+    if (response.ok) return response;
+
+    // Non-retryable error — fail immediately
+    if (!RETRYABLE_STATUS.has(response.status)) {
+      const errorText = await response.text();
+      throw new Error(`${label} (${response.status}): ${errorText}`);
+    }
+
+    // Last attempt — don't wait, just fail
+    if (attempt === MAX_RETRIES) {
+      const errorText = await response.text();
+      throw new Error(`${label} (${response.status}) after ${MAX_RETRIES} retries: ${errorText}`);
+    }
+
+    // Exponential backoff: 1s, 2s, 4s
+    const delay = RETRY_BASE_MS * Math.pow(2, attempt - 1);
+    console.warn(`[${label}] ${response.status} — retrying (${attempt}/${MAX_RETRIES}) in ${delay}ms...`);
+    await new Promise(r => setTimeout(r, delay));
+  }
+
+  // Unreachable, but TypeScript needs it
+  throw new Error(`${label}: retry loop exhausted`);
+}
+
 /**
  * Send a watchface design image to the AI and get back semantic-only AIElement[].
  * Uses the strict pipeline prompt that forbids coordinates/sizes.
@@ -52,7 +90,7 @@ async function callGemini(
 ): Promise<string> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
-  const response = await fetch(url, {
+  const response = await fetchWithRetry(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -74,17 +112,10 @@ async function callGemini(
         temperature: 0.1,
         maxOutputTokens: 8192,
         responseMimeType: 'application/json',
-        // Gemini 2.5 Flash uses thinking tokens by default which consume the output budget.
-        // Disable thinking so all tokens go to the actual JSON response.
         thinkingConfig: { thinkingBudget: 0 },
       },
     }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Gemini API error (${response.status}): ${errorText}`);
-  }
+  }, 'Gemini API error');
 
   const data = await response.json();
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -272,7 +303,7 @@ async function callGeminiText(
     generationConfig.responseSchema = responseSchema;
   }
 
-  const response = await fetch(url, {
+  const response = await fetchWithRetry(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -280,12 +311,7 @@ async function callGeminiText(
       contents: [{ parts: [{ text: userPrompt }] }],
       generationConfig,
     }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Gemini text API error (${response.status}): ${errorText}`);
-  }
+  }, 'Gemini text API error');
 
   const data = await response.json();
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
