@@ -1,7 +1,7 @@
 // Pipeline AI Service — Wraps the AI vision API to return AIElement[] using the pipeline prompt contract.
 // This replaces the old analyzeWatchfaceImage + expandAnalysisToElements flow.
 
-import type { AIElement, AIExtractionResult, NormalizedElement } from '@/types/pipeline';
+import type { AIElement, AIExtractionResult } from '@/types/pipeline';
 import {
   AI_SYSTEM_PROMPT, AI_USER_PROMPT,
   STAGE_B_SYSTEM_PROMPT, STAGE_B_USER_PROMPT_TEMPLATE, STAGE_B_RESPONSE_SCHEMA,
@@ -13,6 +13,14 @@ export type PipelineAIProvider = 'gemini' | 'openai';
 export interface PipelineAIConfig {
   provider: PipelineAIProvider;
   apiKey: string;
+}
+
+/** Lightweight widget mapping returned by Stage B AI (no geometry) */
+export interface WidgetMapping {
+  id: string;
+  widget: string;
+  sourceType: string;
+  dataType?: string;
 }
 
 // ─── Retry Config for Transient Errors ──────────────────────────────────────────
@@ -236,8 +244,16 @@ const GEMINI_TEXT_MODEL = 'gemini-2.0-flash';
 export async function normalizeWithAI(
   config: PipelineAIConfig,
   elements: AIElement[],
-): Promise<NormalizedElement[]> {
-  const inputJson = JSON.stringify({ elements }, null, 2);
+): Promise<WidgetMapping[]> {
+  // Send only type/style/shape info to AI for widget mapping (no raw coordinates)
+  const lightElements = elements.map(el => ({
+    id: el.id,
+    type: el.type,
+    shape: el.shape,
+    style: el.style,
+    text: el.text,
+  }));
+  const inputJson = JSON.stringify({ elements: lightElements }, null, 2);
   const userPrompt = STAGE_B_USER_PROMPT_TEMPLATE(inputJson);
 
   let rawJson: string;
@@ -262,8 +278,9 @@ export async function normalizeWithAI(
  */
 export async function resolveAmbiguities(
   config: PipelineAIConfig,
-  elements: NormalizedElement[],
-): Promise<NormalizedElement[]> {
+  elements: Array<{ id: string; widget: string; sourceType: string; dataType?: string }>,
+): Promise<WidgetMapping[]> {
+  // Send only widget mapping info (no geometry)
   const inputJson = JSON.stringify({ elements }, null, 2);
   const userPrompt = CALL_3_USER_PROMPT_TEMPLATE(inputJson);
 
@@ -361,7 +378,7 @@ async function callOpenAIText(
 
 // ─── Stage B Response Parser ────────────────────────────────────────────────────
 
-function parseStageBResponse(rawJson: string): NormalizedElement[] {
+function parseStageBResponse(rawJson: string): WidgetMapping[] {
   let cleaned = rawJson.trim();
 
   if (cleaned.startsWith('```')) {
@@ -379,7 +396,7 @@ function parseStageBResponse(rawJson: string): NormalizedElement[] {
     throw new Error('Stage B response missing "elements" array');
   }
 
-  const result = parsed as { elements: NormalizedElement[] };
+  const result = parsed as { elements: WidgetMapping[] };
 
   if (!Array.isArray(result.elements)) {
     throw new Error('Stage B "elements" is not an array');

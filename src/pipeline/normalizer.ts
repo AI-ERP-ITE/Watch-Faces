@@ -1,8 +1,9 @@
 // Normalizer — Code-only fallback for mapping AI types to Zepp widgets.
 // Used when Stage B AI call is unavailable or fails.
-// IMPORTANT: Never drop element types. All types get mapped to a widget.
+// GEOMETRY MAPPING ONLY: assigns widget + dataType. Does NOT touch coordinates.
 
-import type { AIElement, AIElementType, NormalizedElement, ZeppWidget } from '@/types/pipeline';
+import type { AIElementType, NormalizedElement, ZeppWidget, AIShape, AIStyle } from '@/types/pipeline';
+import type { NormalizedGeometry } from './geometryNormalizer';
 
 // ─── Type → Widget Mapping ──────────────────────────────────────────────────────
 
@@ -37,20 +38,21 @@ const TYPE_TO_DATA_TYPE: Partial<Record<AIElementType, string>> = {
 // Fallback priority for assigning dataType to generic "arc" elements
 const ARC_FALLBACK_PRIORITY = ['BATTERY', 'STEP', 'HEART', 'SPO2', 'CAL'];
 
-// ─── Normalizer (Code-Only Fallback) ────────────────────────────────────────────
+// ─── Normalizer (Code-Only Fallback) — maps NormalizedGeometry → NormalizedElement
 
-export function normalize(elements: AIElement[]): NormalizedElement[] {
+export function normalize(elements: NormalizedGeometry[]): NormalizedElement[] {
   // Track which dataTypes are already assigned to avoid duplicates
   const usedDataTypes = new Set<string>();
 
   // First pass: collect explicitly assigned data types
   for (const el of elements) {
-    const dt = TYPE_TO_DATA_TYPE[el.type];
+    const dt = TYPE_TO_DATA_TYPE[el.type as AIElementType];
     if (dt) usedDataTypes.add(dt);
   }
 
   return elements.map((el) => {
-    let widget = TYPE_TO_WIDGET[el.type];
+    const aiType = el.type as AIElementType;
+    let widget = TYPE_TO_WIDGET[aiType] || 'IMG';
 
     // Style override: digital time → IMG_TIME instead of TIME_POINTER
     if (el.type === 'time' && el.style === 'digital') {
@@ -60,12 +62,24 @@ export function normalize(elements: AIElement[]): NormalizedElement[] {
     const normalized: NormalizedElement = {
       id: el.id,
       widget,
-      region: el.region,
-      sourceType: el.type,
+      sourceType: aiType,
+      shape: el.shape as AIShape,
+      style: el.style as AIStyle | undefined,
+      // Carry through normalized geometry
+      nx: el.nx,
+      ny: el.ny,
+      nw: el.nw,
+      nh: el.nh,
+      ncx: el.ncx,
+      ncy: el.ncy,
+      nr: el.nr,
+      nt: el.nt,
+      startAngle: el.startAngle,
+      endAngle: el.endAngle,
     };
 
     // Explicit data type from known types
-    const dataType = TYPE_TO_DATA_TYPE[el.type];
+    const dataType = TYPE_TO_DATA_TYPE[aiType];
     if (dataType) {
       normalized.dataType = dataType;
     }

@@ -7,7 +7,6 @@ import { toast } from 'sonner';
 
 import { Header } from '@/components/Header';
 import { UploadZone } from '@/components/UploadZone';
-import { WatchPreview } from '@/components/WatchPreview';
 import { CanvasWatchPreview } from '@/components/CanvasWatchPreview';
 import { QRDisplay } from '@/components/QRDisplay';
 import { StepIndicator } from '@/components/StepIndicator';
@@ -1455,29 +1454,15 @@ function App() {
           <div className="space-y-6">
             {state.backgroundImage && state.watchFaceConfig && (
               <>
-                {/* Side-by-side: original design vs generated layout */}
-                <div className="grid gap-6 lg:grid-cols-2">
-                  {/* Original design preview (div-based) */}
-                  <div className="flex flex-col items-center">
-                    <h4 className="text-sm font-medium text-zinc-400 mb-4">Design Preview</h4>
-                    <WatchPreview
-                      backgroundImage={state.backgroundImage}
-                      elements={state.watchFaceConfig.elements}
-                      showBoundingBoxes={true}
-                      className="w-full max-w-sm"
-                    />
-                  </div>
-
-                  {/* Canvas-rendered geometry preview (what ZPK will produce) */}
-                  <div className="flex flex-col items-center">
-                    <h4 className="text-sm font-medium text-zinc-400 mb-4">Generated Layout</h4>
-                    <CanvasWatchPreview
-                      backgroundImage={state.backgroundImage}
-                      elements={state.watchFaceConfig.elements}
-                      className="w-full max-w-sm"
-                    />
-                    <p className="text-xs text-zinc-500 mt-2">Pixel-accurate widget positions</p>
-                  </div>
+                {/* Geometry-accurate canvas preview */}
+                <div className="flex flex-col items-center">
+                  <h4 className="text-sm font-medium text-zinc-400 mb-4">Watch Face Preview</h4>
+                  <CanvasWatchPreview
+                    backgroundImage={state.backgroundImage}
+                    elements={state.watchFaceConfig.elements}
+                    className="w-full max-w-sm"
+                  />
+                  <p className="text-xs text-zinc-500 mt-2">Pixel-accurate widget positions</p>
                 </div>
 
                 {/* Elements list */}
