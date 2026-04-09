@@ -2,7 +2,25 @@
 // Used by: assetImageGenerator, geometrySolver, layoutEngine, jsCodeGeneratorV2.
 // When you change a digit size here, ALL pipeline stages pick up the change.
 
+import type { Group } from '@/types/pipeline';
+
 export const SCREEN = { W: 480, H: 480, CX: 240, CY: 240 } as const;
+
+// ─── Group Zones (replaces REGION_POSITIONS in layoutEngine) ────────────────────
+// Each group maps to a bounding rectangle on the 480×480 screen.
+// Layout modes position elements within these zones.
+
+export const GROUP_ZONES: Record<Group, { x: number; y: number; w: number; h: number }> = {
+  center:       { x: 140, y: 140, w: 200, h: 200 },
+  top:          { x: 140, y: 20,  w: 200, h: 120 },
+  bottom:       { x: 140, y: 340, w: 200, h: 120 },
+  left_panel:   { x: 20,  y: 100, w: 200, h: 280 },
+  right_panel:  { x: 260, y: 100, w: 200, h: 280 },
+  top_left:     { x: 20,  y: 20,  w: 200, h: 200 },
+  top_right:    { x: 260, y: 20,  w: 200, h: 200 },
+  bottom_left:  { x: 20,  y: 260, w: 200, h: 200 },
+  bottom_right: { x: 260, y: 260, w: 200, h: 200 },
+} as const;
 
 // ─── Asset Dimensions (matches what assetImageGenerator produces) ───────────────
 

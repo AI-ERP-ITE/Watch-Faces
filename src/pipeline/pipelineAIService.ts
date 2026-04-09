@@ -1,7 +1,7 @@
 // Pipeline AI Service — Wraps the AI vision API to return AIElement[] using the pipeline prompt contract.
 // This replaces the old analyzeWatchfaceImage + expandAnalysisToElements flow.
 
-import type { AIElement, AIExtractionResult, NormalizedElement } from '@/types/pipeline';
+import type { AIElement, AIExtractionResult, NormalizedElement, Representation, LayoutMode, Group } from '@/types/pipeline';
 import {
   AI_SYSTEM_PROMPT, AI_USER_PROMPT,
   STAGE_B_SYSTEM_PROMPT, STAGE_B_USER_PROMPT_TEMPLATE, STAGE_B_RESPONSE_SCHEMA,
@@ -177,6 +177,22 @@ async function callOpenAI(
 
 // ─── Response Parser ────────────────────────────────────────────────────────────
 
+const VALID_REPRESENTATIONS = new Set<Representation>(['text', 'arc', 'icon', 'text+icon', 'text+arc', 'number']);
+const VALID_LAYOUT_MODES = new Set<LayoutMode>(['row', 'arc', 'standalone', 'grid']);
+const VALID_GROUPS = new Set<Group>([
+  'center', 'top', 'bottom', 'left_panel', 'right_panel',
+  'top_left', 'top_right', 'bottom_left', 'bottom_right',
+]);
+
+/** Map legacy region values to the closest Group for backward compat with older AI responses. */
+const REGION_TO_GROUP: Record<string, Group> = {
+  center: 'center',
+  top: 'top',
+  bottom: 'bottom',
+  left: 'left_panel',
+  right: 'right_panel',
+};
+
 function parseResponse(rawJson: string): AIExtractionResult {
   let cleaned = rawJson.trim();
 
@@ -196,13 +212,53 @@ function parseResponse(rawJson: string): AIExtractionResult {
     throw new Error('AI response missing "elements" array');
   }
 
-  const result = parsed as AIExtractionResult;
+  const result = parsed as { elements: Record<string, unknown>[] };
 
   if (!Array.isArray(result.elements)) {
     throw new Error('AI response "elements" is not an array');
   }
 
-  return result;
+  // Validate and coerce each element to the new AIElement shape
+  const elements: AIElement[] = result.elements.map((el) => {
+    if (!el.id || !el.type) {
+      throw new Error(`AI element missing required id or type: ${JSON.stringify(el).slice(0, 100)}`);
+    }
+
+    // Coerce legacy region → group if group is missing
+    let group = el.group as string | undefined;
+    if (!group && el.region && typeof el.region === 'string') {
+      group = REGION_TO_GROUP[el.region] ?? 'center';
+    }
+    if (!group || !VALID_GROUPS.has(group as Group)) {
+      group = 'center'; // safe fallback
+    }
+
+    // Coerce representation — default to 'text' if missing (safest fallback)
+    let representation = el.representation as string | undefined;
+    if (!representation || !VALID_REPRESENTATIONS.has(representation as Representation)) {
+      representation = 'text';
+    }
+
+    // Coerce layout — default to 'standalone' if missing
+    let layout = el.layout as string | undefined;
+    if (!layout || !VALID_LAYOUT_MODES.has(layout as LayoutMode)) {
+      layout = 'standalone';
+    }
+
+    return {
+      id: el.id as string,
+      type: el.type as AIElement['type'],
+      representation: representation as Representation,
+      layout: layout as LayoutMode,
+      group: group as Group,
+      importance: el.importance as AIElement['importance'],
+      style: el.style as AIElement['style'],
+      confidence: typeof el.confidence === 'number' ? el.confidence : undefined,
+      region: el.region as AIElement['region'],
+    };
+  });
+
+  return { elements };
 }
 
 // ─── Utility ────────────────────────────────────────────────────────────────────
@@ -379,11 +435,36 @@ function parseStageBResponse(rawJson: string): NormalizedElement[] {
     throw new Error('Stage B response missing "elements" array');
   }
 
-  const result = parsed as { elements: NormalizedElement[] };
+  const result = parsed as { elements: Record<string, unknown>[] };
 
   if (!Array.isArray(result.elements)) {
     throw new Error('Stage B "elements" is not an array');
   }
 
-  return result.elements;
+  // Coerce each element — Stage B may still return region instead of group until T006
+  return result.elements.map((el): NormalizedElement => {
+    let group = el.group as string | undefined;
+    if (!group && el.region && typeof el.region === 'string') {
+      group = REGION_TO_GROUP[el.region] ?? 'center';
+    }
+    if (!group || !VALID_GROUPS.has(group as Group)) {
+      group = 'center';
+    }
+
+    let layout = el.layout as string | undefined;
+    if (!layout || !VALID_LAYOUT_MODES.has(layout as LayoutMode)) {
+      layout = 'standalone';
+    }
+
+    return {
+      id: el.id as string,
+      widget: el.widget as NormalizedElement['widget'],
+      group: group as Group,
+      layout: layout as LayoutMode,
+      sourceType: el.sourceType as NormalizedElement['sourceType'],
+      dataType: el.dataType as string | undefined,
+      parentId: el.parentId as string | undefined,
+      region: el.region as NormalizedElement['region'],
+    };
+  });
 }

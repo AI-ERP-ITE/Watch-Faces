@@ -1,7 +1,7 @@
-// Pipeline Orchestrator — Multi-stage pipeline with AI calls + deterministic stages.
-// Stage A (AI) → Validate → Stage B (AI) → Validate → Layout → Geometry → Assets → V2 Bridge
-// Stage B uses cheaper text-only AI. Falls back to code-only normalizer if AI fails.
-// Call 3 resolves remaining ambiguities (only if needed).
+// Pipeline Orchestrator — Multi-stage pipeline with AI + deterministic stages.
+// Stage A (AI vision) → Validate (representation/layout/group) → Normalize (representation → widget)
+// → Resolve ambiguities → Priority sort → Layout (group + mode) → Geometry → Assets → V2 Bridge
+// Normalizer branches on representation, not type. Code fallback if AI normalization fails.
 
 import type { AIElement, NormalizedElement, ResolvedElement } from '@/types/pipeline';
 import type { WatchFaceConfig, WatchFaceElement, GeneratedCode } from '@/types';
@@ -39,11 +39,11 @@ export async function runPipeline(
 ): Promise<PipelineResult> {
   const log = options.onProgress ?? (() => {});
 
-  // ─── Stage 0: Validate AI output (reject coordinates, unknown types) ─────
+  // ─── Stage A: Validate AI output (representation, layout, group, type) ────
   validateAIOutput(aiOutput);
   console.log('[Pipeline] Stage A validated:', aiOutput.length, 'elements');
 
-  // ─── Stage B: Normalize AI types → Zepp widgets (AI call or code fallback) ─
+  // ─── Stage B: Normalize representation → Zepp widgets (AI or code fallback) ─
   let normalized: NormalizedElement[];
 
   if (options.aiConfig) {
@@ -91,13 +91,13 @@ export async function runPipeline(
   normalized = sortArcsByPriority(normalized);
   console.log('[Pipeline] Semantic priority applied — arcs sorted by data type');
 
-  // ─── Stage C: Layout (deterministic region map) ──────────────────────────
+  // ─── Stage C: Layout (group zones + layout mode positioning) ──────────────
   log('Stage C: Computing layout...');
   const layouted = applyLayout(normalized);
   validateLayout(layouted);
   console.log('[Pipeline] Stage C layout:', layouted.length, 'elements');
 
-  // ─── Stage D: Geometry (deterministic) ──────────────────────────────────
+  // ─── Stage D: Geometry (per-layout-mode: arc stacking / row bbox / standalone) ─
   log('Stage D: Solving geometry...');
   const geometry = solveGeometry(layouted);
   validateGeometry(geometry);
@@ -164,21 +164,17 @@ function resolvedToWatchFaceElement(el: ResolvedElement, idx: number): WatchFace
     id: el.id,
     type: mapWidgetToElementType(el.widget),
     name: mapWidgetToName(el.widget, el.sourceType, idx),
-    bounds: {
-      x: el.x ?? el.centerX,
-      y: el.y ?? el.centerY,
-      width: el.w ?? 100,
-      height: el.h ?? 100,
-    },
+    bounds: { x: 0, y: 0, width: 480, height: 480 }, // overridden per widget below
     visible: true,
     zIndex: idx + 1,
   };
 
-  // Center (for ARC_PROGRESS, CIRCLE, TIME_POINTER)
-  base.center = { x: el.centerX, y: el.centerY };
+  // ── Widget-specific coordinate assignment ─────────────────────────────────
 
-  // TIME_POINTER specifics
+  // TIME_POINTER: center-based, bounds = full screen container
   if (el.widget === 'TIME_POINTER') {
+    base.center = { x: el.centerX, y: el.centerY };
+    base.bounds = { x: 0, y: 0, width: 480, height: 480 };
     base.hourHandSrc = el.assets.hourHandSrc;
     base.minuteHandSrc = el.assets.minuteHandSrc;
     base.secondHandSrc = el.assets.secondHandSrc;
@@ -187,62 +183,94 @@ function resolvedToWatchFaceElement(el: ResolvedElement, idx: number): WatchFace
     base.minutePos = { x: el.minutePosX!, y: el.minutePosY! };
     base.secondPos = { x: el.secondPosX!, y: el.secondPosY! };
     base.pointerCenter = { x: el.centerX, y: el.centerY };
+    return base;
   }
 
-  // ARC_PROGRESS specifics
+  // ARC_PROGRESS: center-based, bounds = full screen container
   if (el.widget === 'ARC_PROGRESS') {
+    base.center = { x: el.centerX, y: el.centerY };
+    base.bounds = { x: 0, y: 0, width: 480, height: 480 };
     base.radius = el.radius;
     base.startAngle = el.startAngle;
     base.endAngle = el.endAngle;
     base.lineWidth = el.lineWidth;
     base.dataType = el.dataType;
     base.color = ARC_COLORS[el.dataType || ''] || '0x00FF00';
+    return base;
   }
 
-  // TEXT_IMG specifics
-  if (el.widget === 'TEXT_IMG') {
-    base.fontArray = el.assets.fontArray;
-    base.dataType = el.dataType;
-  }
-
-  // IMG_TIME specifics
+  // IMG_TIME: bounds from computed geometry (no center)
   if (el.widget === 'IMG_TIME') {
+    base.bounds = { x: el.x!, y: el.y!, width: el.w!, height: el.h! };
     base.images = el.assets.fontArray;
+    return base;
   }
 
-  // IMG_DATE specifics
+  // IMG_DATE: bounds from computed geometry
   if (el.widget === 'IMG_DATE') {
+    base.bounds = { x: el.x!, y: el.y!, width: el.w!, height: el.h! };
     if (el.sourceType === 'month') {
       base.images = el.assets.monthArray;
     } else {
       base.images = el.assets.fontArray;
     }
+    return base;
   }
 
-  // IMG_WEEK specifics
+  // IMG_WEEK: bounds from computed geometry
   if (el.widget === 'IMG_WEEK') {
+    base.bounds = { x: el.x!, y: el.y!, width: el.w!, height: el.h! };
     base.images = el.assets.weekArray;
+    return base;
   }
 
-  // IMG_LEVEL specifics
+  // TEXT_IMG: bounds from computed geometry
+  if (el.widget === 'TEXT_IMG') {
+    base.bounds = { x: el.x!, y: el.y!, width: el.w!, height: el.h! };
+    base.fontArray = el.assets.fontArray;
+    base.dataType = el.dataType;
+    return base;
+  }
+
+  // IMG_LEVEL: bounds from computed geometry
   if (el.widget === 'IMG_LEVEL') {
+    base.bounds = { x: el.x!, y: el.y!, width: el.w!, height: el.h! };
     base.images = el.assets.imageArray;
     base.dataType = el.dataType;
+    return base;
   }
 
-  // IMG_STATUS specifics
+  // IMG_STATUS: bounds from computed geometry
   if (el.widget === 'IMG_STATUS') {
+    base.bounds = { x: el.x!, y: el.y!, width: el.w!, height: el.h! };
     base.src = el.assets.src;
     base.statusType = 'DISCONNECT';
+    return base;
   }
 
-  // TEXT specifics
+  // IMG: bounds from computed geometry
+  if (el.widget === 'IMG') {
+    base.bounds = { x: el.x!, y: el.y!, width: el.w!, height: el.h! };
+    base.src = el.assets.src;
+    return base;
+  }
+
+  // TEXT: bounds from computed geometry
   if (el.widget === 'TEXT') {
+    base.bounds = { x: el.x!, y: el.y!, width: el.w!, height: el.h! };
     base.text = '';
     base.fontSize = 20;
     base.color = '0xFFFFFFFF';
+    return base;
   }
 
+  // Fallback: use geometry x/y if available, else centerX/centerY
+  base.bounds = {
+    x: el.x ?? el.centerX,
+    y: el.y ?? el.centerY,
+    width: el.w ?? 100,
+    height: el.h ?? 100,
+  };
   return base;
 }
 
@@ -282,21 +310,46 @@ function mapWidgetToElementType(
 // Map widget to a name the V2 generator's name-based routing expects.
 // V2 generator checks: name.includes('time'), name.includes('date'),
 // name.includes('week'), name.includes('month')
+// TEXT_IMG names use descriptive format: "Steps Value 0", "Battery Value 1"
+// IMPORTANT: TEXT_IMG/IMG names must NOT contain 'time','date','week','month'
+// to avoid accidentally triggering V2 generator's name-based routing.
+
+/** Capitalize first letter of source type for readable names. */
+function capitalize(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/** Map data source types to safe display names (avoid V2 routing keywords). */
+const SOURCE_DISPLAY_NAME: Record<string, string> = {
+  steps:      'Steps',
+  battery:    'Battery',
+  heart_rate: 'Heart Rate',
+  spo2:       'SpO2',
+  calories:   'Calories',
+  distance:   'Distance',
+  weather:    'Weather',
+  arc:        'Arc',
+  text:       'Text',
+};
+
 function mapWidgetToName(
   widget: string,
   sourceType: string,
   idx: number,
 ): string {
+  const displayName = SOURCE_DISPLAY_NAME[sourceType] || capitalize(sourceType);
+
   switch (widget) {
     case 'TIME_POINTER': return `Clock Hands ${idx}`;
     case 'IMG_TIME':     return `Digital Time ${idx}`;
     case 'IMG_DATE':     return sourceType === 'month' ? `Month ${idx}` : `Date ${idx}`;
     case 'IMG_WEEK':     return `Weekday ${idx}`;
-    case 'ARC_PROGRESS': return `Arc ${sourceType} ${idx}`;
-    case 'TEXT_IMG':     return `Value ${sourceType} ${idx}`;
-    case 'TEXT':         return `Text ${sourceType} ${idx}`;
+    case 'ARC_PROGRESS': return `Arc ${displayName} ${idx}`;
+    case 'TEXT_IMG':     return `${displayName} Value ${idx}`;
+    case 'TEXT':         return `${displayName} Label ${idx}`;
+    case 'IMG':          return `${displayName} Icon ${idx}`;
     case 'IMG_STATUS':   return `Status ${idx}`;
-    case 'IMG_LEVEL':    return `Level ${sourceType} ${idx}`;
+    case 'IMG_LEVEL':    return `Level ${displayName} ${idx}`;
     default:             return `Element ${idx}`;
   }
 }

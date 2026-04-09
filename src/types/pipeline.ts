@@ -1,9 +1,28 @@
 // Pipeline Types — Strict contracts between every stage of the deterministic pipeline.
-// AI outputs semantic data ONLY. All spatial/geometry data is computed in code.
+// AI outputs semantic + representation data. Spatial/geometry data is computed in code.
 
 // ─── Stage 0: AI Extraction Output ─────────────────────────────────────────────
 
+/** @deprecated Use Group instead. Kept temporarily for backward compatibility during migration. */
 export type Region = 'center' | 'top' | 'bottom' | 'left' | 'right';
+
+/** How the element visually appears in the design. */
+export type Representation = 'text' | 'arc' | 'icon' | 'text+icon' | 'text+arc' | 'number';
+
+/** Spatial arrangement pattern for the element. */
+export type LayoutMode = 'row' | 'arc' | 'standalone' | 'grid';
+
+/** Which zone of the watch face the element belongs to (replaces Region). */
+export type Group =
+  | 'center'
+  | 'top'
+  | 'bottom'
+  | 'left_panel'
+  | 'right_panel'
+  | 'top_left'
+  | 'top_right'
+  | 'bottom_left'
+  | 'bottom_right';
 
 export type AIElementType =
   | 'time'
@@ -22,13 +41,22 @@ export type AIElementType =
 
 export type AIStyle = 'analog' | 'digital' | 'minimal' | 'bold';
 
-/** Output from AI vision model — semantic ONLY, no coordinates or sizes. */
+/** Output from AI vision model — semantic + representation, no coordinates or sizes. */
 export interface AIElement {
   id: string;
   type: AIElementType;
+  /** How this element visually appears (text, arc, icon, compound). */
+  representation: Representation;
+  /** Spatial arrangement pattern. */
+  layout: LayoutMode;
+  /** Which zone of the watch face. */
+  group: Group;
+  /** Visual weight hint. */
+  importance?: 'primary' | 'secondary';
   style?: AIStyle;
-  region: Region;
   confidence?: number;
+  /** @deprecated Use group instead. Kept for backward compat during migration. */
+  region?: Region;
 }
 
 /** Wrapper for the full AI response payload. */
@@ -53,11 +81,18 @@ export type ZeppWidget =
 export interface NormalizedElement {
   id: string;
   widget: ZeppWidget;
-  region: Region;
+  /** Which zone of the watch face. */
+  group: Group;
+  /** Spatial arrangement pattern. */
+  layout: LayoutMode;
   /** Original AI type preserved for downstream logic */
   sourceType: AIElementType;
   /** Data binding type for the widget (e.g. BATTERY, STEP, HEART) */
   dataType?: string;
+  /** For compound-expanded elements, points to the parent AIElement id. */
+  parentId?: string;
+  /** @deprecated Use group instead. Kept for backward compat during migration. */
+  region?: Region;
 }
 
 // ─── Stage 2: Layout ────────────────────────────────────────────────────────────

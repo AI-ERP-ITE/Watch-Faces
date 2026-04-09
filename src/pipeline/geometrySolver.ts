@@ -150,26 +150,41 @@ function solveImgTime(el: LayoutElement): GeometryElement {
 }
 
 // ─── IMG_DATE ───────────────────────────────────────────────────────────────────
-// Layout engine provides top-left corner for day or month.
 
 function solveImgDate(el: LayoutElement): GeometryElement {
-  if (el.sourceType === 'month') {
-    return { ...el, x: el.centerX, y: el.centerY, w: MONTH_LABEL.w, h: MONTH_LABEL.h };
-  }
-  // Day digits — 2 digits side by side
-  return { ...el, x: el.centerX, y: el.centerY, w: DATE_DIGIT.w * 2, h: DATE_DIGIT.h };
+  const w = el.sourceType === 'month' ? MONTH_LABEL.w : DATE_DIGIT.w * 2;
+  const h = el.sourceType === 'month' ? MONTH_LABEL.h : DATE_DIGIT.h;
+  return {
+    ...el,
+    x: Math.round(el.centerX - w / 2),
+    y: Math.round(el.centerY - h / 2),
+    w,
+    h,
+  };
 }
 
 // ─── IMG_WEEK ───────────────────────────────────────────────────────────────────
 
 function solveImgWeek(el: LayoutElement): GeometryElement {
-  return { ...el, x: el.centerX, y: el.centerY, w: WEEK_LABEL.w, h: WEEK_LABEL.h };
+  return {
+    ...el,
+    x: Math.round(el.centerX - WEEK_LABEL.w / 2),
+    y: Math.round(el.centerY - WEEK_LABEL.h / 2),
+    w: WEEK_LABEL.w,
+    h: WEEK_LABEL.h,
+  };
 }
 
 // ─── IMG_LEVEL ──────────────────────────────────────────────────────────────────
 
 function solveImgLevel(el: LayoutElement): GeometryElement {
-  return { ...el, x: el.centerX, y: el.centerY, w: WEATHER_ICON.w, h: WEATHER_ICON.h };
+  return {
+    ...el,
+    x: Math.round(el.centerX - WEATHER_ICON.w / 2),
+    y: Math.round(el.centerY - WEATHER_ICON.h / 2),
+    w: WEATHER_ICON.w,
+    h: WEATHER_ICON.h,
+  };
 }
 
 // ─── Rectangular widgets ────────────────────────────────────────────────────────

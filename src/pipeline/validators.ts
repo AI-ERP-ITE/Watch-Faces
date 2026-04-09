@@ -1,7 +1,7 @@
 // Pipeline Validators — Gate-keepers between stages.
 // Reject any data that violates the pipeline contract.
 
-import type { AIElement, NormalizedElement, LayoutElement, GeometryElement } from '@/types/pipeline';
+import type { AIElement, NormalizedElement, LayoutElement, GeometryElement, Representation, LayoutMode, Group } from '@/types/pipeline';
 import { PipelineValidationError } from '@/types/pipeline';
 
 // ─── Constants ──────────────────────────────────────────────────────────────────
@@ -11,7 +11,18 @@ const VALID_AI_TYPES = new Set([
   'weather', 'spo2', 'calories', 'distance', 'weekday', 'month',
 ]);
 
-const VALID_REGIONS = new Set(['center', 'top', 'bottom', 'left', 'right']);
+const VALID_REPRESENTATIONS = new Set<Representation>([
+  'text', 'arc', 'icon', 'text+icon', 'text+arc', 'number',
+]);
+
+const VALID_LAYOUT_MODES = new Set<LayoutMode>([
+  'row', 'arc', 'standalone', 'grid',
+]);
+
+const VALID_GROUPS = new Set<Group>([
+  'center', 'top', 'bottom', 'left_panel', 'right_panel',
+  'top_left', 'top_right', 'bottom_left', 'bottom_right',
+]);
 
 const VALID_WIDGETS = new Set([
   'TIME_POINTER', 'IMG_TIME', 'IMG_DATE', 'IMG_WEEK', 'ARC_PROGRESS',
@@ -20,29 +31,17 @@ const VALID_WIDGETS = new Set([
 
 const MAX_ELEMENTS = 20;
 
-// ─── Forbidden key detection ────────────────────────────────────────────────────
+// ─── Representation Validation Helper ───────────────────────────────────────────
 
-const FORBIDDEN_SPATIAL_KEYS = new Set([
-  'x', 'y', 'width', 'height', 'w', 'h',
-  'radius', 'angle', 'startAngle', 'endAngle',
-  'posX', 'posY', 'centerX', 'centerY',
-  'pivot', 'pivotX', 'pivotY',
-  'crop', 'cropX', 'cropY', 'cropWidth', 'cropHeight',
-  'imageData', 'base64',
-]);
-
-/**
- * Deeply scan an object for any key that looks like spatial / coordinate data.
- * Returns the names of all forbidden keys found.
- */
-function findForbiddenKeys(obj: Record<string, unknown>): string[] {
-  const found: string[] = [];
-  for (const key of Object.keys(obj)) {
-    if (FORBIDDEN_SPATIAL_KEYS.has(key)) {
-      found.push(key);
-    }
+/** Validate that a representation value is from the allowed set. */
+export function validateRepresentation(value: unknown, prefix: string): string | null {
+  if (!value || typeof value !== 'string') {
+    return `${prefix}: missing 'representation'`;
   }
-  return found;
+  if (!VALID_REPRESENTATIONS.has(value as Representation)) {
+    return `${prefix}: invalid representation '${value}'`;
+  }
+  return null;
 }
 
 // ─── Stage 0 Validator: AI Extraction Output ────────────────────────────────────
@@ -87,17 +86,18 @@ export function validateAIOutput(elements: AIElement[]): void {
       violations.push(`${prefix}: unknown type '${el.type}'`);
     }
 
-    if (!VALID_REGIONS.has(el.region)) {
-      violations.push(`${prefix}: invalid region '${el.region}'`);
+    // Representation (required)
+    const repError = validateRepresentation(el.representation, prefix);
+    if (repError) violations.push(repError);
+
+    // Layout (required)
+    if (!el.layout || !VALID_LAYOUT_MODES.has(el.layout)) {
+      violations.push(`${prefix}: missing or invalid layout '${el.layout}'`);
     }
 
-    // CRITICAL: Reject any spatial / coordinate data from AI
-    const forbidden = findForbiddenKeys(el as unknown as Record<string, unknown>);
-    if (forbidden.length > 0) {
-      violations.push(
-        `${prefix}: FORBIDDEN spatial keys from AI: [${forbidden.join(', ')}]. ` +
-        `AI must NOT provide coordinates, sizes, or pixel data.`,
-      );
+    // Group (required)
+    if (!el.group || !VALID_GROUPS.has(el.group)) {
+      violations.push(`${prefix}: missing or invalid group '${el.group}'`);
     }
 
     // Confidence clamp (optional field)
@@ -134,8 +134,12 @@ export function validateNormalized(elements: NormalizedElement[]): void {
       violations.push(`${prefix}: unknown widget '${el.widget}'`);
     }
 
-    if (!VALID_REGIONS.has(el.region)) {
-      violations.push(`${prefix}: invalid region '${el.region}'`);
+    if (!el.group || !VALID_GROUPS.has(el.group)) {
+      violations.push(`${prefix}: missing or invalid group '${el.group}'`);
+    }
+
+    if (!el.layout || !VALID_LAYOUT_MODES.has(el.layout)) {
+      violations.push(`${prefix}: missing or invalid layout '${el.layout}'`);
     }
   }
 

@@ -1,9 +1,9 @@
 // AI Prompt Contract — Defines the exact prompt and expected schema for the AI vision model.
-// The AI is limited to semantic extraction. NO coordinates, NO sizes, NO pixel data.
+// The AI is limited to semantic + representation extraction. NO coordinates, NO sizes, NO pixel data.
 
 export const AI_SYSTEM_PROMPT = `You are a watchface design analyzer. You will receive an image of a smartwatch face design.
 
-Your ONLY job is to identify WHAT elements exist and WHERE they are in general terms.
+Your job is to identify WHAT elements exist, HOW each one is visually represented, and which ZONE of the watch face it belongs to.
 
 You must return ONLY a JSON object following the exact schema below. No extra text, no markdown.
 
@@ -12,7 +12,7 @@ STRICT RULES:
 - DO NOT include sizes (width, height)
 - DO NOT include image crops or pixel data
 - DO NOT include angles, radius, or pivot points
-- ONLY identify element types and their general region on the watch face
+- Describe HOW each element appears (representation) and WHERE on the face (group)
 
 Schema:
 {
@@ -20,21 +20,18 @@ Schema:
     {
       "id": "unique_string_id",
       "type": "time" | "date" | "steps" | "battery" | "heart_rate" | "spo2" | "calories" | "distance" | "weather" | "weekday" | "month" | "arc" | "text",
-      "region": "center" | "top" | "bottom" | "left" | "right",
-      "style": "analog" | "digital" | "minimal" | "bold",
+      "representation": "text" | "arc" | "icon" | "text+icon" | "text+arc" | "number",
+      "layout": "row" | "arc" | "standalone" | "grid",
+      "group": "center" | "top" | "bottom" | "left_panel" | "right_panel" | "top_left" | "top_right" | "bottom_left" | "bottom_right",
+      "importance": "primary" | "secondary",
       "confidence": 0.0 to 1.0
     }
   ]
 }
 
-Region definitions (for a round 480×480 watch face):
-- "center": The middle area of the watch (clock hands, central display)
-- "top": Upper quarter of the watch face
-- "bottom": Lower quarter of the watch face
-- "left": Left side of the watch face
-- "right": Right side of the watch face
+Field definitions:
 
-Type definitions:
+"type" — what data the element shows:
 - "time": Clock display (analog hands or digital numbers)
 - "date": Day-of-month number display
 - "month": Month name or number
@@ -46,41 +43,96 @@ Type definitions:
 - "calories": Calorie counter
 - "distance": Distance traveled
 - "weather": Weather icon or temperature
-- "arc": Any circular progress indicator
+- "arc": Any circular progress indicator without clear metric
 - "text": Any other text label
 
-Style hints:
-- "analog": Uses rotating hands (for time)
-- "digital": Uses digit images (for time)
-- "minimal": Small, understated appearance
-- "bold": Large, prominent appearance
+"representation" — HOW the element visually appears:
+- "text": Shown as a numeric or text readout (e.g. "8,432" steps displayed as digits)
+- "arc": Shown as a circular arc / progress ring
+- "icon": Shown as a standalone icon image (no text)
+- "text+icon": Shown as an icon next to a text/number value (e.g. heart icon + "72 bpm")
+- "text+arc": Shown as a progress arc with a text readout in/near it
+- "number": Shown as a pure number (digits only, no label or icon)
+
+"layout" — spatial arrangement pattern:
+- "row": Elements stacked vertically in a list/column
+- "arc": Concentric arcs around the center
+- "standalone": Single element placed independently
+- "grid": Elements in a grid arrangement
+
+"group" — which zone of the 480×480 round watch face:
+- "center": The middle area (typically time, central arcs)
+- "top": Upper edge area
+- "bottom": Lower edge area
+- "left_panel": Left side panel
+- "right_panel": Right side panel
+- "top_left": Upper-left quadrant
+- "top_right": Upper-right quadrant
+- "bottom_left": Lower-left quadrant
+- "bottom_right": Lower-right quadrant
+
+"importance" — visual weight:
+- "primary": Large, prominent element (usually time, main complication)
+- "secondary": Smaller, supporting element
 
 EXAMPLES:
 
-Example 1 - Analog watch with complications:
+Example 1 - Digital watch with text stats in right panel:
 {
   "elements": [
-    { "id": "time_analog", "type": "time", "region": "center", "style": "analog", "confidence": 0.95 },
-    { "id": "date_display", "type": "date", "region": "right", "style": "minimal", "confidence": 0.90 },
-    { "id": "battery_arc", "type": "battery", "region": "top", "style": "minimal", "confidence": 0.85 },
-    { "id": "steps_arc", "type": "steps", "region": "bottom", "style": "bold", "confidence": 0.88 },
-    { "id": "heart_rate", "type": "heart_rate", "region": "left", "style": "minimal", "confidence": 0.80 }
+    { "id": "time_digital", "type": "time", "representation": "number", "layout": "standalone", "group": "center", "importance": "primary", "confidence": 0.95 },
+    { "id": "date_display", "type": "date", "representation": "text", "layout": "standalone", "group": "top", "importance": "secondary", "confidence": 0.90 },
+    { "id": "steps_text", "type": "steps", "representation": "text", "layout": "row", "group": "right_panel", "importance": "secondary", "confidence": 0.85 },
+    { "id": "battery_text", "type": "battery", "representation": "text", "layout": "row", "group": "right_panel", "importance": "secondary", "confidence": 0.85 },
+    { "id": "heart_text", "type": "heart_rate", "representation": "text", "layout": "row", "group": "right_panel", "importance": "secondary", "confidence": 0.80 }
   ]
 }
 
-Example 2 - Digital watch:
+Example 2 - Analog watch with arc complications:
 {
   "elements": [
-    { "id": "time_digital", "type": "time", "region": "center", "style": "digital", "confidence": 0.95 },
-    { "id": "weekday", "type": "weekday", "region": "top", "style": "minimal", "confidence": 0.85 },
-    { "id": "weather_icon", "type": "weather", "region": "bottom", "style": "minimal", "confidence": 0.75 }
+    { "id": "time_analog", "type": "time", "representation": "arc", "layout": "standalone", "group": "center", "importance": "primary", "confidence": 0.95 },
+    { "id": "battery_arc", "type": "battery", "representation": "arc", "layout": "arc", "group": "center", "importance": "secondary", "confidence": 0.88 },
+    { "id": "steps_arc", "type": "steps", "representation": "arc", "layout": "arc", "group": "center", "importance": "secondary", "confidence": 0.85 },
+    { "id": "heart_arc", "type": "heart_rate", "representation": "arc", "layout": "arc", "group": "center", "importance": "secondary", "confidence": 0.80 }
+  ]
+}
+
+Example 3 - Mixed design (time center, arcs center, text panel right):
+{
+  "elements": [
+    { "id": "time_digital", "type": "time", "representation": "number", "layout": "standalone", "group": "center", "importance": "primary", "confidence": 0.95 },
+    { "id": "battery_arc", "type": "battery", "representation": "arc", "layout": "arc", "group": "center", "importance": "secondary", "confidence": 0.85 },
+    { "id": "steps_arc", "type": "steps", "representation": "arc", "layout": "arc", "group": "center", "importance": "secondary", "confidence": 0.82 },
+    { "id": "date_text", "type": "date", "representation": "text", "layout": "standalone", "group": "top", "importance": "secondary", "confidence": 0.88 },
+    { "id": "weather_text", "type": "weather", "representation": "text+icon", "layout": "row", "group": "bottom_left", "importance": "secondary", "confidence": 0.78 },
+    { "id": "calories_text", "type": "calories", "representation": "text", "layout": "row", "group": "right_panel", "importance": "secondary", "confidence": 0.75 }
+  ]
+}
+
+Example 4 - Icon+text rows (health stats with icons):
+{
+  "elements": [
+    { "id": "time_digital", "type": "time", "representation": "number", "layout": "standalone", "group": "center", "importance": "primary", "confidence": 0.95 },
+    { "id": "steps_row", "type": "steps", "representation": "text+icon", "layout": "row", "group": "left_panel", "importance": "secondary", "confidence": 0.85 },
+    { "id": "heart_row", "type": "heart_rate", "representation": "text+icon", "layout": "row", "group": "left_panel", "importance": "secondary", "confidence": 0.82 },
+    { "id": "battery_row", "type": "battery", "representation": "text+icon", "layout": "row", "group": "right_panel", "importance": "secondary", "confidence": 0.83 },
+    { "id": "calories_row", "type": "calories", "representation": "text+icon", "layout": "row", "group": "right_panel", "importance": "secondary", "confidence": 0.80 }
+  ]
+}
+
+Example 5 - Minimal design (only time + date):
+{
+  "elements": [
+    { "id": "time_digital", "type": "time", "representation": "number", "layout": "standalone", "group": "center", "importance": "primary", "confidence": 0.98 },
+    { "id": "date_display", "type": "date", "representation": "text", "layout": "standalone", "group": "bottom", "importance": "secondary", "confidence": 0.90 }
   ]
 }
 `;
 
 export const AI_USER_PROMPT = `Analyze this watchface design image for Amazfit Balance 2 (480×480 round display).
 
-Identify all visible UI elements and classify them by type and region.
+Identify all visible UI elements. For each, classify its type, representation (how it visually appears), layout pattern, and group (zone on the watch face).
 
 Return ONLY the JSON object. No explanation, no markdown fences.`;
 
@@ -96,13 +148,15 @@ export const AI_RESPONSE_SCHEMA = {
       items: {
         type: 'object' as const,
         properties: {
-          id:         { type: 'string' as const },
-          type:       { type: 'string' as const, enum: ['time', 'date', 'steps', 'battery', 'heart_rate', 'spo2', 'calories', 'distance', 'weather', 'weekday', 'month', 'arc', 'text'] },
-          region:     { type: 'string' as const, enum: ['center', 'top', 'bottom', 'left', 'right'] },
-          style:      { type: 'string' as const, enum: ['analog', 'digital', 'minimal', 'bold'] },
-          confidence: { type: 'number' as const },
+          id:             { type: 'string' as const },
+          type:           { type: 'string' as const, enum: ['time', 'date', 'steps', 'battery', 'heart_rate', 'spo2', 'calories', 'distance', 'weather', 'weekday', 'month', 'arc', 'text'] },
+          representation: { type: 'string' as const, enum: ['text', 'arc', 'icon', 'text+icon', 'text+arc', 'number'] },
+          layout:         { type: 'string' as const, enum: ['row', 'arc', 'standalone', 'grid'] },
+          group:          { type: 'string' as const, enum: ['center', 'top', 'bottom', 'left_panel', 'right_panel', 'top_left', 'top_right', 'bottom_left', 'bottom_right'] },
+          importance:     { type: 'string' as const, enum: ['primary', 'secondary'] },
+          confidence:     { type: 'number' as const },
         },
-        required: ['id', 'type', 'region'],
+        required: ['id', 'type', 'representation', 'layout', 'group'],
       },
     },
   },
