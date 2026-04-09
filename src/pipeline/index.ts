@@ -7,6 +7,7 @@ import type { AIElement, NormalizedElement, ResolvedElement } from '@/types/pipe
 import type { WatchFaceConfig, WatchFaceElement, GeneratedCode } from '@/types';
 
 import { validateAIOutput, validateNormalized, validateLayout, validateGeometry } from './validators';
+import { correctRepresentation } from './representationCorrector';
 import { normalize } from './normalizer';
 import { sortArcsByPriority } from './semanticPriority';
 import { applyLayout } from './layoutEngine';
@@ -43,22 +44,26 @@ export async function runPipeline(
   validateAIOutput(aiOutput);
   console.log('[Pipeline] Stage A validated:', aiOutput.length, 'elements');
 
+  // ─── Representation Correction: Fix AI arc collapse ───────────────────────
+  const corrected = correctRepresentation(aiOutput);
+  console.log('[Pipeline] Representation corrected:', corrected.length, 'elements');
+
   // ─── Stage B: Normalize representation → Zepp widgets (AI or code fallback) ─
   let normalized: NormalizedElement[];
 
   if (options.aiConfig) {
     log('Stage B: Normalizing elements with AI...');
     try {
-      normalized = await normalizeWithAI(options.aiConfig, aiOutput);
+      normalized = await normalizeWithAI(options.aiConfig, corrected);
       console.log('[Pipeline] Stage B (AI) normalized:', normalized.length, 'elements');
     } catch (err) {
       console.warn('[Pipeline] Stage B AI failed, falling back to code normalizer:', err);
       log('Stage B: AI failed, using code fallback...');
-      normalized = normalize(aiOutput);
+      normalized = normalize(corrected);
       console.log('[Pipeline] Stage B (code fallback) normalized:', normalized.length, 'elements');
     }
   } else {
-    normalized = normalize(aiOutput);
+    normalized = normalize(corrected);
     console.log('[Pipeline] Stage B (code-only) normalized:', normalized.length, 'elements');
   }
 
