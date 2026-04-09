@@ -1,19 +1,19 @@
-// Pipeline Orchestrator — Geometry-preserving deterministic pipeline.
-// Image → AI Geometry Extraction → Normalize → Map Widgets → Constraint Solve → Assets → V2 Bridge
-// All positions originate from the design image. No hardcoded layout.
+// Pipeline Orchestrator — Multi-stage pipeline with AI calls + deterministic stages.
+// Stage A (AI) → Validate → Stage B (AI) → Validate → Layout → Geometry → Assets → V2 Bridge
+// Stage B uses cheaper text-only AI. Falls back to code-only normalizer if AI fails.
+// Call 3 resolves remaining ambiguities (only if needed).
 
-import type { AIElement, NormalizedElement, ResolvedElement, GeometryElement } from '@/types/pipeline';
+import type { AIElement, NormalizedElement, ResolvedElement } from '@/types/pipeline';
 import type { WatchFaceConfig, WatchFaceElement, GeneratedCode } from '@/types';
 
-import { validateAIOutput, validateNormalized, validateGeometry } from './validators';
-import { normalizeGeometry } from './geometryNormalizer';
+import { validateAIOutput, validateNormalized, validateLayout, validateGeometry } from './validators';
 import { normalize } from './normalizer';
 import { sortArcsByPriority } from './semanticPriority';
 import { applyLayout } from './layoutEngine';
 import { solveGeometry } from './geometrySolver';
 import { resolveAssets } from './assetResolver';
 import { generateWatchFaceCodeV2 } from '@/lib/jsCodeGeneratorV2';
-import { normalizeWithAI, resolveAmbiguities, type PipelineAIConfig, type WidgetMapping } from './pipelineAIService';
+import { normalizeWithAI, resolveAmbiguities, type PipelineAIConfig } from './pipelineAIService';
 
 // ─── Pipeline Orchestrator ──────────────────────────────────────────────────────
 
@@ -39,139 +39,82 @@ export async function runPipeline(
 ): Promise<PipelineResult> {
   const log = options.onProgress ?? (() => {});
 
-  // ─── Stage 0: Validate AI output (require geometry, reject invalid) ──────
+  // ─── Stage 0: Validate AI output (reject coordinates, unknown types) ─────
   validateAIOutput(aiOutput);
-  console.log('[Pipeline] Stage 0 validated:', aiOutput.length, 'elements');
+  console.log('[Pipeline] Stage A validated:', aiOutput.length, 'elements');
 
-  // ─── Stage 1: Normalize geometry to [0, 1] space ────────────────────────
-  log('Stage 1: Normalizing geometry...');
-  const normalizedGeometry = normalizeGeometry(aiOutput);
-  console.log('[Pipeline] Stage 1 normalized:', normalizedGeometry.length, 'elements');
-
-  // ─── Stage 2: Map AI types → Zepp widgets + dataType ─────────────────────
-  let mapped: NormalizedElement[];
+  // ─── Stage B: Normalize AI types → Zepp widgets (AI call or code fallback) ─
+  let normalized: NormalizedElement[];
 
   if (options.aiConfig) {
-    log('Stage 2: Mapping widgets with AI...');
+    log('Stage B: Normalizing elements with AI...');
     try {
-      // AI normalization: get widget assignments
-      const aiMapped = await normalizeWithAI(options.aiConfig, aiOutput);
-      console.log('[Pipeline] Stage 2 (AI) mapped:', aiMapped.length, 'elements');
-
-      // Merge AI widget assignments with normalized geometry
-      mapped = mergeWidgetMappingWithGeometry(aiMapped, normalizedGeometry);
+      normalized = await normalizeWithAI(options.aiConfig, aiOutput);
+      console.log('[Pipeline] Stage B (AI) normalized:', normalized.length, 'elements');
     } catch (err) {
-      console.warn('[Pipeline] Stage 2 AI failed, falling back to code normalizer:', err);
-      log('Stage 2: AI failed, using code fallback...');
-      mapped = normalize(normalizedGeometry);
-      console.log('[Pipeline] Stage 2 (code fallback) mapped:', mapped.length, 'elements');
+      console.warn('[Pipeline] Stage B AI failed, falling back to code normalizer:', err);
+      log('Stage B: AI failed, using code fallback...');
+      normalized = normalize(aiOutput);
+      console.log('[Pipeline] Stage B (code fallback) normalized:', normalized.length, 'elements');
     }
   } else {
-    mapped = normalize(normalizedGeometry);
-    console.log('[Pipeline] Stage 2 (code-only) mapped:', mapped.length, 'elements');
+    normalized = normalize(aiOutput);
+    console.log('[Pipeline] Stage B (code-only) normalized:', normalized.length, 'elements');
   }
 
-  validateNormalized(mapped);
+  validateNormalized(normalized);
 
   // ─── Call 3: Resolve remaining ambiguities (if any ARC missing dataType) ──
-  const unresolvedArcs = mapped.filter(
+  const unresolvedArcs = normalized.filter(
     el => el.widget === 'ARC_PROGRESS' && !el.dataType,
   );
 
   if (unresolvedArcs.length > 0 && options.aiConfig) {
     log('Call 3: Resolving arc ambiguities with AI...');
     try {
-      const aiResolved = await resolveAmbiguities(options.aiConfig, mapped.map(m => ({
-        id: m.id, widget: m.widget, sourceType: m.sourceType, dataType: m.dataType,
-      })));
-      // Merge resolved dataTypes back into mapped elements (preserve geometry)
-      mapped = mergeDataTypes(mapped, aiResolved);
+      normalized = await resolveAmbiguities(options.aiConfig, normalized);
       console.log('[Pipeline] Call 3 resolved ambiguities');
     } catch (err) {
       console.warn('[Pipeline] Call 3 failed, assigning fallback data types:', err);
-      mapped = assignFallbackDataTypes(mapped);
+      // Code fallback: assign remaining metrics deterministically
+      normalized = assignFallbackDataTypes(normalized);
     }
-    validateNormalized(mapped);
+    validateNormalized(normalized);
   } else if (unresolvedArcs.length > 0) {
-    mapped = assignFallbackDataTypes(mapped);
-    validateNormalized(mapped);
+    // No AI config — assign fallbacks in code
+    normalized = assignFallbackDataTypes(normalized);
+    validateNormalized(normalized);
   }
 
   // ─── Semantic Priority: Sort arcs by visual hierarchy ──────────────────
   log('Applying semantic priority...');
-  mapped = sortArcsByPriority(mapped);
+  normalized = sortArcsByPriority(normalized);
   console.log('[Pipeline] Semantic priority applied — arcs sorted by data type');
 
-  // ─── Layout Engine (pass-through in geometry-preserving pipeline) ────────
-  mapped = applyLayout(mapped);
+  // ─── Stage C: Layout (deterministic region map) ──────────────────────────
+  log('Stage C: Computing layout...');
+  const layouted = applyLayout(normalized);
+  validateLayout(layouted);
+  console.log('[Pipeline] Stage C layout:', layouted.length, 'elements');
 
-  // ─── Constraint Solver: normalized → absolute pixel coordinates ─────────
-  log('Solving geometry constraints...');
-  const geometry = solveGeometry(mapped);
+  // ─── Stage D: Geometry (deterministic) ──────────────────────────────────
+  log('Stage D: Solving geometry...');
+  const geometry = solveGeometry(layouted);
   validateGeometry(geometry);
-  console.log('[Pipeline] Constraint solver:', geometry.length, 'elements');
+  console.log('[Pipeline] Stage D geometry:', geometry.length, 'elements');
 
-  // ─── Asset Resolution ──────────────────────────────────────────────────
-  log('Resolving assets...');
+  // ─── Stage E: Asset resolution ──────────────────────────────────────────
+  log('Stage E: Resolving assets...');
   const resolved = resolveAssets(geometry);
-  console.log('[Pipeline] Assets resolved');
+  console.log('[Pipeline] Stage E assets resolved');
 
-  // ─── Bridge to V2 Code Generator ──────────────────────────────────────
-  log('Generating code...');
+  // ─── Stage F: Bridge to V2 code generator ──────────────────────────────
+  log('Stage F: Generating code...');
   const config = bridgeToWatchFaceConfig(resolved, options);
   const code = generateWatchFaceCodeV2(config);
-  console.log('[Pipeline] Code generated');
+  console.log('[Pipeline] Stage F code generated');
 
   return { config, code, resolved };
-}
-
-// ─── Merge AI widget mapping with normalized geometry ───────────────────────────
-// AI returns {id, widget, sourceType, dataType}. Geometry has {id, nx, ny, ...}.
-// Merge by matching id.
-
-function mergeWidgetMappingWithGeometry(
-  aiMapped: WidgetMapping[],
-  normalizedGeometry: Array<{ id: string; type: string; shape: string; nx?: number; ny?: number; nw?: number; nh?: number; ncx?: number; ncy?: number; nr?: number; nt?: number; startAngle?: number; endAngle?: number; style?: string }>,
-): NormalizedElement[] {
-  const geoMap = new Map(normalizedGeometry.map(g => [g.id, g]));
-
-  return aiMapped.map(ai => {
-    const geo = geoMap.get(ai.id);
-    return {
-      id: ai.id,
-      widget: ai.widget as NormalizedElement['widget'],
-      sourceType: ai.sourceType as NormalizedElement['sourceType'],
-      shape: (geo?.shape ?? 'text') as NormalizedElement['shape'],
-      dataType: ai.dataType,
-      style: geo?.style as NormalizedElement['style'],
-      nx: geo?.nx,
-      ny: geo?.ny,
-      nw: geo?.nw,
-      nh: geo?.nh,
-      ncx: geo?.ncx,
-      ncy: geo?.ncy,
-      nr: geo?.nr,
-      nt: geo?.nt,
-      startAngle: geo?.startAngle,
-      endAngle: geo?.endAngle,
-    };
-  });
-}
-
-// ─── Merge resolved dataTypes back into mapped elements ─────────────────────────
-
-function mergeDataTypes(
-  mapped: NormalizedElement[],
-  resolved: Array<{ id: string; dataType?: string }>,
-): NormalizedElement[] {
-  const dtMap = new Map(resolved.map(r => [r.id, r.dataType]));
-  return mapped.map(el => {
-    const newDt = dtMap.get(el.id);
-    if (newDt && !el.dataType) {
-      return { ...el, dataType: newDt };
-    }
-    return el;
-  });
 }
 
 // ─── Fallback: Assign dataTypes to unresolved ARC_PROGRESS elements ────────────
@@ -221,13 +164,17 @@ function resolvedToWatchFaceElement(el: ResolvedElement, idx: number): WatchFace
     id: el.id,
     type: mapWidgetToElementType(el.widget),
     name: mapWidgetToName(el.widget, el.sourceType, idx),
-    // Only assign real bounds for widgets that USE bounds (not arcs)
-    bounds: buildBounds(el),
+    bounds: {
+      x: el.x ?? el.centerX,
+      y: el.y ?? el.centerY,
+      width: el.w ?? 100,
+      height: el.h ?? 100,
+    },
     visible: true,
     zIndex: idx + 1,
   };
 
-  // Center (for ARC_PROGRESS, TIME_POINTER)
+  // Center (for ARC_PROGRESS, CIRCLE, TIME_POINTER)
   base.center = { x: el.centerX, y: el.centerY };
 
   // TIME_POINTER specifics
@@ -242,7 +189,7 @@ function resolvedToWatchFaceElement(el: ResolvedElement, idx: number): WatchFace
     base.pointerCenter = { x: el.centerX, y: el.centerY };
   }
 
-  // ARC_PROGRESS specifics — ONLY center/radius/angles, NO fake bounds
+  // ARC_PROGRESS specifics
   if (el.widget === 'ARC_PROGRESS') {
     base.radius = el.radius;
     base.startAngle = el.startAngle;
@@ -299,24 +246,6 @@ function resolvedToWatchFaceElement(el: ResolvedElement, idx: number): WatchFace
   return base;
 }
 
-// ─── Build bounds: real for widgets that use them, minimal for arcs ──────────────
-
-function buildBounds(el: GeometryElement): { x: number; y: number; width: number; height: number } {
-  if (el.widget === 'ARC_PROGRESS') {
-    // ARC_PROGRESS does NOT use bounds — V2 generator reads center/radius.
-    // Set minimal bounds at center for any code that reads bounds as fallback.
-    return { x: el.centerX, y: el.centerY, width: 0, height: 0 };
-  }
-
-  // All other widgets: use the constraint-solved position
-  return {
-    x: el.x ?? el.centerX,
-    y: el.y ?? el.centerY,
-    width: el.w ?? 0,
-    height: el.h ?? 0,
-  };
-}
-
 // ─── Per-data-type arc colors (hex for Zepp OS) ────────────────────────────────
 
 const ARC_COLORS: Record<string, string> = {
@@ -329,6 +258,7 @@ const ARC_COLORS: Record<string, string> = {
 };
 
 // Map pipeline widget names back to WatchFaceElement.type
+// V2 generator uses element.type in the switch/case in generateWidgetCodeV2
 function mapWidgetToElementType(
   widget: string,
 ): WatchFaceElement['type'] {
@@ -340,7 +270,8 @@ function mapWidgetToElementType(
     IMG:          'IMG',
     IMG_STATUS:   'IMG_STATUS',
     IMG_LEVEL:    'IMG_LEVEL',
-    // IMG_TIME, IMG_DATE, IMG_WEEK are routed by NAME in V2 generator
+    // IMG_TIME, IMG_DATE, IMG_WEEK are routed by NAME in V2 generator,
+    // so their type doesn't matter for the switch/case. Set to IMG as fallback.
     IMG_TIME:     'IMG',
     IMG_DATE:     'IMG',
     IMG_WEEK:     'IMG',
@@ -349,6 +280,8 @@ function mapWidgetToElementType(
 }
 
 // Map widget to a name the V2 generator's name-based routing expects.
+// V2 generator checks: name.includes('time'), name.includes('date'),
+// name.includes('week'), name.includes('month')
 function mapWidgetToName(
   widget: string,
   sourceType: string,
@@ -372,7 +305,6 @@ function mapWidgetToName(
 
 export { validateAIOutput } from './validators';
 export { normalize } from './normalizer';
-export { normalizeGeometry } from './geometryNormalizer';
 export { sortArcsByPriority } from './semanticPriority';
 export { applyLayout } from './layoutEngine';
 export { solveGeometry } from './geometrySolver';

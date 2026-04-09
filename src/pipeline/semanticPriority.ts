@@ -1,9 +1,9 @@
 // Semantic Priority Engine — Maps data types to visual hierarchy.
 // Deterministic. No AI.
 //
-// Used for: arc z-ordering, color assignment, mock values for preview.
-// In the geometry-preserving pipeline, radius/angles/thickness come from the image.
-// Priority is only used for: sorting arcs and providing mock data values.
+// Sits between Normalizer output and Geometry Solver.
+// Priority determines: arc ordering, radius, sweep angle, thickness.
+// Priority 0 = outermost, thickest, longest sweep = most prominent.
 
 import type { NormalizedElement } from '@/types/pipeline';
 

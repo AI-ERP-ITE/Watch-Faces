@@ -1,7 +1,7 @@
 // Pipeline Validators — Gate-keepers between stages.
 // Reject any data that violates the pipeline contract.
 
-import type { AIElement, NormalizedElement, GeometryElement } from '@/types/pipeline';
+import type { AIElement, NormalizedElement, LayoutElement, GeometryElement } from '@/types/pipeline';
 import { PipelineValidationError } from '@/types/pipeline';
 
 // ─── Constants ──────────────────────────────────────────────────────────────────
@@ -11,7 +11,7 @@ const VALID_AI_TYPES = new Set([
   'weather', 'spo2', 'calories', 'distance', 'weekday', 'month',
 ]);
 
-const VALID_SHAPES = new Set(['text', 'arc', 'icon', 'number']);
+const VALID_REGIONS = new Set(['center', 'top', 'bottom', 'left', 'right']);
 
 const VALID_WIDGETS = new Set([
   'TIME_POINTER', 'IMG_TIME', 'IMG_DATE', 'IMG_WEEK', 'ARC_PROGRESS',
@@ -20,8 +20,32 @@ const VALID_WIDGETS = new Set([
 
 const MAX_ELEMENTS = 20;
 
-// ─── Stage 0 Validator: AI Geometry Extraction Output ───────────────────────────
-// MUST have geometry (bbox or center+radius). MUST NOT have region-based placement.
+// ─── Forbidden key detection ────────────────────────────────────────────────────
+
+const FORBIDDEN_SPATIAL_KEYS = new Set([
+  'x', 'y', 'width', 'height', 'w', 'h',
+  'radius', 'angle', 'startAngle', 'endAngle',
+  'posX', 'posY', 'centerX', 'centerY',
+  'pivot', 'pivotX', 'pivotY',
+  'crop', 'cropX', 'cropY', 'cropWidth', 'cropHeight',
+  'imageData', 'base64',
+]);
+
+/**
+ * Deeply scan an object for any key that looks like spatial / coordinate data.
+ * Returns the names of all forbidden keys found.
+ */
+function findForbiddenKeys(obj: Record<string, unknown>): string[] {
+  const found: string[] = [];
+  for (const key of Object.keys(obj)) {
+    if (FORBIDDEN_SPATIAL_KEYS.has(key)) {
+      found.push(key);
+    }
+  }
+  return found;
+}
+
+// ─── Stage 0 Validator: AI Extraction Output ────────────────────────────────────
 
 export function validateAIOutput(elements: AIElement[]): void {
   const violations: string[] = [];
@@ -63,50 +87,17 @@ export function validateAIOutput(elements: AIElement[]): void {
       violations.push(`${prefix}: unknown type '${el.type}'`);
     }
 
-    if (!el.shape || !VALID_SHAPES.has(el.shape)) {
-      violations.push(`${prefix}: missing or invalid shape '${el.shape}'`);
+    if (!VALID_REGIONS.has(el.region)) {
+      violations.push(`${prefix}: invalid region '${el.region}'`);
     }
 
-    // GEOMETRY REQUIRED: must have bbox OR center
-    const hasBbox = Array.isArray(el.bbox) && el.bbox.length === 4;
-    const hasCenter = Array.isArray(el.center) && el.center.length === 2;
-
-    if (!hasBbox && !hasCenter) {
+    // CRITICAL: Reject any spatial / coordinate data from AI
+    const forbidden = findForbiddenKeys(el as unknown as Record<string, unknown>);
+    if (forbidden.length > 0) {
       violations.push(
-        `${prefix}: MISSING geometry — must include bbox [x,y,w,h] or center [cx,cy]. ` +
-        `Elements without geometry cannot be placed.`,
+        `${prefix}: FORBIDDEN spatial keys from AI: [${forbidden.join(', ')}]. ` +
+        `AI must NOT provide coordinates, sizes, or pixel data.`,
       );
-    }
-
-    // Validate bbox values are in screen range
-    if (hasBbox) {
-      const [bx, by, bw, bh] = el.bbox!;
-      if (bx < 0 || by < 0 || bw <= 0 || bh <= 0 || bx + bw > 520 || by + bh > 520) {
-        violations.push(`${prefix}: bbox values out of range [${el.bbox}] (screen is 480×480, margin 520)`);
-      }
-    }
-
-    // Validate center values
-    if (hasCenter) {
-      const [cx, cy] = el.center!;
-      if (cx < 0 || cy < 0 || cx > 480 || cy > 480) {
-        violations.push(`${prefix}: center out of range [${el.center}]`);
-      }
-    }
-
-    // Arc elements should have arc geometry
-    if (el.shape === 'arc') {
-      if (!hasCenter) {
-        violations.push(`${prefix}: arc element must include center`);
-      }
-      if (el.radius === undefined || el.radius <= 0) {
-        violations.push(`${prefix}: arc element must include positive radius`);
-      }
-    }
-
-    // Reject region-based placement (old pipeline)
-    if ('region' in el) {
-      violations.push(`${prefix}: FORBIDDEN field 'region' — geometry pipeline does not use regions`);
     }
 
     // Confidence clamp (optional field)
@@ -122,7 +113,7 @@ export function validateAIOutput(elements: AIElement[]): void {
   }
 }
 
-// ─── Stage 1 Validator: Normalized Elements (0–1 space) ─────────────────────────
+// ─── Stage 1 Validator: Normalized Elements ─────────────────────────────────────
 
 export function validateNormalized(elements: NormalizedElement[]): void {
   const violations: string[] = [];
@@ -143,16 +134,8 @@ export function validateNormalized(elements: NormalizedElement[]): void {
       violations.push(`${prefix}: unknown widget '${el.widget}'`);
     }
 
-    // Check normalized values are in [0, 1] range (with small margin for rounding)
-    const normalizedFields: [string, number | undefined][] = [
-      ['nx', el.nx], ['ny', el.ny], ['nw', el.nw], ['nh', el.nh],
-      ['ncx', el.ncx], ['ncy', el.ncy], ['nr', el.nr], ['nt', el.nt],
-    ];
-
-    for (const [name, value] of normalizedFields) {
-      if (value !== undefined && (value < -0.05 || value > 1.1)) {
-        violations.push(`${prefix}: ${name}=${value} out of normalized range [0, 1]`);
-      }
+    if (!VALID_REGIONS.has(el.region)) {
+      violations.push(`${prefix}: invalid region '${el.region}'`);
     }
   }
 
@@ -161,9 +144,9 @@ export function validateNormalized(elements: NormalizedElement[]): void {
   }
 }
 
-// ─── Stage 2 Validator: Geometry Elements (absolute pixels) ─────────────────────
+// ─── Stage 2 Validator: Layout Elements ─────────────────────────────────────────
 
-export function validateGeometry(elements: GeometryElement[]): void {
+export function validateLayout(elements: LayoutElement[]): void {
   const violations: string[] = [];
 
   for (let i = 0; i < elements.length; i++) {
@@ -173,6 +156,25 @@ export function validateGeometry(elements: GeometryElement[]): void {
     if (typeof el.centerX !== 'number' || typeof el.centerY !== 'number') {
       violations.push(`${prefix}: missing centerX/centerY`);
     }
+
+    if (el.centerX < 0 || el.centerX > 480 || el.centerY < 0 || el.centerY > 480) {
+      violations.push(`${prefix}: centerX/centerY out of bounds (0-480)`);
+    }
+  }
+
+  if (violations.length > 0) {
+    throw new PipelineValidationError('Layout', violations);
+  }
+}
+
+// ─── Stage 3 Validator: Geometry Elements ───────────────────────────────────────
+
+export function validateGeometry(elements: GeometryElement[]): void {
+  const violations: string[] = [];
+
+  for (let i = 0; i < elements.length; i++) {
+    const el = elements[i];
+    const prefix = `elements[${i}]`;
 
     switch (el.widget) {
       case 'TIME_POINTER':
