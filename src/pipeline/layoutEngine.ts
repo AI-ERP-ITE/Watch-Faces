@@ -47,13 +47,20 @@ export function applyLayout(elements: NormalizedElement[]): LayoutElement[] {
       results.push({ ...el, centerX: CX, centerY: CY });
     }
 
-    // Row: vertical stack within zone
+    // Row: vertical stack within zone — compress spacing if too many elements
     const zoneCenterX = Math.round(zone.x + zone.w / 2);
+    const availableH = zone.h - ROW_PADDING * 2;
+    const idealTotal = rowEls.length * ROW_HEIGHT;
+    const rowStep = idealTotal <= availableH
+      ? ROW_HEIGHT
+      : Math.max(20, Math.floor(availableH / rowEls.length));  // compress but min 20px
     for (let i = 0; i < rowEls.length; i++) {
+      const rawY = zone.y + ROW_PADDING + i * rowStep + rowStep / 2;
+      const clampedY = Math.min(Math.max(rawY, 0), SCREEN.H);
       results.push({
         ...rowEls[i],
         centerX: zoneCenterX,
-        centerY: Math.round(zone.y + ROW_PADDING + i * ROW_HEIGHT + ROW_HEIGHT / 2),
+        centerY: Math.round(clampedY),
       });
     }
 
