@@ -32,7 +32,7 @@ export async function uploadToGitHub(
   content: Blob | string,
   message?: string
 ): Promise<GitHubUploadResult> {
-  const { token, owner, repo, branch = 'master' } = config;
+  const { token, owner, repo, branch = 'main' } = config;
   
   try {
     // Validate parameters
@@ -183,7 +183,7 @@ async function getFileSha(
   config: GitHubConfig,
   filename: string
 ): Promise<{ sha: string } | null> {
-  const { token, owner, repo, branch = 'master' } = config;
+  const { token, owner, repo, branch = 'main' } = config;
   
   try {
     if (!owner || !repo) {
