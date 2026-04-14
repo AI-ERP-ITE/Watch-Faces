@@ -1,0 +1,173 @@
+import { useState } from 'react';
+import { Watch, Settings, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useApp, actions } from '@/context/AppContext';
+import { testGitHubConnection } from '@/lib/githubApi';
+import { toast } from 'sonner';
+
+export function Header() {
+  const { state, dispatch } = useApp();
+  const [isTesting, setIsTesting] = useState(false);
+  const [testResult, setTestResult] = useState<boolean | null>(null);
+
+  const handleTestConnection = async () => {
+    if (!state.githubToken) {
+      toast.error('Please enter your GitHub token first');
+      return;
+    }
+
+    setIsTesting(true);
+    setTestResult(null);
+
+    const [owner, repo] = state.githubRepo.split('/');
+    const success = await testGitHubConnection({
+      token: state.githubToken,
+      owner,
+      repo,
+    });
+
+    setTestResult(success);
+    setIsTesting(false);
+
+    if (success) {
+      toast.success('GitHub connection successful!');
+    } else {
+      toast.error('GitHub connection failed. Check your token and repo name.');
+    }
+  };
+
+  return (
+    <header className="sticky top-0 z-50 w-full border-b border-zinc-800 bg-[#0F0F0F]/80 backdrop-blur-md">
+      <div className="flex h-14 items-center justify-between px-4 md:px-6">
+        {/* Logo */}
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600">
+            <Watch className="h-5 w-5 text-white" />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-base font-semibold text-white leading-tight">
+              Watch Face Creator
+            </span>
+            <span className="text-xs text-zinc-500 hidden sm:block">
+              AI-Powered ZeppOS Designer
+            </span>
+          </div>
+        </div>
+
+        {/* Settings */}
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 text-zinc-400 hover:text-white hover:bg-zinc-800"
+            >
+              <Settings className="h-5 w-5" />
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="bg-[#1A1A1A] border-zinc-800 text-white sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-lg font-semibold">GitHub Settings</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 pt-4">
+              {/* Token */}
+              <div className="space-y-2">
+                <Label htmlFor="token" className="text-sm text-zinc-300">
+                  GitHub Token
+                </Label>
+                <Input
+                  id="token"
+                  type="password"
+                  value={state.githubToken}
+                  onChange={(e) => {
+                    dispatch(actions.setGithubToken(e.target.value));
+                    setTestResult(null);
+                  }}
+                  placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+                  className="bg-[#0F0F0F] border-zinc-700 text-white placeholder:text-zinc-600 focus:border-cyan-500 focus:ring-cyan-500/20"
+                />
+                <p className="text-xs text-zinc-500">
+                  Create a token with 'repo' scope at{' '}
+                  <a
+                    href="https://github.com/settings/tokens"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-cyan-500 hover:underline"
+                  >
+                    github.com/settings/tokens
+                  </a>
+                </p>
+              </div>
+
+              {/* Repo */}
+              <div className="space-y-2">
+                <Label htmlFor="repo" className="text-sm text-zinc-300">
+                  Repository
+                </Label>
+                <Input
+                  id="repo"
+                  value={state.githubRepo}
+                  onChange={(e) => {
+                    dispatch(actions.setGithubRepo(e.target.value));
+                    setTestResult(null);
+                  }}
+                  placeholder="username/repo-name"
+                  className="bg-[#0F0F0F] border-zinc-700 text-white placeholder:text-zinc-600 focus:border-cyan-500 focus:ring-cyan-500/20"
+                />
+                <p className="text-xs text-zinc-500">
+                  Format: owner/repo-name (e.g., AI-ERP-ITE/Watch-Faces)
+                </p>
+              </div>
+
+              {/* Test Connection Button */}
+              <Button
+                onClick={handleTestConnection}
+                disabled={isTesting || !state.githubToken}
+                variant="outline"
+                className="w-full border-zinc-700 text-white hover:bg-zinc-800"
+              >
+                {isTesting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Testing...
+                  </>
+                ) : testResult === true ? (
+                  <>
+                    <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
+                    Connected!
+                  </>
+                ) : testResult === false ? (
+                  <>
+                    <XCircle className="h-4 w-4 mr-2 text-red-500" />
+                    Connection Failed
+                  </>
+                ) : (
+                  'Test Connection'
+                )}
+              </Button>
+
+              {/* Instructions */}
+              <div className="p-3 bg-zinc-900 rounded-lg border border-zinc-800">
+                <p className="text-xs text-zinc-400">
+                  <strong className="text-zinc-300">Your ZPK files will be uploaded to:</strong>
+                  <br />
+                  https://{state.githubRepo.split('/')[0]}.github.io/
+                  {state.githubRepo.split('/')[1]}/
+                </p>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </header>
+  );
+}

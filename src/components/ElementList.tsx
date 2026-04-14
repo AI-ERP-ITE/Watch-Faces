@@ -1,0 +1,106 @@
+import { cn } from '@/lib/utils';
+import type { WatchFaceElement } from '@/types';
+import { Eye, EyeOff, GripVertical } from 'lucide-react';
+
+interface ElementListProps {
+  elements: WatchFaceElement[];
+  onToggleVisibility?: (id: string) => void;
+  onReorder?: (elements: WatchFaceElement[]) => void;
+  className?: string;
+}
+
+export function ElementList({
+  elements,
+  onToggleVisibility,
+  onReorder,
+  className,
+}: ElementListProps) {
+  const getElementIcon = (type: string) => {
+    switch (type) {
+      case 'TIME_POINTER':
+        return '🕐';
+      case 'IMG_LEVEL':
+        return '📊';
+      case 'TEXT':
+        return '📝';
+      case 'IMG':
+        return '🖼️';
+      case 'ARC_PROGRESS':
+        return '⭕';
+      default:
+        return '⚙️';
+    }
+  };
+
+  return (
+    <div className={cn('space-y-2', className)}>
+      <h4 className="text-sm font-medium text-zinc-400 mb-3">
+        Detected Elements ({elements.length})
+      </h4>
+      
+      <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
+        {elements.map((element) => (
+          <div
+            key={element.id}
+            className={cn(
+              'group flex items-center gap-3 p-2.5 rounded-lg bg-[#1A1A1A] border border-zinc-800',
+              'hover:border-zinc-700 transition-all'
+            )}
+          >
+            {/* Drag handle */}
+            {onReorder && (
+              <button className="text-zinc-600 hover:text-zinc-400 cursor-grab active:cursor-grabbing">
+                <GripVertical className="h-4 w-4" />
+              </button>
+            )}
+
+            {/* Element icon */}
+            <span className="text-lg">{getElementIcon(element.type)}</span>
+
+            {/* Element info */}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-white truncate">
+                {element.name}
+              </p>
+              <p className="text-xs text-zinc-500">
+                {element.type}
+                {element.subtype && ` • ${element.subtype}`}
+              </p>
+            </div>
+
+            {/* Position info */}
+            <div className="text-xs text-zinc-600 hidden sm:block">
+              {element.bounds.x}, {element.bounds.y}
+            </div>
+
+            {/* Visibility toggle */}
+            {onToggleVisibility && (
+              <button
+                onClick={() => onToggleVisibility(element.id)}
+                className={cn(
+                  'p-1.5 rounded-md transition-colors',
+                  element.visible
+                    ? 'text-cyan-500 hover:bg-cyan-500/10'
+                    : 'text-zinc-600 hover:bg-zinc-800'
+                )}
+              >
+                {element.visible ? (
+                  <Eye className="h-4 w-4" />
+                ) : (
+                  <EyeOff className="h-4 w-4" />
+                )}
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {elements.length === 0 && (
+        <div className="text-center py-8 text-zinc-500">
+          <p className="text-sm">No elements detected yet</p>
+          <p className="text-xs mt-1">Upload images to analyze</p>
+        </div>
+      )}
+    </div>
+  );
+}
