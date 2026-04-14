@@ -71,6 +71,18 @@ export function solveGeometry(elements: LayoutElement[]): GeometryElement[] {
   // STEP D: Sweep = mockValue * MAX_SWEEP. Data-driven, not fixed.
   // STEP E: Thickness = base lineWidth - (priority * step). Outer = thicker.
   for (const el of arcElements) {
+    // ── FR-005: If geometry already extracted from image, preserve it ──────
+    if (el.radius !== undefined && el.startAngle !== undefined && el.endAngle !== undefined) {
+      results.push({
+        ...el,
+        radius: el.radius,
+        startAngle: el.startAngle,
+        endAngle: el.endAngle,
+        lineWidth: ARC_LINE_WIDTH,
+      });
+      continue;
+    }
+
     const priority = getPriority(el.dataType);       // Step B
     const mockValue = getMockValue(el.dataType);
 
@@ -93,6 +105,12 @@ export function solveGeometry(elements: LayoutElement[]): GeometryElement[] {
 
   // ── STEP F + widget-specific solvers ──────────────────────────────────────
   for (const el of otherElements) {
+    // ── FR-005: If element has extracted bounds, use them directly ─────────
+    if (el.bounds) {
+      results.push(solveWithExtractedBounds(el));
+      continue;
+    }
+
     switch (el.widget) {
       case 'TIME_POINTER':
         results.push(solveTimePointer(el));
@@ -198,5 +216,36 @@ function solveRectangular(el: LayoutElement): GeometryElement {
     y: Math.round(el.centerY - size.h / 2),
     w: size.w,
     h: size.h,
+  };
+}
+
+// ─── FR-005: Pass-through for elements with AI-extracted bounds ─────────────────
+// Uses extracted bounds directly. For TIME_POINTER, still computes hand positions.
+
+function solveWithExtractedBounds(el: LayoutElement): GeometryElement {
+  const b = el.bounds!;
+
+  // TIME_POINTER: use extracted center but still need hand pivot positions
+  if (el.widget === 'TIME_POINTER') {
+    return {
+      ...el,
+      centerX: el.center?.x ?? el.centerX,
+      centerY: el.center?.y ?? el.centerY,
+      hourPosX:   Math.round(HAND_DIMENSIONS.hour.w / 2),
+      hourPosY:   Math.round(HAND_DIMENSIONS.hour.h / 2),
+      minutePosX: Math.round(HAND_DIMENSIONS.minute.w / 2),
+      minutePosY: Math.round(HAND_DIMENSIONS.minute.h / 2),
+      secondPosX: Math.round(HAND_DIMENSIONS.second.w / 2),
+      secondPosY: Math.round(HAND_DIMENSIONS.second.h / 2),
+    };
+  }
+
+  // All other widgets: use bounds as x/y/w/h directly
+  return {
+    ...el,
+    x: b.x,
+    y: b.y,
+    w: b.w,
+    h: b.h,
   };
 }

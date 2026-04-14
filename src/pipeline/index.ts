@@ -8,6 +8,7 @@ import type { WatchFaceConfig, WatchFaceElement, GeneratedCode } from '@/types';
 
 import { validateAIOutput, validateNormalized, validateLayout, validateGeometry } from './validators';
 import { correctRepresentation } from './representationCorrector';
+import { extractGeometry, validateGeometryExtraction } from './geometryExtractor';
 import { normalize } from './normalizer';
 import { sortArcsByPriority } from './semanticPriority';
 import { applyLayout } from './layoutEngine';
@@ -48,22 +49,34 @@ export async function runPipeline(
   const corrected = correctRepresentation(aiOutput);
   console.log('[Pipeline] Representation corrected:', corrected.length, 'elements');
 
+  // ─── Geometry Extraction: Validate + normalize AI geometry ────────────────
+  log('Geometry extraction: validating spatial data...');
+  let geometryEnriched = extractGeometry(corrected);
+  try {
+    validateGeometryExtraction(geometryEnriched);
+    console.log('[Pipeline] Geometry extraction validated:', geometryEnriched.length, 'elements');
+  } catch (err) {
+    console.warn('[Pipeline] Geometry extraction validation failed, continuing with partial geometry:', err);
+    // Don't block pipeline — elements without bounds will fall through to layout/geometry stages
+    geometryEnriched = corrected;
+  }
+
   // ─── Stage B: Normalize representation → Zepp widgets (AI or code fallback) ─
   let normalized: NormalizedElement[];
 
   if (options.aiConfig) {
     log('Stage B: Normalizing elements with AI...');
     try {
-      normalized = await normalizeWithAI(options.aiConfig, corrected);
+      normalized = await normalizeWithAI(options.aiConfig, geometryEnriched);
       console.log('[Pipeline] Stage B (AI) normalized:', normalized.length, 'elements');
     } catch (err) {
       console.warn('[Pipeline] Stage B AI failed, falling back to code normalizer:', err);
       log('Stage B: AI failed, using code fallback...');
-      normalized = normalize(corrected);
+      normalized = normalize(geometryEnriched);
       console.log('[Pipeline] Stage B (code fallback) normalized:', normalized.length, 'elements');
     }
   } else {
-    normalized = normalize(corrected);
+    normalized = normalize(geometryEnriched);
     console.log('[Pipeline] Stage B (code-only) normalized:', normalized.length, 'elements');
   }
 
@@ -362,10 +375,11 @@ function mapWidgetToName(
 // ─── Re-exports for convenience ─────────────────────────────────────────────────
 
 export { validateAIOutput } from './validators';
+export { extractGeometry, validateGeometryExtraction } from './geometryExtractor';
 export { normalize } from './normalizer';
 export { sortArcsByPriority } from './semanticPriority';
 export { applyLayout } from './layoutEngine';
 export { solveGeometry } from './geometrySolver';
 export { resolveAssets } from './assetResolver';
-export type { AIElement, AIExtractionResult, ResolvedElement } from '@/types/pipeline';
+export type { AIElement, AIExtractionResult, AIBounds, AICenter, ResolvedElement } from '@/types/pipeline';
 export type { PipelineAIConfig } from './pipelineAIService';

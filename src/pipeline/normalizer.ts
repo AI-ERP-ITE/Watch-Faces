@@ -9,8 +9,9 @@ import type { AIElement, AIElementType, NormalizedElement, ZeppWidget, Represent
 /**
  * Map an AI element type + representation to one or more Zepp OS widgets.
  * This is the core fix: representation drives widget selection, NOT type alone.
+ * FR-006: Also considers geometry shape (aspect ratio, spatial pattern).
  */
-function mapByRepresentation(type: AIElementType, representation: Representation): ZeppWidget | ZeppWidget[] {
+function mapByRepresentation(type: AIElementType, representation: Representation, el?: AIElement): ZeppWidget | ZeppWidget[] {
   // Time is special — analog (arc) vs digital
   if (type === 'time') {
     return representation === 'arc' ? 'TIME_POINTER' : 'IMG_TIME';
@@ -20,6 +21,11 @@ function mapByRepresentation(type: AIElementType, representation: Representation
   if (type === 'date') return 'IMG_DATE';
   if (type === 'weekday') return 'IMG_WEEK';
   if (type === 'month') return 'IMG_DATE';
+
+  // FR-006: If geometry indicates circular shape, prefer ARC_PROGRESS
+  if (el?.bounds && el.radius !== undefined) {
+    return 'ARC_PROGRESS';
+  }
 
   // Data elements — BRANCH ON REPRESENTATION
   if (representation === 'arc') return 'ARC_PROGRESS';
@@ -67,7 +73,7 @@ export function normalize(elements: AIElement[]): NormalizedElement[] {
   const result: NormalizedElement[] = [];
 
   for (const el of elements) {
-    const widgetOrWidgets = mapByRepresentation(el.type, el.representation);
+    const widgetOrWidgets = mapByRepresentation(el.type, el.representation, el);
     const widgets = Array.isArray(widgetOrWidgets)
       ? widgetOrWidgets.slice(0, COMPOUND_CAP)
       : [widgetOrWidgets];
@@ -86,6 +92,12 @@ export function normalize(elements: AIElement[]): NormalizedElement[] {
         group: el.group,
         layout: el.layout,
         sourceType: el.type,
+        // Carry geometry forward from AI extraction
+        bounds: el.bounds,
+        center: el.center,
+        radius: el.radius,
+        startAngle: el.startAngle,
+        endAngle: el.endAngle,
       };
 
       // Link second (and beyond) compound elements back to the first

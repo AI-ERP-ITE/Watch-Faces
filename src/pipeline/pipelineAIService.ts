@@ -1,7 +1,7 @@
 // Pipeline AI Service — Wraps the AI vision API to return AIElement[] using the pipeline prompt contract.
 // This replaces the old analyzeWatchfaceImage + expandAnalysisToElements flow.
 
-import type { AIElement, AIExtractionResult, NormalizedElement, Representation, LayoutMode, Group } from '@/types/pipeline';
+import type { AIElement, AIExtractionResult, AIBounds, AICenter, NormalizedElement, Representation, LayoutMode, Group } from '@/types/pipeline';
 import {
   AI_SYSTEM_PROMPT, AI_USER_PROMPT,
   STAGE_B_SYSTEM_PROMPT, STAGE_B_USER_PROMPT_TEMPLATE, STAGE_B_RESPONSE_SCHEMA,
@@ -255,10 +255,35 @@ function parseResponse(rawJson: string): AIExtractionResult {
       style: el.style as AIElement['style'],
       confidence: typeof el.confidence === 'number' ? el.confidence : undefined,
       region: el.region as AIElement['region'],
+      // ── Geometry fields ──────────────────────────────────────────────────
+      bounds: parseBounds(el.bounds),
+      center: parseCenter(el.center),
+      radius: typeof el.radius === 'number' ? el.radius : undefined,
+      startAngle: typeof el.startAngle === 'number' ? el.startAngle : undefined,
+      endAngle: typeof el.endAngle === 'number' ? el.endAngle : undefined,
     };
   });
 
   return { elements };
+}
+
+/** Parse and validate bounds object from AI response. */
+function parseBounds(raw: unknown): AIBounds | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const b = raw as Record<string, unknown>;
+  if (typeof b.x !== 'number' || typeof b.y !== 'number' ||
+      typeof b.w !== 'number' || typeof b.h !== 'number') {
+    return undefined;
+  }
+  return { x: b.x, y: b.y, w: b.w, h: b.h };
+}
+
+/** Parse and validate center object from AI response. */
+function parseCenter(raw: unknown): AICenter | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const c = raw as Record<string, unknown>;
+  if (typeof c.x !== 'number' || typeof c.y !== 'number') return undefined;
+  return { x: c.x, y: c.y };
 }
 
 // ─── Utility ────────────────────────────────────────────────────────────────────

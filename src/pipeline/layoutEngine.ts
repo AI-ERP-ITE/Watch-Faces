@@ -17,9 +17,25 @@ const ROW_PADDING = 8;
 export function applyLayout(elements: NormalizedElement[]): LayoutElement[] {
   const results: LayoutElement[] = [];
 
+  // ── FR-004: Bypass layout for elements with AI-extracted bounds ───────────
+  const needsLayout: NormalizedElement[] = [];
+  for (const el of elements) {
+    if (el.bounds) {
+      // Use center from bounds — skip layout engine positioning entirely
+      const cx = el.center?.x ?? Math.round(el.bounds.x + el.bounds.w / 2);
+      const cy = el.center?.y ?? Math.round(el.bounds.y + el.bounds.h / 2);
+      results.push({ ...el, centerX: cx, centerY: cy });
+    } else {
+      needsLayout.push(el);
+    }
+  }
+
+  // Only run layout engine for elements WITHOUT geometry
+  if (needsLayout.length === 0) return results;
+
   // Group elements by their group field
   const byGroup: Partial<Record<Group, NormalizedElement[]>> = {};
-  for (const el of elements) {
+  for (const el of needsLayout) {
     (byGroup[el.group] ??= []).push(el);
   }
 

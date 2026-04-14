@@ -41,7 +41,21 @@ export type AIElementType =
 
 export type AIStyle = 'analog' | 'digital' | 'minimal' | 'bold';
 
-/** Output from AI vision model — semantic + representation, no coordinates or sizes. */
+/** Bounding box in 480×480 normalized space (origin = top-left). */
+export interface AIBounds {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/** Center point in 480×480 normalized space. */
+export interface AICenter {
+  x: number;
+  y: number;
+}
+
+/** Output from AI vision model — semantic + representation + geometry. */
 export interface AIElement {
   id: string;
   type: AIElementType;
@@ -57,6 +71,18 @@ export interface AIElement {
   confidence?: number;
   /** @deprecated Use group instead. Kept for backward compat during migration. */
   region?: Region;
+
+  // ── Geometry fields (from visual extraction) ──────────────────────────────
+  /** Bounding box in 480×480 space. Required for all elements after extraction. */
+  bounds?: AIBounds;
+  /** Center point for circular elements. */
+  center?: AICenter;
+  /** Radius for circular/arc elements. */
+  radius?: number;
+  /** Start angle in degrees (0° = right, 90° = down). */
+  startAngle?: number;
+  /** End angle in degrees (0° = right, 90° = down). */
+  endAngle?: number;
 }
 
 /** Wrapper for the full AI response payload. */
@@ -93,6 +119,18 @@ export interface NormalizedElement {
   parentId?: string;
   /** @deprecated Use group instead. Kept for backward compat during migration. */
   region?: Region;
+
+  // ── Geometry carried forward from AI extraction ───────────────────────────
+  /** Bounding box from visual extraction (480×480 space). */
+  bounds?: AIBounds;
+  /** Center point for circular elements. */
+  center?: AICenter;
+  /** Radius for circular/arc elements. */
+  radius?: number;
+  /** Start angle in degrees. */
+  startAngle?: number;
+  /** End angle in degrees. */
+  endAngle?: number;
 }
 
 // ─── Stage 2: Layout ────────────────────────────────────────────────────────────
