@@ -1001,6 +1001,9 @@ function App() {
         // Fallback to mock analysis
         if (!aiApiKey && !useMockAnalysis) {
           toast.info('No API key set — using mock analysis. Open Settings to add your key.');
+        } else {
+          console.log('[App] Mock mode active — useMockAnalysis:', useMockAnalysis, 'aiApiKey empty:', !aiApiKey);
+          toast.info('Using MOCK analysis (checkbox is on or API key is empty)');
         }
         const result = await mockKimiAnalysis(
           state.backgroundImage,
@@ -1012,6 +1015,8 @@ function App() {
       } else {
         // ─── Deterministic Pipeline Path ─────────────────────────────────
         // AI extracts semantic data ONLY → pipeline computes all geometry
+        console.log('[App] REAL AI pipeline — provider:', aiProvider, 'key length:', aiApiKey.length);
+        toast.info(`Using REAL AI analysis (${aiProvider})`);
         dispatch(actions.setLoadingMessage('Extracting elements with AI...'));
         const aiElements = await extractElementsFromImage(
           { provider: aiProvider as PipelineAIProvider, apiKey: aiApiKey },
