@@ -1,0 +1,704 @@
+import { useRef, useEffect, useCallback, useState } from 'react';
+import { cn } from '@/lib/utils';
+import type { WatchFaceElement } from '@/types';
+
+const CANVAS_SIZE = 480;
+const CX = 240;
+const CY = 240;
+
+// Mock time: 10:10:30 — visually balanced, classic watchface demo pose
+const MOCK_HOUR = 10;
+const MOCK_MINUTE = 10;
+const MOCK_SECOND = 30;
+
+export interface InteractiveCanvasProps {
+  backgroundImage?: string;
+  elements: WatchFaceElement[];
+  selectedElementId?: string | null;
+  onSelectElement?: (id: string | null) => void;
+  onUpdateElement?: (id: string, changes: Partial<WatchFaceElement>) => void;
+  className?: string;
+}
+
+export function InteractiveCanvas({
+  backgroundImage,
+  elements,
+  selectedElementId,
+  onSelectElement,
+  onUpdateElement,
+  className,
+}: InteractiveCanvasProps) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const bgImageRef = useRef<HTMLImageElement | null>(null);
+  const elementsRef = useRef(elements);
+  elementsRef.current = elements;
+
+  // Drag state (refs to avoid stale closures)
+  const isDraggingRef = useRef(false);
+  const dragStartRef = useRef<{ x: number; y: number } | null>(null);
+  const dragSnapshotRef = useRef<WatchFaceElement | null>(null);
+  const resizeHandleRef = useRef<string | null>(null); // 'TL','TC','TR','ML','MR','BL','BC','BR'
+  const selectedElementIdRef = useRef(selectedElementId);
+  selectedElementIdRef.current = selectedElementId;
+  useState(0); // reserved for future forced re-renders
+
+  // Draw everything to canvas
+  const draw = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+
+    // Background
+    if (bgImageRef.current) {
+      drawBackground(ctx, bgImageRef.current);
+    } else {
+      drawBlackCircle(ctx);
+    }
+
+    // Elements
+    drawElements(ctx, elements);
+
+    // Selection highlight
+    if (selectedElementId) {
+      const sel = elements.find(el => el.id === selectedElementId);
+      if (sel) drawSelection(ctx, sel);
+    }
+  }, [elements, selectedElementId]);
+
+  const handleCanvasClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    // Suppress click after a drag
+    if (isDraggingRef.current) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const { x, y } = getCanvasPos(e, canvas);
+
+    const visible = [...elementsRef.current]
+      .filter(el => el.visible)
+      .sort((a, b) => b.zIndex - a.zIndex);
+    const hit = hitTest(x, y, visible);
+    onSelectElement?.(hit);
+  }, [onSelectElement]);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const { x, y } = getCanvasPos(e, canvas);
+
+    // Check resize handles on selected rect element first
+    const selId = selectedElementIdRef.current;
+    if (selId) {
+      const selEl = elementsRef.current.find(el => el.id === selId);
+      if (selEl && selEl.type !== 'ARC_PROGRESS' && selEl.type !== 'TIME_POINTER') {
+        const handle = hitTestRectHandle(x, y, selEl.bounds);
+        if (handle) {
+          resizeHandleRef.current = handle;
+          isDraggingRef.current = false;
+          dragStartRef.current = { x, y };
+          dragSnapshotRef.current = { ...selEl, bounds: { ...selEl.bounds } };
+          return;
+        }
+      }
+      // Check arc handles on selected arc element
+      if (selEl && selEl.type === 'ARC_PROGRESS') {
+        const arcHandle = hitTestArcHandle(x, y, selEl);
+        if (arcHandle) {
+          resizeHandleRef.current = arcHandle;
+          isDraggingRef.current = false;
+          dragStartRef.current = { x, y };
+          dragSnapshotRef.current = { ...selEl };
+          return;
+        }
+      }
+    }
+
+    resizeHandleRef.current = null;
+    const visible = [...elementsRef.current]
+      .filter(el => el.visible)
+      .sort((a, b) => b.zIndex - a.zIndex);
+    const hit = hitTest(x, y, visible);
+    if (!hit) return;
+
+    const el = elementsRef.current.find(e => e.id === hit);
+    if (!el) return;
+
+    onSelectElement?.(hit);
+    isDraggingRef.current = false; // will become true on first move
+    dragStartRef.current = { x, y };
+    dragSnapshotRef.current = { ...el, bounds: { ...el.bounds }, center: el.center ? { ...el.center } : undefined };
+  }, [onSelectElement]);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!dragStartRef.current || !dragSnapshotRef.current) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const { x, y } = getCanvasPos(e, canvas);
+
+    const dx = x - dragStartRef.current.x;
+    const dy = y - dragStartRef.current.y;
+    if (!isDraggingRef.current && Math.abs(dx) < 3 && Math.abs(dy) < 3) return; // dead zone
+    isDraggingRef.current = true;
+
+    const snap = dragSnapshotRef.current;
+
+    // Resize mode
+    if (resizeHandleRef.current) {
+      // Arc handles
+      if (resizeHandleRef.current === 'ARC_RADIUS' || resizeHandleRef.current === 'ARC_START' || resizeHandleRef.current === 'ARC_END') {
+        const cx = snap.center?.x ?? CX;
+        const cy = snap.center?.y ?? CY;
+        const newAngleDeg = Math.atan2(y - cy, x - cx) * (180 / Math.PI);
+        if (resizeHandleRef.current === 'ARC_RADIUS') {
+          const newRadius = Math.max(10, Math.min(240, Math.sqrt((x - cx) ** 2 + (y - cy) ** 2)));
+          const r = newRadius;
+          onUpdateElement?.(snap.id, {
+            radius: r,
+            bounds: { x: cx - r, y: cy - r, width: r * 2, height: r * 2 },
+          });
+        } else if (resizeHandleRef.current === 'ARC_START') {
+          onUpdateElement?.(snap.id, { startAngle: newAngleDeg });
+        } else {
+          onUpdateElement?.(snap.id, { endAngle: newAngleDeg });
+        }
+        return;
+      }
+      // Rect handles
+      const nb = applyResize(snap.bounds, resizeHandleRef.current, dx, dy);
+      onUpdateElement?.(snap.id, { bounds: nb });
+      return;
+    }
+
+    // Drag mode
+    const newBounds = {
+      x: Math.max(0, Math.min(CANVAS_SIZE - snap.bounds.width, snap.bounds.x + dx)),
+      y: Math.max(0, Math.min(CANVAS_SIZE - snap.bounds.height, snap.bounds.y + dy)),
+      width: snap.bounds.width,
+      height: snap.bounds.height,
+    };
+    const changes: Partial<WatchFaceElement> = { bounds: newBounds };
+    if (snap.center) {
+      changes.center = {
+        x: Math.max(0, Math.min(CANVAS_SIZE, snap.center.x + dx)),
+        y: Math.max(0, Math.min(CANVAS_SIZE, snap.center.y + dy)),
+      };
+    }
+    onUpdateElement?.(snap.id, changes);
+  }, [onUpdateElement]);
+
+  const handleMouseUp = useCallback(() => {
+    dragStartRef.current = null;
+    dragSnapshotRef.current = null;
+    resizeHandleRef.current = null;
+    setTimeout(() => { isDraggingRef.current = false; }, 0);
+  }, []);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    const canvas = canvasRef.current;
+    if (!canvas || e.touches.length !== 1) return;
+    const { x, y } = getTouchCanvasPos(e.touches[0], canvas);
+
+    const visible = [...elementsRef.current]
+      .filter(el => el.visible)
+      .sort((a, b) => b.zIndex - a.zIndex);
+    const hit = hitTest(x, y, visible);
+    if (!hit) { onSelectElement?.(null); return; }
+
+    const el = elementsRef.current.find(el => el.id === hit);
+    if (!el) return;
+
+    onSelectElement?.(hit);
+    isDraggingRef.current = false;
+    dragStartRef.current = { x, y };
+    dragSnapshotRef.current = { ...el, bounds: { ...el.bounds }, center: el.center ? { ...el.center } : undefined };
+  }, [onSelectElement]);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    if (!dragStartRef.current || !dragSnapshotRef.current) return;
+    const canvas = canvasRef.current;
+    if (!canvas || e.touches.length !== 1) return;
+    const { x, y } = getTouchCanvasPos(e.touches[0], canvas);
+
+    const dx = x - dragStartRef.current.x;
+    const dy = y - dragStartRef.current.y;
+    if (!isDraggingRef.current && Math.abs(dx) < 3 && Math.abs(dy) < 3) return;
+    isDraggingRef.current = true;
+
+    const snap = dragSnapshotRef.current;
+    const newBounds = {
+      x: Math.max(0, Math.min(CANVAS_SIZE - snap.bounds.width, snap.bounds.x + dx)),
+      y: Math.max(0, Math.min(CANVAS_SIZE - snap.bounds.height, snap.bounds.y + dy)),
+      width: snap.bounds.width,
+      height: snap.bounds.height,
+    };
+    const changes: Partial<WatchFaceElement> = { bounds: newBounds };
+    if (snap.center) {
+      changes.center = {
+        x: Math.max(0, Math.min(CANVAS_SIZE, snap.center.x + dx)),
+        y: Math.max(0, Math.min(CANVAS_SIZE, snap.center.y + dy)),
+      };
+    }
+    onUpdateElement?.(snap.id, changes);
+  }, [onUpdateElement]);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    dragStartRef.current = null;
+    dragSnapshotRef.current = null;
+    setTimeout(() => { isDraggingRef.current = false; }, 0);
+  }, []);
+
+  // Load background image
+  useEffect(() => {
+    if (backgroundImage) {
+      const img = new Image();
+      img.onload = () => {
+        bgImageRef.current = img;
+        draw();
+      };
+      img.src = backgroundImage;
+    } else {
+      bgImageRef.current = null;
+      draw();
+    }
+  }, [backgroundImage, draw]);
+
+  // Redraw when elements or selection changes
+  useEffect(() => {
+    draw();
+  }, [draw]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      width={CANVAS_SIZE}
+      height={CANVAS_SIZE}
+      className={cn('rounded-full shadow-2xl cursor-pointer select-none', className)}
+      style={{
+        maxWidth: '100%',
+        height: 'auto',
+        touchAction: 'none',
+        boxShadow: '0 0 60px rgba(0, 212, 255, 0.15), inset 0 0 30px rgba(0, 0, 0, 0.5)',
+      }}
+      onClick={handleCanvasClick}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    />
+  );
+}
+
+// ─── Hit Testing ─────────────────────────────────────────────────────────────────
+
+function getCanvasPos(e: React.MouseEvent<HTMLCanvasElement>, canvas: HTMLCanvasElement) {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = CANVAS_SIZE / rect.width;
+  const scaleY = CANVAS_SIZE / rect.height;
+  return {
+    x: (e.clientX - rect.left) * scaleX,
+    y: (e.clientY - rect.top) * scaleY,
+  };
+}
+
+function getTouchCanvasPos(touch: React.Touch, canvas: HTMLCanvasElement) {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = CANVAS_SIZE / rect.width;
+  const scaleY = CANVAS_SIZE / rect.height;
+  return {
+    x: (touch.clientX - rect.left) * scaleX,
+    y: (touch.clientY - rect.top) * scaleY,
+  };
+}
+
+const HANDLE_HIT = 10; // hit radius for handles
+
+/** Returns handle name if (x,y) is over a resize handle of the given bounds, else null */
+function hitTestRectHandle(
+  x: number, y: number,
+  b: { x: number; y: number; width: number; height: number },
+): string | null {
+  const handles: [string, number, number][] = [
+    ['TL', b.x, b.y],
+    ['TC', b.x + b.width / 2, b.y],
+    ['TR', b.x + b.width, b.y],
+    ['ML', b.x, b.y + b.height / 2],
+    ['MR', b.x + b.width, b.y + b.height / 2],
+    ['BL', b.x, b.y + b.height],
+    ['BC', b.x + b.width / 2, b.y + b.height],
+    ['BR', b.x + b.width, b.y + b.height],
+  ];
+  for (const [name, hx, hy] of handles) {
+    if (Math.abs(x - hx) <= HANDLE_HIT && Math.abs(y - hy) <= HANDLE_HIT) return name;
+  }
+  return null;
+}
+
+/** Apply resize delta to bounds based on which handle is dragged */
+function applyResize(
+  snap: { x: number; y: number; width: number; height: number },
+  handle: string,
+  dx: number, dy: number,
+) {
+  let { x, y, width, height } = snap;
+  const MIN = 20;
+  if (handle.includes('L')) { x = Math.min(snap.x + dx, snap.x + snap.width - MIN); width = snap.width - (x - snap.x); }
+  if (handle.includes('R')) { width = Math.max(MIN, snap.width + dx); }
+  if (handle.includes('T')) { y = Math.min(snap.y + dy, snap.y + snap.height - MIN); height = snap.height - (y - snap.y); }
+  if (handle.includes('B')) { height = Math.max(MIN, snap.height + dy); }
+  return { x: Math.max(0, x), y: Math.max(0, y), width, height };
+}
+
+/** Returns arc handle name if (x,y) is over a handle of the arc element */
+function hitTestArcHandle(x: number, y: number, el: WatchFaceElement): string | null {
+  const cx = el.center?.x ?? CX;
+  const cy = el.center?.y ?? CY;
+  const r = el.radius ?? 100;
+  const startDeg = el.startAngle ?? 135;
+  const endDeg = el.endAngle ?? 345;
+  const midDeg = (startDeg + endDeg) / 2;
+  const HIT = 10;
+
+  const pts: [string, number, number][] = [
+    ['ARC_RADIUS', cx + r * Math.cos(degToRad(midDeg)), cy + r * Math.sin(degToRad(midDeg))],
+    ['ARC_START',  cx + r * Math.cos(degToRad(startDeg)), cy + r * Math.sin(degToRad(startDeg))],
+    ['ARC_END',    cx + r * Math.cos(degToRad(endDeg)),   cy + r * Math.sin(degToRad(endDeg))],
+  ];
+  for (const [name, hx, hy] of pts) {
+    if (Math.sqrt((x - hx) ** 2 + (y - hy) ** 2) <= HIT) return name;
+  }
+  return null;
+}
+
+function hitTest(x: number, y: number, elements: WatchFaceElement[]): string | null {
+  for (const el of elements) {
+    if (el.type === 'ARC_PROGRESS') {
+      if (hitTestArc(x, y, el)) return el.id;
+    } else if (el.type === 'TIME_POINTER') {
+      if (hitTestRect(x, y, el.bounds)) return el.id;
+    } else {
+      if (hitTestRect(x, y, el.bounds)) return el.id;
+    }
+  }
+  return null;
+}
+
+function hitTestRect(
+  x: number, y: number,
+  bounds: { x: number; y: number; width: number; height: number },
+): boolean {
+  return (
+    x >= bounds.x &&
+    x <= bounds.x + bounds.width &&
+    y >= bounds.y &&
+    y <= bounds.y + bounds.height
+  );
+}
+
+function hitTestArc(x: number, y: number, el: WatchFaceElement): boolean {
+  const cx = el.center?.x ?? CX;
+  const cy = el.center?.y ?? CY;
+  const radius = el.radius ?? 100;
+  const lineWidth = el.lineWidth ?? 8;
+  const tolerance = 8;
+
+  const dist = Math.sqrt((x - cx) ** 2 + (y - cy) ** 2);
+  if (Math.abs(dist - radius) > lineWidth / 2 + tolerance) return false;
+
+  // Check angle
+  const startDeg = el.startAngle ?? 135;
+  const endDeg = el.endAngle ?? 345;
+  let clickDeg = Math.atan2(y - cy, x - cx) * (180 / Math.PI);
+  // Normalise both to same range as startDeg/endDeg
+  if (endDeg > 360) {
+    if (clickDeg < startDeg) clickDeg += 360;
+  }
+  return clickDeg >= startDeg && clickDeg <= endDeg;
+}
+
+// ─── Selection Highlight ────────────────────────────────────────────────────────
+
+const HANDLE_SIZE = 8;
+const SEL_COLOR = '#00D4FF';
+
+function drawSelection(ctx: CanvasRenderingContext2D, el: WatchFaceElement) {
+  if (el.type === 'ARC_PROGRESS') {
+    drawArcSelection(ctx, el);
+  } else if (el.type === 'TIME_POINTER') {
+    drawPointerSelection(ctx, el);
+  } else {
+    drawRectSelection(ctx, el);
+  }
+}
+
+function drawRectSelection(ctx: CanvasRenderingContext2D, el: WatchFaceElement) {
+  const { x, y, width, height } = el.bounds;
+  ctx.save();
+  ctx.strokeStyle = SEL_COLOR;
+  ctx.lineWidth = 2;
+  ctx.setLineDash([4, 3]);
+  ctx.strokeRect(x - 1, y - 1, width + 2, height + 2);
+  ctx.setLineDash([]);
+
+  // 8 handles: corners + edge midpoints
+  const handles = [
+    [x, y], [x + width / 2, y], [x + width, y],
+    [x, y + height / 2],            [x + width, y + height / 2],
+    [x, y + height], [x + width / 2, y + height], [x + width, y + height],
+  ];
+  for (const [hx, hy] of handles) {
+    ctx.fillStyle = '#FFFFFF';
+    ctx.strokeStyle = SEL_COLOR;
+    ctx.lineWidth = 1.5;
+    ctx.fillRect(hx - HANDLE_SIZE / 2, hy - HANDLE_SIZE / 2, HANDLE_SIZE, HANDLE_SIZE);
+    ctx.strokeRect(hx - HANDLE_SIZE / 2, hy - HANDLE_SIZE / 2, HANDLE_SIZE, HANDLE_SIZE);
+  }
+  ctx.restore();
+}
+
+function drawArcSelection(ctx: CanvasRenderingContext2D, el: WatchFaceElement) {
+  const cx = el.center?.x ?? CX;
+  const cy = el.center?.y ?? CY;
+  const radius = el.radius ?? 100;
+  const lineWidth = el.lineWidth ?? 8;
+  const startDeg = el.startAngle ?? 135;
+  const endDeg = el.endAngle ?? 345;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, degToRad(startDeg), degToRad(endDeg));
+  ctx.strokeStyle = hexToRgba(SEL_COLOR, 0.5);
+  ctx.lineWidth = lineWidth + 6;
+  ctx.lineCap = 'round';
+  ctx.stroke();
+
+  // Radial handle at arc midpoint
+  const midDeg = (startDeg + endDeg) / 2;
+  const handles: [number, string][] = [
+    [midDeg, '#FFFFFF'],    // radius handle
+    [startDeg, '#00FF88'], // start angle handle
+    [endDeg, '#FF8800'],   // end angle handle
+  ];
+  for (const [deg, color] of handles) {
+    const hx = cx + radius * Math.cos(degToRad(deg));
+    const hy = cy + radius * Math.sin(degToRad(deg));
+    ctx.beginPath();
+    ctx.arc(hx, hy, 6, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.strokeStyle = SEL_COLOR;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawPointerSelection(ctx: CanvasRenderingContext2D, el: WatchFaceElement) {
+  const cx = el.pointerCenter?.x ?? el.center?.x ?? CX;
+  const cy = el.pointerCenter?.y ?? el.center?.y ?? CY;
+  const r = 120;
+
+  ctx.save();
+  ctx.strokeStyle = SEL_COLOR;
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([4, 3]);
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Crosshair
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(cx - 12, cy); ctx.lineTo(cx + 12, cy);
+  ctx.moveTo(cx, cy - 12); ctx.lineTo(cx, cy + 12);
+  ctx.stroke();
+  ctx.restore();
+}
+
+// ─── Background ─────────────────────────────────────────────────────────────────
+
+function drawBlackCircle(ctx: CanvasRenderingContext2D) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(CX, CY, CX, 0, Math.PI * 2);
+  ctx.fillStyle = '#111111';
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawBackground(ctx: CanvasRenderingContext2D, img: HTMLImageElement) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(CX, CY, CX, 0, Math.PI * 2);
+  ctx.clip();
+  ctx.drawImage(img, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
+  ctx.restore();
+}
+
+// ─── Element Dispatcher ─────────────────────────────────────────────────────────
+
+function drawElements(ctx: CanvasRenderingContext2D, elements: WatchFaceElement[]) {
+  const sorted = [...elements].filter(e => e.visible).sort((a, b) => a.zIndex - b.zIndex);
+
+  for (const el of sorted) {
+    switch (el.type) {
+      case 'ARC_PROGRESS':
+        drawArc(ctx, el);
+        break;
+      case 'TIME_POINTER':
+        drawTimePointer(ctx, el);
+        break;
+      default:
+        drawPlaceholder(ctx, el);
+        break;
+    }
+  }
+}
+
+// ─── ARC_PROGRESS ───────────────────────────────────────────────────────────────
+
+function drawArc(ctx: CanvasRenderingContext2D, el: WatchFaceElement) {
+  const cx = el.center?.x ?? CX;
+  const cy = el.center?.y ?? CY;
+  const radius = el.radius ?? 100;
+  const startDeg = el.startAngle ?? 135;
+  const endDeg = el.endAngle ?? 345;
+  const lineWidth = el.lineWidth ?? 8;
+  const color = parseZeppColor(el.color ?? '0x00FF00');
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, degToRad(startDeg), degToRad(endDeg));
+  ctx.strokeStyle = color;
+  ctx.lineWidth = lineWidth;
+  ctx.lineCap = 'round';
+  ctx.stroke();
+
+  if (el.dataType) {
+    const midDeg = (startDeg + endDeg) / 2;
+    const labelR = radius + 16;
+    const lx = cx + labelR * Math.cos(degToRad(midDeg));
+    const ly = cy + labelR * Math.sin(degToRad(midDeg));
+
+    ctx.font = 'bold 10px monospace';
+    ctx.fillStyle = color;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(el.dataType, lx, ly);
+  }
+  ctx.restore();
+}
+
+// ─── TIME_POINTER ───────────────────────────────────────────────────────────────
+
+function drawTimePointer(ctx: CanvasRenderingContext2D, el: WatchFaceElement) {
+  const cx = el.pointerCenter?.x ?? el.center?.x ?? CX;
+  const cy = el.pointerCenter?.y ?? el.center?.y ?? CY;
+
+  const hourAngle = ((MOCK_HOUR % 12) + MOCK_MINUTE / 60) * 30 - 90;
+  const minuteAngle = MOCK_MINUTE * 6 - 90;
+  const secondAngle = MOCK_SECOND * 6 - 90;
+
+  const handColor = el.color ? parseZeppColor(el.color) : '#FFFFFF';
+  drawHand(ctx, cx, cy, 65, 10, hourAngle, handColor);
+  drawHand(ctx, cx, cy, 95, 7, minuteAngle, handColor);
+  drawHand(ctx, cx, cy, 115, 2, secondAngle, '#FF4444');
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx, cy, 6, 0, Math.PI * 2);
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawHand(
+  ctx: CanvasRenderingContext2D,
+  cx: number, cy: number,
+  length: number, width: number,
+  angleDeg: number,
+  color: string,
+) {
+  const rad = degToRad(angleDeg);
+  const tipX = cx + length * Math.cos(rad);
+  const tipY = cy + length * Math.sin(rad);
+  const tailX = cx - (length * 0.2) * Math.cos(rad);
+  const tailY = cy - (length * 0.2) * Math.sin(rad);
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(tailX, tailY);
+  ctx.lineTo(tipX, tipY);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+  ctx.lineCap = 'round';
+  ctx.stroke();
+  ctx.restore();
+}
+
+// ─── Placeholder (rectangles for IMG_TIME, TEXT, etc.) ──────────────────────────
+
+function drawPlaceholder(ctx: CanvasRenderingContext2D, el: WatchFaceElement) {
+  const { x, y, width, height } = el.bounds;
+
+  ctx.save();
+
+  const elColor = el.color ? parseZeppColor(el.color) : null;
+  const boxFill = elColor ? hexToRgba(elColor, 0.15) : 'rgba(0, 200, 255, 0.08)';
+  const boxStroke = elColor ? hexToRgba(elColor, 0.5) : 'rgba(0, 200, 255, 0.3)';
+  const labelFill = elColor ? hexToRgba(elColor, 0.9) : 'rgba(0, 200, 255, 0.7)';
+
+  ctx.fillStyle = boxFill;
+  ctx.strokeStyle = boxStroke;
+  ctx.lineWidth = 1;
+  ctx.fillRect(x, y, width, height);
+  ctx.strokeRect(x, y, width, height);
+
+  const label = formatLabel(el);
+  ctx.font = '10px monospace';
+  ctx.fillStyle = labelFill;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(label, x + width / 2, y + height / 2, width - 4);
+
+  ctx.restore();
+}
+
+function formatLabel(el: WatchFaceElement): string {
+  const name = el.name.toLowerCase();
+  if (name.includes('time')) return '10:10';
+  if (name.includes('date')) return '08';
+  if (name.includes('month')) return 'APR';
+  if (name.includes('week')) return 'TUE';
+  if (name.includes('weather')) return '☀ 24°';
+  if (el.dataType) return el.dataType;
+  return el.name;
+}
+
+// ─── Utilities ──────────────────────────────────────────────────────────────────
+
+function degToRad(deg: number): number {
+  return (deg * Math.PI) / 180;
+}
+
+function parseZeppColor(zeppHex: string): string {
+  if (zeppHex.startsWith('0x') || zeppHex.startsWith('0X')) {
+    return '#' + zeppHex.slice(2).padStart(6, '0');
+  }
+  return zeppHex;
+}
+
+function hexToRgba(hex: string, alpha: number): string {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.substring(0, 2), 16);
+  const g = parseInt(h.substring(2, 4), 16);
+  const b = parseInt(h.substring(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}

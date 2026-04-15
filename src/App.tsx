@@ -7,12 +7,12 @@ import { toast } from 'sonner';
 
 import { Header } from '@/components/Header';
 import { UploadZone } from '@/components/UploadZone';
-import { WatchPreview } from '@/components/WatchPreview';
-import { CanvasWatchPreview } from '@/components/CanvasWatchPreview';
 import { QRDisplay } from '@/components/QRDisplay';
 import { StepIndicator } from '@/components/StepIndicator';
 import { LoadingOverlay } from '@/components/LoadingOverlay';
 import { ElementList } from '@/components/ElementList';
+import { InteractiveCanvas } from '@/components/InteractiveCanvas';
+import { PropertyPanel } from '@/components/PropertyPanel';
 
 import { useApp, actions } from '@/context/AppContext';
 import { buildZPK } from '@/lib/zpkBuilder';
@@ -960,6 +960,7 @@ function App() {
   const { state, dispatch } = useApp();
   const [watchModel, setWatchModel] = useState('Balance 2');
   const [watchFaceName, setWatchFaceName] = useState('');
+  const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
 
   // AI Provider settings (persisted in localStorage)
   const [aiProvider, setAiProvider] = useState<AIProvider>(
@@ -1055,6 +1056,35 @@ function App() {
       dispatch(actions.setLoading(false));
     }
   }, [state.backgroundImage, state.fullDesignImage, watchModel, watchFaceName, aiProvider, aiApiKey, useMockAnalysis, dispatch]);
+
+  // Handle regenerate ZPK (local download, no GitHub upload)
+  const handleRegenerateDownload = useCallback(async () => {
+    if (!state.watchFaceConfig || !state.backgroundFile) {
+      toast.error('Missing configuration or background file');
+      return;
+    }
+    try {
+      toast.info('Rebuilding ZPK from current edits...');
+      const elementFiles = state.elementImages.map((img) => {
+        const parts = img.dataUrl.split(',');
+        const mimeType = parts[0].match(/:(.*?);/)?.[1] || 'image/png';
+        const bstr = atob(parts[1]);
+        const u8arr = new Uint8Array(bstr.length);
+        for (let i = 0; i < bstr.length; i++) u8arr[i] = bstr.charCodeAt(i);
+        return { src: img.name, file: new File([u8arr], img.name, { type: mimeType }) };
+      });
+      const result = await buildZPK({ config: state.watchFaceConfig, backgroundFile: state.backgroundFile, elementFiles });
+      const url = URL.createObjectURL(result.blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = result.filename;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('ZPK downloaded!');
+    } catch (err) {
+      toast.error('Regenerate failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
+    }
+  }, [state.watchFaceConfig, state.backgroundFile, state.elementImages]);
 
   // Handle generate ZPK
   const handleGenerate = useCallback(async () => {
@@ -1401,44 +1431,47 @@ function App() {
           <div className="space-y-6">
             {state.backgroundImage && state.watchFaceConfig && (
               <>
-                {/* Side-by-side: original design vs generated layout */}
-                <div className="grid gap-6 lg:grid-cols-2">
-                  {/* Original design preview (div-based) */}
-                  <div className="flex flex-col items-center">
-                    <h4 className="text-sm font-medium text-zinc-400 mb-4">Design Preview</h4>
-                    <WatchPreview
+                {/* Interactive canvas + property panel */}
+                <div className="flex flex-col lg:flex-row gap-6">
+                  <div className="flex flex-col items-center shrink-0">
+                    <h4 className="text-sm font-medium text-zinc-400 mb-4">Live Editor — drag to reposition</h4>
+                    <InteractiveCanvas
                       backgroundImage={state.backgroundImage}
                       elements={state.watchFaceConfig.elements}
-                      showBoundingBoxes={true}
+                      selectedElementId={selectedElementId}
+                      onSelectElement={setSelectedElementId}
+                      onUpdateElement={(id, changes) => dispatch({ type: 'UPDATE_ELEMENT', payload: { id, changes } })}
                       className="w-full max-w-sm"
                     />
                   </div>
-
-                  {/* Canvas-rendered geometry preview (what ZPK will produce) */}
-                  <div className="flex flex-col items-center">
-                    <h4 className="text-sm font-medium text-zinc-400 mb-4">Generated Layout</h4>
-                    <CanvasWatchPreview
-                      backgroundImage={state.backgroundImage}
-                      elements={state.watchFaceConfig.elements}
-                      className="w-full max-w-sm"
+                  <div className="flex-1 space-y-4">
+                    <h4 className="text-sm font-medium text-zinc-400">Properties</h4>
+                    <PropertyPanel
+                      element={state.watchFaceConfig.elements.find(el => el.id === selectedElementId) ?? null}
+                      onUpdateElement={(id, changes) => dispatch({ type: 'UPDATE_ELEMENT', payload: { id, changes } })}
                     />
-                    <p className="text-xs text-zinc-500 mt-2">Pixel-accurate widget positions</p>
+                    <h4 className="text-sm font-medium text-zinc-400 mt-4">Elements</h4>
+                    <ElementList
+                      elements={state.watchFaceConfig.elements}
+                      onToggleVisibility={handleToggleElement}
+                      selectedElementId={selectedElementId}
+                      onSelectElement={setSelectedElementId}
+                    />
                   </div>
-                </div>
-
-                {/* Elements list */}
-                <div>
-                  <h4 className="text-sm font-medium text-zinc-400 mb-4">Detected Elements</h4>
-                  <ElementList
-                    elements={state.watchFaceConfig.elements}
-                    onToggleVisibility={handleToggleElement}
-                  />
                 </div>
               </>
             )}
 
             {/* Action buttons */}
             <div className="flex flex-wrap gap-3 pt-4">
+              <Button
+                onClick={handleRegenerateDownload}
+                variant="outline"
+                className="h-12 border-cyan-700 text-cyan-400 hover:bg-cyan-500/10"
+              >
+                <RefreshCw className="h-5 w-5 mr-2" />
+                Regenerate & Download
+              </Button>
               <Button
                 onClick={handleGenerate}
                 className="flex-1 h-12 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-semibold"

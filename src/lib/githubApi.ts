@@ -127,6 +127,44 @@ export async function uploadToGitHub(
       if (response.status === 413) {
         throw new Error(`File too large (${contentSize} bytes). Max: ${MAX_FILE_SIZE} bytes. Consider splitting the upload.`);
       }
+      // 422 with "sha" missing = file exists but getFileSha failed. Retry with SHA.
+      if (response.status === 422 && errorMsg.includes('sha') && !existingFile) {
+        console.warn('[GitHub] 422: file exists but SHA was not fetched. Retrying with direct SHA fetch...');
+        const retrySha = await getFileSha(config, filepath);
+        if (retrySha) {
+          console.log('[GitHub] Retry: got SHA', retrySha.sha.substring(0, 8), '— re-uploading...');
+          body.sha = retrySha.sha;
+          const retryResponse = await fetch(apiUrl, {
+            method: 'PUT',
+            headers: {
+              'Authorization': `token ${token}`,
+              'Accept': 'application/vnd.github.v3+json',
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(body),
+          });
+          if (!retryResponse.ok) {
+            const retryError = await retryResponse.text().catch(() => '');
+            throw new Error(`Upload retry failed (${retryResponse.status}): ${retryError}`);
+          }
+          // Retry succeeded — parse and return below
+          let retryData: Record<string, unknown> | null = null;
+          try {
+            const text = await retryResponse.text();
+            if (text) retryData = JSON.parse(text);
+          } catch { /* empty */ }
+          const pagesUrl = `https://${owner}.github.io/${repo}/zpk/${filename}`;
+          const folderMatch = filename.match(/^([^\/]+)\//);
+          const watchfaceId = folderMatch ? folderMatch[1] : filename.replace('.zpk', '').replace('-qr.png', '');
+          return {
+            success: true,
+            url: (retryData as Record<string, Record<string, string>> | null)?.content?.html_url || pagesUrl,
+            downloadUrl: pagesUrl,
+            watchfaceId,
+          };
+        }
+        throw new Error(`File exists but could not fetch SHA for update. ${errorMsg}`);
+      }
       if (response.status === 422) {
         throw new Error(`Invalid file upload: ${errorMsg}. The file may be corrupted or in wrong format.`);
       }

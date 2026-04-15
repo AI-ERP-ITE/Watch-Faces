@@ -6,6 +6,8 @@ interface ElementListProps {
   elements: WatchFaceElement[];
   onToggleVisibility?: (id: string) => void;
   onReorder?: (elements: WatchFaceElement[]) => void;
+  selectedElementId?: string | null;
+  onSelectElement?: (id: string) => void;
   className?: string;
 }
 
@@ -13,6 +15,8 @@ export function ElementList({
   elements,
   onToggleVisibility,
   onReorder,
+  selectedElementId,
+  onSelectElement,
   className,
 }: ElementListProps) {
   const getElementIcon = (type: string) => {
@@ -42,9 +46,13 @@ export function ElementList({
         {elements.map((element) => (
           <div
             key={element.id}
+            onClick={() => onSelectElement?.(element.id)}
             className={cn(
-              'group flex items-center gap-3 p-2.5 rounded-lg bg-[#1A1A1A] border border-zinc-800',
-              'hover:border-zinc-700 transition-all'
+              'group flex items-center gap-3 p-2.5 rounded-lg border transition-all',
+              selectedElementId === element.id
+                ? 'bg-cyan-500/10 border-cyan-500 cursor-default'
+                : 'bg-[#1A1A1A] border-zinc-800 hover:border-zinc-700',
+              onSelectElement && 'cursor-pointer'
             )}
           >
             {/* Drag handle */}

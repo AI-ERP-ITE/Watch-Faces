@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useReducer } from 'react';
 import type { ReactNode } from 'react';
-import type { AppState, AppStep, WatchFaceConfig, GeneratedCode, ElementImage } from '@/types';
+import type { AppState, AppStep, WatchFaceConfig, GeneratedCode, ElementImage, WatchFaceElement } from '@/types';
 
 // Initial state
 const initialState: AppState = {
@@ -42,6 +42,8 @@ type Action =
   | { type: 'SET_ERROR'; payload: string | null }
   | { type: 'SET_GITHUB_TOKEN'; payload: string }
   | { type: 'SET_GITHUB_REPO'; payload: string }
+  | { type: 'UPDATE_ELEMENT'; payload: { id: string; changes: Partial<WatchFaceElement> } }
+  | { type: 'UPDATE_ELEMENTS_BATCH'; payload: Array<{ id: string; changes: Partial<WatchFaceElement> }> }
   | { type: 'RESET' };
 
 // Reducer
@@ -81,6 +83,28 @@ function appReducer(state: AppState, action: Action): AppState {
     case 'SET_GITHUB_REPO':
       localStorage.setItem('githubRepo', action.payload);
       return { ...state, githubRepo: action.payload };
+    case 'UPDATE_ELEMENT': {
+      if (!state.watchFaceConfig) return state;
+      const updatedElements = state.watchFaceConfig.elements.map(el =>
+        el.id === action.payload.id ? { ...el, ...action.payload.changes } : el
+      );
+      return {
+        ...state,
+        watchFaceConfig: { ...state.watchFaceConfig, elements: updatedElements },
+      };
+    }
+    case 'UPDATE_ELEMENTS_BATCH': {
+      if (!state.watchFaceConfig) return state;
+      const changeMap = new Map(action.payload.map(p => [p.id, p.changes]));
+      const batchUpdated = state.watchFaceConfig.elements.map(el => {
+        const changes = changeMap.get(el.id);
+        return changes ? { ...el, ...changes } : el;
+      });
+      return {
+        ...state,
+        watchFaceConfig: { ...state.watchFaceConfig, elements: batchUpdated },
+      };
+    }
     case 'RESET':
       return {
         ...initialState,
@@ -138,5 +162,7 @@ export const actions = {
   setError: (error: string | null) => ({ type: 'SET_ERROR' as const, payload: error }),
   setGithubToken: (token: string) => ({ type: 'SET_GITHUB_TOKEN' as const, payload: token }),
   setGithubRepo: (repo: string) => ({ type: 'SET_GITHUB_REPO' as const, payload: repo }),
+  updateElement: (id: string, changes: Partial<WatchFaceElement>) => ({ type: 'UPDATE_ELEMENT' as const, payload: { id, changes } }),
+  updateElementsBatch: (updates: Array<{ id: string; changes: Partial<WatchFaceElement> }>) => ({ type: 'UPDATE_ELEMENTS_BATCH' as const, payload: updates }),
   reset: () => ({ type: 'RESET' as const }),
 };

@@ -1,21 +1,17 @@
-// Pipeline Orchestrator — Multi-stage pipeline with AI + deterministic stages.
-// Stage A (AI vision) → Validate (representation/layout/group) → Normalize (representation → widget)
-// → Resolve ambiguities → Priority sort → Layout (group + mode) → Geometry → Assets → V2 Bridge
-// Normalizer branches on representation, not type. Code fallback if AI normalization fails.
+// Pipeline Orchestrator — Deterministic pipeline. AI vision done upstream (AppContext).
+// Validate → Geometry Clamp → Normalize (code) → Layout → Geometry → Assets → Code Gen → Bridge
 
 import type { AIElement, NormalizedElement, ResolvedElement } from '@/types/pipeline';
 import type { WatchFaceConfig, WatchFaceElement, GeneratedCode } from '@/types';
 
 import { validateAIOutput, validateNormalized, validateLayout, validateGeometry } from './validators';
-import { correctRepresentation } from './representationCorrector';
 import { extractGeometry, validateGeometryExtraction } from './geometryExtractor';
 import { normalize } from './normalizer';
-import { sortArcsByPriority } from './semanticPriority';
 import { applyLayout } from './layoutEngine';
 import { solveGeometry } from './geometrySolver';
 import { resolveAssets } from './assetResolver';
 import { generateWatchFaceCode } from '@/lib/jsCodeGenerator';
-import { normalizeWithAI, resolveAmbiguities, type PipelineAIConfig } from './pipelineAIService';
+import type { PipelineAIConfig } from './pipelineAIService';
 
 // ─── Pipeline Orchestrator ──────────────────────────────────────────────────────
 
@@ -41,93 +37,51 @@ export async function runPipeline(
 ): Promise<PipelineResult> {
   const log = options.onProgress ?? (() => {});
 
-  // ─── Stage A: Validate AI output (representation, layout, group, type) ────
+  // ─── Validate AI output ────────────────────────────────────────────────────
   validateAIOutput(aiOutput);
-  console.log('[Pipeline] Stage A validated:', aiOutput.length, 'elements');
-
-  // ─── Representation Correction: Fix AI arc collapse ───────────────────────
-  const corrected = correctRepresentation(aiOutput);
-  console.log('[Pipeline] Representation corrected:', corrected.length, 'elements');
+  console.log('[Pipeline] Validated:', aiOutput.length, 'elements');
 
   // ─── Geometry Extraction: Validate + normalize AI geometry ────────────────
   log('Geometry extraction: validating spatial data...');
-  let geometryEnriched = extractGeometry(corrected);
+  let geometryEnriched = extractGeometry(aiOutput);
   try {
     validateGeometryExtraction(geometryEnriched);
     console.log('[Pipeline] Geometry extraction validated:', geometryEnriched.length, 'elements');
   } catch (err) {
     console.warn('[Pipeline] Geometry extraction validation failed, continuing with partial geometry:', err);
     // Don't block pipeline — elements without bounds will fall through to layout/geometry stages
-    geometryEnriched = corrected;
+    geometryEnriched = aiOutput;
   }
 
-  // ─── Stage B: Normalize representation → Zepp widgets (AI or code fallback) ─
-  let normalized: NormalizedElement[];
-
-  if (options.aiConfig) {
-    log('Stage B: Normalizing elements with AI...');
-    try {
-      normalized = await normalizeWithAI(options.aiConfig, geometryEnriched);
-      console.log('[Pipeline] Stage B (AI) normalized:', normalized.length, 'elements');
-    } catch (err) {
-      console.warn('[Pipeline] Stage B AI failed, falling back to code normalizer:', err);
-      log('Stage B: AI failed, using code fallback...');
-      normalized = normalize(geometryEnriched);
-      console.log('[Pipeline] Stage B (code fallback) normalized:', normalized.length, 'elements');
-    }
-  } else {
-    normalized = normalize(geometryEnriched);
-    console.log('[Pipeline] Stage B (code-only) normalized:', normalized.length, 'elements');
-  }
+  // ─── Normalize: representation → Zepp widgets (deterministic code mapping) ─
+  log('Normalizing elements...');
+  let normalized: NormalizedElement[] = normalize(geometryEnriched);
+  console.log('[Pipeline] Normalized:', normalized.length, 'elements');
 
   validateNormalized(normalized);
 
-  // ─── Call 3: Resolve remaining ambiguities (if any ARC missing dataType) ──
-  const unresolvedArcs = normalized.filter(
-    el => el.widget === 'ARC_PROGRESS' && !el.dataType,
-  );
+  // ─── Assign fallback dataTypes to any ARC_PROGRESS missing them ───────────
+  normalized = assignFallbackDataTypes(normalized);
 
-  if (unresolvedArcs.length > 0 && options.aiConfig) {
-    log('Call 3: Resolving arc ambiguities with AI...');
-    try {
-      normalized = await resolveAmbiguities(options.aiConfig, normalized);
-      console.log('[Pipeline] Call 3 resolved ambiguities');
-    } catch (err) {
-      console.warn('[Pipeline] Call 3 failed, assigning fallback data types:', err);
-      // Code fallback: assign remaining metrics deterministically
-      normalized = assignFallbackDataTypes(normalized);
-    }
-    validateNormalized(normalized);
-  } else if (unresolvedArcs.length > 0) {
-    // No AI config — assign fallbacks in code
-    normalized = assignFallbackDataTypes(normalized);
-    validateNormalized(normalized);
-  }
-
-  // ─── Semantic Priority: Sort arcs by visual hierarchy ──────────────────
-  log('Applying semantic priority...');
-  normalized = sortArcsByPriority(normalized);
-  console.log('[Pipeline] Semantic priority applied — arcs sorted by data type');
-
-  // ─── Stage C: Layout (group zones + layout mode positioning) ──────────────
-  log('Stage C: Computing layout...');
+  // ─── Layout (group zones + layout mode positioning) ───────────────────────
+  log('Computing layout...');
   const layouted = applyLayout(normalized);
   validateLayout(layouted);
-  console.log('[Pipeline] Stage C layout:', layouted.length, 'elements');
+  console.log('[Pipeline] Layout:', layouted.length, 'elements');
 
-  // ─── Stage D: Geometry (per-layout-mode: arc stacking / row bbox / standalone) ─
-  log('Stage D: Solving geometry...');
+  // ─── Geometry (per-layout-mode: arc stacking / row bbox / standalone) ──────
+  log('Solving geometry...');
   const geometry = solveGeometry(layouted);
   validateGeometry(geometry);
-  console.log('[Pipeline] Stage D geometry:', geometry.length, 'elements');
+  console.log('[Pipeline] Geometry:', geometry.length, 'elements');
 
-  // ─── Stage E: Asset resolution ──────────────────────────────────────────
-  log('Stage E: Resolving assets...');
+  // ─── Asset resolution ─────────────────────────────────────────────────────
+  log('Resolving assets...');
   const resolved = resolveAssets(geometry);
-  console.log('[Pipeline] Stage E assets resolved');
+  console.log('[Pipeline] Assets resolved');
 
-  // ─── Stage F: Bridge to V2 code generator ──────────────────────────────
-  log('Stage F: Generating code...');
+  // ─── Bridge to code generator ─────────────────────────────────────────────
+  log('Generating code...');
   const config = bridgeToWatchFaceConfig(resolved, options);
   const code = generateWatchFaceCode(config);
   console.log('[Pipeline] Stage F code generated');
