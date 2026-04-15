@@ -78,6 +78,8 @@ export async function extractElementsFromImage(
   }
 
   const parsed = parseResponse(rawJson);
+  console.log('[AI] Raw response:', rawJson);
+  console.log('[AI] Parsed elements:', JSON.stringify(parsed.elements, null, 2));
   return parsed.elements;
 }
 
@@ -261,6 +263,8 @@ function parseResponse(rawJson: string): AIExtractionResult {
       radius: typeof el.radius === 'number' ? el.radius : undefined,
       startAngle: typeof el.startAngle === 'number' ? el.startAngle : undefined,
       endAngle: typeof el.endAngle === 'number' ? el.endAngle : undefined,
+      lineWidth: typeof el.lineWidth === 'number' ? el.lineWidth : undefined,
+      color: typeof el.color === 'string' ? el.color : undefined,
     };
   });
 
