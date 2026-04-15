@@ -4,7 +4,8 @@ package-lock.json
 yarn.lock
 pnpm-lock.yaml
 
-# Production build - REMOVED: We need dist/ for GitHub Pages
+# Production build output (docs/ is the GitHub Pages folder, not dist/)
+dist/
 build/
 
 # Environment variables
@@ -31,3 +32,7 @@ yarn-error.log*
 *.tmp
 .tmp/
 temp/
+
+# Large reference docs (not source code, kept locally only)
+PIPELINE_FULL_SPEC.md
+PROJECT_COMPLETE_REPO.md
