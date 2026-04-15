@@ -151,9 +151,11 @@ function drawTimePointer(ctx: CanvasRenderingContext2D, el: WatchFaceElement) {
   const secondAngle = MOCK_SECOND * 6 - 90;
 
   // Hand lengths (proportional to real hardware assets)
-  drawHand(ctx, cx, cy, 65, 10, hourAngle, '#CCCCCC');    // hour: short + thick
-  drawHand(ctx, cx, cy, 95, 7, minuteAngle, '#FFFFFF');    // minute: long + medium
-  drawHand(ctx, cx, cy, 115, 2, secondAngle, '#FF4444');   // second: longest + thin
+  // Use el.color if AI extracted it, otherwise sensible defaults
+  const handColor = el.color ? parseZeppColor(el.color) : '#FFFFFF';
+  drawHand(ctx, cx, cy, 65, 10, hourAngle, handColor);       // hour: short + thick
+  drawHand(ctx, cx, cy, 95, 7, minuteAngle, handColor);      // minute: long + medium
+  drawHand(ctx, cx, cy, 115, 2, secondAngle, '#FF4444');      // second: longest + thin
 
   // Center cap
   ctx.save();
@@ -195,9 +197,14 @@ function drawPlaceholder(ctx: CanvasRenderingContext2D, el: WatchFaceElement) {
 
   ctx.save();
 
-  // Semi-transparent box
-  ctx.fillStyle = 'rgba(0, 200, 255, 0.08)';
-  ctx.strokeStyle = 'rgba(0, 200, 255, 0.3)';
+  // Use AI-extracted color if available, fallback to debug cyan
+  const elColor = el.color ? parseZeppColor(el.color) : null;
+  const boxFill = elColor ? hexToRgba(elColor, 0.15) : 'rgba(0, 200, 255, 0.08)';
+  const boxStroke = elColor ? hexToRgba(elColor, 0.5) : 'rgba(0, 200, 255, 0.3)';
+  const labelFill = elColor ? hexToRgba(elColor, 0.9) : 'rgba(0, 200, 255, 0.7)';
+
+  ctx.fillStyle = boxFill;
+  ctx.strokeStyle = boxStroke;
   ctx.lineWidth = 1;
   ctx.fillRect(x, y, width, height);
   ctx.strokeRect(x, y, width, height);
@@ -205,7 +212,7 @@ function drawPlaceholder(ctx: CanvasRenderingContext2D, el: WatchFaceElement) {
   // Label
   const label = formatLabel(el);
   ctx.font = '10px monospace';
-  ctx.fillStyle = 'rgba(0, 200, 255, 0.7)';
+  ctx.fillStyle = labelFill;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(label, x + width / 2, y + height / 2, width - 4);
@@ -237,4 +244,13 @@ function parseZeppColor(zeppHex: string): string {
     return '#' + zeppHex.slice(2).padStart(6, '0');
   }
   return zeppHex;
+}
+
+/** Convert CSS hex (#RRGGBB) to rgba string with given alpha */
+function hexToRgba(hex: string, alpha: number): string {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.substring(0, 2), 16);
+  const g = parseInt(h.substring(2, 4), 16);
+  const b = parseInt(h.substring(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }

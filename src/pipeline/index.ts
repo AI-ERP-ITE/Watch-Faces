@@ -213,7 +213,7 @@ function resolvedToWatchFaceElement(el: ResolvedElement, idx: number): WatchFace
     base.endAngle = el.endAngle;
     base.lineWidth = el.lineWidth;
     base.dataType = el.dataType;
-    base.color = ARC_COLORS[el.dataType || ''] || '0x00FF00';
+    base.color = el.color ? toZeppHex(el.color) : (ARC_COLORS[el.dataType || ''] || '0x00FF00');
     return base;
   }
 
@@ -262,6 +262,7 @@ function resolvedToWatchFaceElement(el: ResolvedElement, idx: number): WatchFace
   if (el.widget === 'IMG_STATUS') {
     base.bounds = { x: el.x!, y: el.y!, width: el.w!, height: el.h! };
     base.src = el.assets.src;
+    base.assetFilename = el.assets.src;
     base.statusType = 'DISCONNECT';
     return base;
   }
@@ -270,6 +271,7 @@ function resolvedToWatchFaceElement(el: ResolvedElement, idx: number): WatchFace
   if (el.widget === 'IMG') {
     base.bounds = { x: el.x!, y: el.y!, width: el.w!, height: el.h! };
     base.src = el.assets.src;
+    base.assetFilename = el.assets.src;
     return base;
   }
 
@@ -278,7 +280,7 @@ function resolvedToWatchFaceElement(el: ResolvedElement, idx: number): WatchFace
     base.bounds = { x: el.x!, y: el.y!, width: el.w!, height: el.h! };
     base.text = '';
     base.fontSize = 20;
-    base.color = '0xFFFFFFFF';
+    base.color = el.color ? toZeppHex(el.color) : '0xFFFFFFFF';
     return base;
   }
 
@@ -302,6 +304,14 @@ const ARC_COLORS: Record<string, string> = {
   CAL:      '0xFF9F43',
   DISTANCE: '0x54A0FF',
 };
+
+/** Convert CSS hex (#RRGGBB or #RGB) to Zepp hex (0xRRGGBB) */
+function toZeppHex(cssHex: string): string {
+  let h = cssHex.replace('#', '');
+  // Expand shorthand #RGB → RRGGBB
+  if (h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+  return '0x' + h.toUpperCase();
+}
 
 // Map pipeline widget names back to WatchFaceElement.type
 // V2 generator uses element.type in the switch/case in generateWidgetCodeV2

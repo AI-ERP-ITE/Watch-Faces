@@ -17,6 +17,8 @@ export interface WatchFaceElement {
   };
   color?: string;
   src?: string;
+  /** Original asset filename — preserved even when src is overwritten with data URL for preview */
+  assetFilename?: string;
   dataType?: string;
   images?: string[];
   text?: string;

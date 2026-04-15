@@ -98,6 +98,8 @@ export function normalize(elements: AIElement[]): NormalizedElement[] {
         radius: el.radius,
         startAngle: el.startAngle,
         endAngle: el.endAngle,
+        lineWidth: el.lineWidth,
+        color: el.color,
       };
 
       // Link second (and beyond) compound elements back to the first

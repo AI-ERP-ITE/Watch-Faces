@@ -1,17 +1,13 @@
 // Geometry Solver — THE layer that controls SIZE, SHAPE, and SPATIAL INTELLIGENCE.
 // Deterministic. No AI. No randomness.
 //
+// RULE: "Preserve first, fallback second"
+//   If the AI provided a value (bounds, radius, center, angles), USE IT.
+//   Only compute a fallback if the value is missing.
+//
 // OWNERSHIP (5-layer model):
 //   Layout Engine → WHERE (anchor point only)
-//   Geometry Solver → HOW (radius, sweep, thickness, offsets, visual weight)
-//
-// Steps:
-//   A – Extract arcs
-//   B – Assign semantic priority (via semanticPriority module)
-//   C – Radius from priority (NOT region)
-//   D – Arc sweep (data-driven, mock values)
-//   E – Thickness scaling
-//   F – Time offset (calibrated override, NOT Layout Engine)
+//   Geometry Solver → HOW (fills in missing radius, sweep, thickness, offsets)
 
 import type { LayoutElement, GeometryElement } from '@/types/pipeline';
 import {
@@ -32,11 +28,10 @@ const HAND_DIMENSIONS = {
   second: { w: 6,  h: 240 },
 };
 
-// ─── Calibrated time offset (from real watchface analysis) ──────────────────────
-// TIME_POINTER and IMG_TIME anchor left of center for visual balance.
+// ─── Fallback positions (only used when AI didn't provide coordinates) ──────────
 
-const TIME_CENTER_X = 140;
-const TIME_CENTER_Y = CY;   // 240
+const FALLBACK_TIME_CENTER_X = CX;  // 240 — screen center (was hardcoded 140)
+const FALLBACK_TIME_CENTER_Y = CY;  // 240
 
 // ─── Rectangular widget bounding boxes ──────────────────────────────────────────
 
@@ -50,7 +45,6 @@ const DEFAULT_SIZES: Record<string, { w: number; h: number }> = {
 // ─── Geometry Solver ────────────────────────────────────────────────────────────
 
 export function solveGeometry(elements: LayoutElement[]): GeometryElement[] {
-  // ── STEP A: Extract arcs ──────────────────────────────────────────────────
   const arcElements: LayoutElement[] = [];
   const otherElements: LayoutElement[] = [];
 
@@ -64,38 +58,36 @@ export function solveGeometry(elements: LayoutElement[]): GeometryElement[] {
 
   const results: GeometryElement[] = [];
 
-  // ── STEPS B-E: Priority-based concentric arc stacking ─────────────────────
-  // Elements arrive pre-sorted by semantic priority (sortArcsByPriority in orchestrator).
-  // STEP B: Priority comes from semanticPriority module (getPriority).
-  // STEP C: Radius = BASE_RADIUS - (priority * SPACING). NOT region-based.
-  // STEP D: Sweep = mockValue * MAX_SWEEP. Data-driven, not fixed.
-  // STEP E: Thickness = base lineWidth - (priority * step). Outer = thicker.
+  // ── ARC: Preserve AI geometry, fallback to priority-based stacking ────────
   for (const el of arcElements) {
-    // ── FR-005: If geometry already extracted from image, preserve it ──────
+    // If AI provided arc geometry, USE IT (preserve first)
     if (el.radius !== undefined && el.startAngle !== undefined && el.endAngle !== undefined) {
       results.push({
         ...el,
+        centerX: el.center?.x ?? el.centerX,
+        centerY: el.center?.y ?? el.centerY,
         radius: el.radius,
         startAngle: el.startAngle,
         endAngle: el.endAngle,
-        lineWidth: ARC_LINE_WIDTH,
+        lineWidth: el.lineWidth ?? ARC_LINE_WIDTH,
       });
       continue;
     }
 
-    const priority = getPriority(el.dataType);       // Step B
+    // Fallback: compute from priority (only when AI didn't provide)
+    const priority = getPriority(el.dataType);
     const mockValue = getMockValue(el.dataType);
 
-    const radius = ARC_BASE_RADIUS - (priority * ARC_SPACING);      // Step C
-    const sweep = mockValue * ARC_MAX_SWEEP;                         // Step D
-    const lineWidth = Math.max(                                      // Step E
+    const radius = ARC_BASE_RADIUS - (priority * ARC_SPACING);
+    const sweep = mockValue * ARC_MAX_SWEEP;
+    const lineWidth = Math.max(
       ARC_LINE_WIDTH - (priority * ARC_LINE_WIDTH_STEP), 4,
     );
 
     results.push({
       ...el,
-      centerX: CX,
-      centerY: CY,
+      centerX: el.center?.x ?? CX,
+      centerY: el.center?.y ?? CY,
       radius: Math.max(radius, 40),
       startAngle: ARC_START_ANGLE,
       endAngle: ARC_START_ANGLE + sweep,
@@ -103,14 +95,15 @@ export function solveGeometry(elements: LayoutElement[]): GeometryElement[] {
     });
   }
 
-  // ── STEP F + widget-specific solvers ──────────────────────────────────────
+  // ── Non-ARC: Preserve AI bounds, fallback to widget-specific solvers ──────
   for (const el of otherElements) {
-    // ── FR-005: If element has extracted bounds, use them directly ─────────
+    // If element has AI-extracted bounds, use them directly
     if (el.bounds) {
       results.push(solveWithExtractedBounds(el));
       continue;
     }
 
+    // Fallback: widget-specific solver (only when no AI bounds)
     switch (el.widget) {
       case 'TIME_POINTER':
         results.push(solveTimePointer(el));
@@ -136,15 +129,13 @@ export function solveGeometry(elements: LayoutElement[]): GeometryElement[] {
   return results;
 }
 
-// ─── TIME_POINTER (STEP F: calibrated offset) ──────────────────────────────────
-// Geometry Solver intentionally overrides Layout Engine's anchor.
-// TIME_CENTER_X = 140 (calibrated from real watchface), not screen center.
+// ─── TIME_POINTER fallback (only when AI didn't provide bounds) ─────────────────
 
 function solveTimePointer(el: LayoutElement): GeometryElement {
   return {
     ...el,
-    centerX: TIME_CENTER_X,   // Step F override
-    centerY: TIME_CENTER_Y,
+    centerX: FALLBACK_TIME_CENTER_X,
+    centerY: FALLBACK_TIME_CENTER_Y,
     hourPosX:   Math.round(HAND_DIMENSIONS.hour.w / 2),
     hourPosY:   Math.round(HAND_DIMENSIONS.hour.h / 2),
     minutePosX: Math.round(HAND_DIMENSIONS.minute.w / 2),
@@ -154,14 +145,13 @@ function solveTimePointer(el: LayoutElement): GeometryElement {
   };
 }
 
-// ─── IMG_TIME (STEP F: calibrated offset) ───────────────────────────────────────
-// Same calibrated offset as TIME_POINTER for visual alignment.
+// ─── IMG_TIME fallback (only when AI didn't provide bounds) ─────────────────────
 
 function solveImgTime(el: LayoutElement): GeometryElement {
   return {
     ...el,
-    x: TIME_CENTER_X,        // Step F override — hour_startX
-    y: TIME_CENTER_Y,        // hour_startY
+    x: FALLBACK_TIME_CENTER_X,
+    y: FALLBACK_TIME_CENTER_Y,
     w: HOUR_CONTENT_W + TIME_COLON_GAP + HOUR_CONTENT_W,
     h: TIME_DIGIT.h,
   };

@@ -24,10 +24,14 @@ export async function buildZPK(options: ZPKBuildOptions): Promise<ZPKBuildResult
     const assetFilenames = new Set(options.elementFiles.map(ef => ef.src));
     
     // Elements may have data URLs (from preview rendering) instead of filenames.
-    // Restore original filenames by matching element names to asset files.
+    // Prefer assetFilename (set by pipeline), fall back to name-based guessing.
     const fixedElements = config.elements.map(el => {
       if (el.src && el.src.startsWith('data:')) {
-        // Find the matching asset file by element name pattern
+        // Prefer the deterministic assetFilename set during pipeline
+        if (el.assetFilename && assetFilenames.has(el.assetFilename)) {
+          return { ...el, src: el.assetFilename };
+        }
+        // Legacy fallback: substring matching
         const name = el.name.toLowerCase();
         for (const filename of assetFilenames) {
           const fn = filename.toLowerCase();

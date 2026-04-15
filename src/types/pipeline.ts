@@ -83,6 +83,10 @@ export interface AIElement {
   startAngle?: number;
   /** End angle in degrees (0° = right, 90° = down). */
   endAngle?: number;
+  /** Arc stroke thickness in pixels. */
+  lineWidth?: number;
+  /** Dominant color of this element as hex string (e.g. "#FF6B6B"). */
+  color?: string;
 }
 
 /** Wrapper for the full AI response payload. */
@@ -131,6 +135,10 @@ export interface NormalizedElement {
   startAngle?: number;
   /** End angle in degrees. */
   endAngle?: number;
+  /** Arc stroke thickness in pixels. */
+  lineWidth?: number;
+  /** Dominant color of this element as hex string. */
+  color?: string;
 }
 
 // ─── Stage 2: Layout ────────────────────────────────────────────────────────────

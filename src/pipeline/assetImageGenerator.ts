@@ -165,7 +165,7 @@ function generateTransparentImage(): ElementImage {
   };
 }
 
-// ─── Data Type → Color ──────────────────────────────────────────────────────────
+// ─── Data Type → Fallback Color (used when AI didn't provide color) ─────────────
 
 const DATA_TYPE_COLORS: Record<string, string> = {
   BATTERY:  '#00CC88',
@@ -176,6 +176,13 @@ const DATA_TYPE_COLORS: Record<string, string> = {
   SPO2:     '#EE5A24',
   WEATHER_CURRENT: '#FFD700',
 };
+
+/** Get the color for an element: prefer AI-extracted color, fallback to data type palette. */
+function getElementColor(el: ResolvedElement): string {
+  if (el.color) return el.color;
+  if (el.dataType && DATA_TYPE_COLORS[el.dataType]) return DATA_TYPE_COLORS[el.dataType];
+  return '#FFFFFF';
+}
 
 const DATA_TYPE_PREFIXES: Record<string, string> = {
   BATTERY:  'batt_digit',
@@ -204,7 +211,8 @@ export function generatePipelineAssets(elements: ResolvedElement[]): ElementImag
 
       case 'IMG_TIME': {
         if (!generatedSets.has('time_digits')) {
-          images.push(...generateDigitImages('time_digit', TIME_DIGIT.w, TIME_DIGIT.h, '#FFFFFF'));
+          const color = getElementColor(el);
+          images.push(...generateDigitImages('time_digit', TIME_DIGIT.w, TIME_DIGIT.h, color));
           generatedSets.add('time_digits');
         }
         break;
@@ -215,12 +223,14 @@ export function generatePipelineAssets(elements: ResolvedElement[]): ElementImag
           if (!generatedSets.has('month_images')) {
             const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN',
                             'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-            images.push(...generateTextImages('month', months, MONTH_LABEL.w, MONTH_LABEL.h, '#AAAAAA'));
+            const monthColor = getElementColor(el);
+            images.push(...generateTextImages('month', months, MONTH_LABEL.w, MONTH_LABEL.h, monthColor));
             generatedSets.add('month_images');
           }
         } else {
           if (!generatedSets.has('date_digits')) {
-            images.push(...generateDigitImages('date_digit', DATE_DIGIT.w, DATE_DIGIT.h, '#AAAAAA'));
+            const dateColor = getElementColor(el);
+            images.push(...generateDigitImages('date_digit', DATE_DIGIT.w, DATE_DIGIT.h, dateColor));
             generatedSets.add('date_digits');
           }
         }
@@ -230,7 +240,8 @@ export function generatePipelineAssets(elements: ResolvedElement[]): ElementImag
       case 'IMG_WEEK': {
         if (!generatedSets.has('week_images')) {
           const days = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
-          images.push(...generateTextImages('week', days, WEEK_LABEL.w, WEEK_LABEL.h, '#AAAAAA'));
+          const weekColor = getElementColor(el);
+          images.push(...generateTextImages('week', days, WEEK_LABEL.w, WEEK_LABEL.h, weekColor));
           generatedSets.add('week_images');
         }
         break;
@@ -244,7 +255,7 @@ export function generatePipelineAssets(elements: ResolvedElement[]): ElementImag
       case 'TEXT_IMG': {
         const prefix = el.dataType ? DATA_TYPE_PREFIXES[el.dataType] || 'digit' : 'digit';
         if (!generatedSets.has(`textimg_${prefix}`)) {
-          const color = el.dataType ? DATA_TYPE_COLORS[el.dataType] || '#FFFFFF' : '#FFFFFF';
+          const color = getElementColor(el);
           images.push(...generateDigitImages(prefix, TEXT_IMG_DIGIT.w, TEXT_IMG_DIGIT.h, color));
           generatedSets.add(`textimg_${prefix}`);
         }

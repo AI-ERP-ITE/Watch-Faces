@@ -9,10 +9,11 @@ You must return ONLY a JSON object following the exact schema below. No extra te
 
 STRICT RULES:
 - Every element MUST include "bounds" (bounding box in 480×480 pixel space, origin = top-left)
-- For circular/arc elements, also include "center", "radius", "startAngle", "endAngle"
+- Measure coordinates as precisely as possible — accuracy matters for faithful reproduction
+- For circular/arc elements, also include "center", "radius", "startAngle", "endAngle", and "lineWidth"
 - Angles are in degrees: 0° = right (3 o'clock), 90° = down (6 o'clock)
+- Every element MUST include "color" — the dominant/primary color of that element as a hex string (e.g. "#FF6B6B")
 - DO NOT include image crops or pixel data
-- Estimate positions visually from the image — approximate is fine, pixel-perfect is NOT required
 - Coordinates are in 480×480 space (the full watch face)
 
 Schema:
@@ -26,11 +27,13 @@ Schema:
       "group": "center" | "top" | "bottom" | "left_panel" | "right_panel" | "top_left" | "top_right" | "bottom_left" | "bottom_right",
       "importance": "primary" | "secondary",
       "confidence": 0.0 to 1.0,
+      "color": "#RRGGBB hex color string",
       "bounds": { "x": number, "y": number, "w": number, "h": number },
       "center": { "x": number, "y": number },
       "radius": number,
       "startAngle": number,
-      "endAngle": number
+      "endAngle": number,
+      "lineWidth": number
     }
   ]
 }
@@ -86,13 +89,20 @@ Field definitions:
 - "y": top edge Y coordinate (0 = top of watch)
 - "w": width in pixels
 - "h": height in pixels
-- Estimate visually from the image. Approximate is acceptable.
+- Measure as precisely as possible from the image. The generated watchface will use these exact coordinates.
+
+"color" — the dominant color of this element as a hex string (REQUIRED for ALL elements):
+- e.g. "#FFFFFF" for white text, "#00CC88" for a green arc, "#FF4444" for a red accent
+- For multi-color elements, use the most prominent color
+- For clock hands, use the hand color (not the background)
 
 "center" — center point (for circular/arc elements only):
 - "x": center X coordinate
 - "y": center Y coordinate
 
 "radius" — radius in pixels (for circular/arc elements only)
+
+"lineWidth" — thickness/width of the arc stroke in pixels (for arc elements only, typically 4-20)
 
 "startAngle" — arc start angle in degrees (for arc elements only):
 - 0° = right (3 o'clock position)
@@ -107,61 +117,66 @@ EXAMPLES:
 Example 1 - Digital watch with text stats in right panel:
 {
   "elements": [
-    { "id": "time_digital", "type": "time", "representation": "number", "layout": "standalone", "group": "center", "importance": "primary", "confidence": 0.95, "bounds": { "x": 120, "y": 180, "w": 240, "h": 100 } },
-    { "id": "date_display", "type": "date", "representation": "text", "layout": "standalone", "group": "top", "importance": "secondary", "confidence": 0.90, "bounds": { "x": 180, "y": 40, "w": 120, "h": 50 } },
-    { "id": "steps_text", "type": "steps", "representation": "text", "layout": "row", "group": "right_panel", "importance": "secondary", "confidence": 0.85, "bounds": { "x": 320, "y": 160, "w": 120, "h": 40 } },
-    { "id": "battery_text", "type": "battery", "representation": "text", "layout": "row", "group": "right_panel", "importance": "secondary", "confidence": 0.85, "bounds": { "x": 320, "y": 210, "w": 120, "h": 40 } },
-    { "id": "heart_text", "type": "heart_rate", "representation": "text", "layout": "row", "group": "right_panel", "importance": "secondary", "confidence": 0.80, "bounds": { "x": 320, "y": 260, "w": 120, "h": 40 } }
+    { "id": "time_digital", "type": "time", "representation": "number", "layout": "standalone", "group": "center", "importance": "primary", "confidence": 0.95, "color": "#FFFFFF", "bounds": { "x": 120, "y": 180, "w": 240, "h": 100 } },
+    { "id": "date_display", "type": "date", "representation": "text", "layout": "standalone", "group": "top", "importance": "secondary", "confidence": 0.90, "color": "#AAAAAA", "bounds": { "x": 180, "y": 40, "w": 120, "h": 50 } },
+    { "id": "steps_text", "type": "steps", "representation": "text", "layout": "row", "group": "right_panel", "importance": "secondary", "confidence": 0.85, "color": "#FFD93D", "bounds": { "x": 320, "y": 160, "w": 120, "h": 40 } },
+    { "id": "battery_text", "type": "battery", "representation": "text", "layout": "row", "group": "right_panel", "importance": "secondary", "confidence": 0.85, "color": "#00CC88", "bounds": { "x": 320, "y": 210, "w": 120, "h": 40 } },
+    { "id": "heart_text", "type": "heart_rate", "representation": "text", "layout": "row", "group": "right_panel", "importance": "secondary", "confidence": 0.80, "color": "#FF6B6B", "bounds": { "x": 320, "y": 260, "w": 120, "h": 40 } }
   ]
 }
 
 Example 2 - Analog watch with arc complications:
 {
   "elements": [
-    { "id": "time_analog", "type": "time", "representation": "arc", "layout": "standalone", "group": "center", "importance": "primary", "confidence": 0.95, "bounds": { "x": 40, "y": 40, "w": 400, "h": 400 }, "center": { "x": 240, "y": 240 } },
-    { "id": "battery_arc", "type": "battery", "representation": "arc", "layout": "arc", "group": "center", "importance": "secondary", "confidence": 0.88, "bounds": { "x": 60, "y": 60, "w": 360, "h": 360 }, "center": { "x": 240, "y": 240 }, "radius": 180, "startAngle": 135, "endAngle": 405 },
-    { "id": "steps_arc", "type": "steps", "representation": "arc", "layout": "arc", "group": "center", "importance": "secondary", "confidence": 0.85, "bounds": { "x": 85, "y": 85, "w": 310, "h": 310 }, "center": { "x": 240, "y": 240 }, "radius": 155, "startAngle": 135, "endAngle": 390 },
-    { "id": "heart_arc", "type": "heart_rate", "representation": "arc", "layout": "arc", "group": "center", "importance": "secondary", "confidence": 0.80, "bounds": { "x": 110, "y": 110, "w": 260, "h": 260 }, "center": { "x": 240, "y": 240 }, "radius": 130, "startAngle": 135, "endAngle": 375 }
+    { "id": "time_analog", "type": "time", "representation": "arc", "layout": "standalone", "group": "center", "importance": "primary", "confidence": 0.95, "color": "#FFFFFF", "bounds": { "x": 40, "y": 40, "w": 400, "h": 400 }, "center": { "x": 240, "y": 240 } },
+    { "id": "battery_arc", "type": "battery", "representation": "arc", "layout": "arc", "group": "center", "importance": "secondary", "confidence": 0.88, "color": "#00CC88", "bounds": { "x": 60, "y": 60, "w": 360, "h": 360 }, "center": { "x": 240, "y": 240 }, "radius": 180, "startAngle": 135, "endAngle": 405, "lineWidth": 12 },
+    { "id": "steps_arc", "type": "steps", "representation": "arc", "layout": "arc", "group": "center", "importance": "secondary", "confidence": 0.85, "color": "#FFD93D", "bounds": { "x": 85, "y": 85, "w": 310, "h": 310 }, "center": { "x": 240, "y": 240 }, "radius": 155, "startAngle": 135, "endAngle": 390, "lineWidth": 10 },
+    { "id": "heart_arc", "type": "heart_rate", "representation": "arc", "layout": "arc", "group": "center", "importance": "secondary", "confidence": 0.80, "color": "#FF6B6B", "bounds": { "x": 110, "y": 110, "w": 260, "h": 260 }, "center": { "x": 240, "y": 240 }, "radius": 130, "startAngle": 135, "endAngle": 375, "lineWidth": 8 }
   ]
 }
 
 Example 3 - Mixed design (time center, arcs center, text panel right):
 {
   "elements": [
-    { "id": "time_digital", "type": "time", "representation": "number", "layout": "standalone", "group": "center", "importance": "primary", "confidence": 0.95, "bounds": { "x": 140, "y": 190, "w": 200, "h": 80 } },
-    { "id": "battery_arc", "type": "battery", "representation": "arc", "layout": "arc", "group": "center", "importance": "secondary", "confidence": 0.85, "bounds": { "x": 60, "y": 60, "w": 360, "h": 360 }, "center": { "x": 240, "y": 240 }, "radius": 180, "startAngle": 135, "endAngle": 390 },
-    { "id": "steps_arc", "type": "steps", "representation": "arc", "layout": "arc", "group": "center", "importance": "secondary", "confidence": 0.82, "bounds": { "x": 85, "y": 85, "w": 310, "h": 310 }, "center": { "x": 240, "y": 240 }, "radius": 155, "startAngle": 135, "endAngle": 380 },
-    { "id": "date_text", "type": "date", "representation": "text", "layout": "standalone", "group": "top", "importance": "secondary", "confidence": 0.88, "bounds": { "x": 190, "y": 30, "w": 100, "h": 40 } },
-    { "id": "weather_text", "type": "weather", "representation": "text+icon", "layout": "row", "group": "bottom_left", "importance": "secondary", "confidence": 0.78, "bounds": { "x": 40, "y": 360, "w": 140, "h": 50 } },
-    { "id": "calories_text", "type": "calories", "representation": "text", "layout": "row", "group": "right_panel", "importance": "secondary", "confidence": 0.75, "bounds": { "x": 320, "y": 220, "w": 120, "h": 40 } }
+    { "id": "time_digital", "type": "time", "representation": "number", "layout": "standalone", "group": "center", "importance": "primary", "confidence": 0.95, "color": "#FFFFFF", "bounds": { "x": 140, "y": 190, "w": 200, "h": 80 } },
+    { "id": "battery_arc", "type": "battery", "representation": "arc", "layout": "arc", "group": "center", "importance": "secondary", "confidence": 0.85, "color": "#00CC88", "bounds": { "x": 60, "y": 60, "w": 360, "h": 360 }, "center": { "x": 240, "y": 240 }, "radius": 180, "startAngle": 135, "endAngle": 390, "lineWidth": 12 },
+    { "id": "steps_arc", "type": "steps", "representation": "arc", "layout": "arc", "group": "center", "importance": "secondary", "confidence": 0.82, "color": "#FFD93D", "bounds": { "x": 85, "y": 85, "w": 310, "h": 310 }, "center": { "x": 240, "y": 240 }, "radius": 155, "startAngle": 135, "endAngle": 380, "lineWidth": 10 },
+    { "id": "date_text", "type": "date", "representation": "text", "layout": "standalone", "group": "top", "importance": "secondary", "confidence": 0.88, "color": "#AAAAAA", "bounds": { "x": 190, "y": 30, "w": 100, "h": 40 } },
+    { "id": "weather_text", "type": "weather", "representation": "text+icon", "layout": "row", "group": "bottom_left", "importance": "secondary", "confidence": 0.78, "color": "#FFD700", "bounds": { "x": 40, "y": 360, "w": 140, "h": 50 } },
+    { "id": "calories_text", "type": "calories", "representation": "text", "layout": "row", "group": "right_panel", "importance": "secondary", "confidence": 0.75, "color": "#FF9F43", "bounds": { "x": 320, "y": 220, "w": 120, "h": 40 } }
   ]
 }
 
 Example 4 - Icon+text rows (health stats with icons):
 {
   "elements": [
-    { "id": "time_digital", "type": "time", "representation": "number", "layout": "standalone", "group": "center", "importance": "primary", "confidence": 0.95, "bounds": { "x": 130, "y": 180, "w": 220, "h": 90 } },
-    { "id": "steps_row", "type": "steps", "representation": "text+icon", "layout": "row", "group": "left_panel", "importance": "secondary", "confidence": 0.85, "bounds": { "x": 30, "y": 160, "w": 150, "h": 40 } },
-    { "id": "heart_row", "type": "heart_rate", "representation": "text+icon", "layout": "row", "group": "left_panel", "importance": "secondary", "confidence": 0.82, "bounds": { "x": 30, "y": 210, "w": 150, "h": 40 } },
-    { "id": "battery_row", "type": "battery", "representation": "text+icon", "layout": "row", "group": "right_panel", "importance": "secondary", "confidence": 0.83, "bounds": { "x": 300, "y": 160, "w": 150, "h": 40 } },
-    { "id": "calories_row", "type": "calories", "representation": "text+icon", "layout": "row", "group": "right_panel", "importance": "secondary", "confidence": 0.80, "bounds": { "x": 300, "y": 210, "w": 150, "h": 40 } }
+    { "id": "time_digital", "type": "time", "representation": "number", "layout": "standalone", "group": "center", "importance": "primary", "confidence": 0.95, "color": "#FFFFFF", "bounds": { "x": 130, "y": 180, "w": 220, "h": 90 } },
+    { "id": "steps_row", "type": "steps", "representation": "text+icon", "layout": "row", "group": "left_panel", "importance": "secondary", "confidence": 0.85, "color": "#FFD93D", "bounds": { "x": 30, "y": 160, "w": 150, "h": 40 } },
+    { "id": "heart_row", "type": "heart_rate", "representation": "text+icon", "layout": "row", "group": "left_panel", "importance": "secondary", "confidence": 0.82, "color": "#FF6B6B", "bounds": { "x": 30, "y": 210, "w": 150, "h": 40 } },
+    { "id": "battery_row", "type": "battery", "representation": "text+icon", "layout": "row", "group": "right_panel", "importance": "secondary", "confidence": 0.83, "color": "#00CC88", "bounds": { "x": 300, "y": 160, "w": 150, "h": 40 } },
+    { "id": "calories_row", "type": "calories", "representation": "text+icon", "layout": "row", "group": "right_panel", "importance": "secondary", "confidence": 0.80, "color": "#FF9F43", "bounds": { "x": 300, "y": 210, "w": 150, "h": 40 } }
   ]
 }
 
 Example 5 - Minimal design (only time + date):
 {
   "elements": [
-    { "id": "time_digital", "type": "time", "representation": "number", "layout": "standalone", "group": "center", "importance": "primary", "confidence": 0.98, "bounds": { "x": 100, "y": 180, "w": 280, "h": 100 } },
-    { "id": "date_display", "type": "date", "representation": "text", "layout": "standalone", "group": "bottom", "importance": "secondary", "confidence": 0.90, "bounds": { "x": 180, "y": 350, "w": 120, "h": 50 } }
+    { "id": "time_digital", "type": "time", "representation": "number", "layout": "standalone", "group": "center", "importance": "primary", "confidence": 0.98, "color": "#FFFFFF", "bounds": { "x": 100, "y": 180, "w": 280, "h": 100 } },
+    { "id": "date_display", "type": "date", "representation": "text", "layout": "standalone", "group": "bottom", "importance": "secondary", "confidence": 0.90, "color": "#888888", "bounds": { "x": 180, "y": 350, "w": 120, "h": 50 } }
   ]
 }
 `;
 
 export const AI_USER_PROMPT = `Analyze this watchface design image for Amazfit Balance 2 (480×480 round display).
 
-Identify all visible UI elements. For each, classify its type, representation (how it visually appears), layout pattern, group (zone on the watch face), and visual position.
+Identify all visible UI elements. For each, classify its type, representation (how it visually appears), layout pattern, group (zone on the watch face), visual position, and dominant color.
 
-For EVERY element, estimate its bounding box ("bounds") in 480×480 pixel coordinates. For circular/arc elements, also estimate center, radius, and start/end angles.
+For EVERY element:
+- Measure its bounding box ("bounds") as precisely as possible in 480×480 pixel coordinates
+- Report its dominant "color" as a hex string
+For circular/arc elements, also measure center, radius, start/end angles, and line thickness (lineWidth).
+
+Precision is critical — the generated watchface will reproduce these exact coordinates and colors.
 
 Return ONLY the JSON object. No explanation, no markdown fences.`;
 
@@ -184,6 +199,7 @@ export const AI_RESPONSE_SCHEMA = {
           group:          { type: 'string' as const, enum: ['center', 'top', 'bottom', 'left_panel', 'right_panel', 'top_left', 'top_right', 'bottom_left', 'bottom_right'] },
           importance:     { type: 'string' as const, enum: ['primary', 'secondary'] },
           confidence:     { type: 'number' as const },
+          color:          { type: 'string' as const },
           bounds: {
             type: 'object' as const,
             properties: {
@@ -204,8 +220,9 @@ export const AI_RESPONSE_SCHEMA = {
           radius:     { type: 'number' as const },
           startAngle: { type: 'number' as const },
           endAngle:   { type: 'number' as const },
+          lineWidth:  { type: 'number' as const },
         },
-        required: ['id', 'type', 'representation', 'layout', 'group', 'bounds'],
+        required: ['id', 'type', 'representation', 'layout', 'group', 'bounds', 'color'],
       },
     },
   },
