@@ -48,6 +48,8 @@ const TYPE_TO_DATA_TYPE: Partial<Record<AIElementType, string>> = {
   calories:   'CAL',
   distance:   'DISTANCE',
   weather:    'WEATHER_CURRENT',
+  stress:     'STRESS',
+  pai:        'PAI',
 };
 
 // Fallback priority for assigning dataType to generic "arc" elements

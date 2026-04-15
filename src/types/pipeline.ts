@@ -37,7 +37,9 @@ export type AIElementType =
   | 'calories'
   | 'distance'
   | 'weekday'
-  | 'month';
+  | 'month'
+  | 'stress'
+  | 'pai';
 
 export type AIStyle = 'analog' | 'digital' | 'minimal' | 'bold';
 

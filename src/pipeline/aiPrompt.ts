@@ -7,10 +7,18 @@ Your job is to identify WHAT elements exist, HOW each one is visually represente
 
 You must return ONLY a JSON object following the exact schema below. No extra text, no markdown.
 
+CRITICAL — READ CAREFULLY:
+- ONLY report elements you can actually SEE in the image. Do NOT invent, assume, or hallucinate elements.
+- If you see 6 elements, return exactly 6. If you see 3, return exactly 3. Never add elements "just because most watchfaces have them."
+- Report the EXACT type of each element as shown in the image. If the image shows "Stress", report it as "stress", not as "spo2" or "heart_rate".
+- Preserve the EXACT visual arrangement. If elements are arranged top-to-bottom along a curve, report their positions faithfully reflecting that layout.
+- The background image may have decorative elements (arcs, gradients, patterns). These are NOT data elements — do NOT report them unless they display data.
+
 STRICT RULES:
 - Every element MUST include "bounds" (bounding box in 480×480 pixel space, origin = top-left)
 - Measure coordinates as precisely as possible — accuracy matters for faithful reproduction
-- For circular/arc elements, also include "center", "radius", "startAngle", "endAngle", and "lineWidth"
+- For circular/arc elements that DISPLAY DATA (like battery ring, step ring), include "center", "radius", "startAngle", "endAngle", and "lineWidth"
+- Decorative background arcs are NOT elements — do not include them
 - Angles are in degrees: 0° = right (3 o'clock), 90° = down (6 o'clock)
 - Every element MUST include "color" — the dominant/primary color of that element as a hex string (e.g. "#FF6B6B")
 - DO NOT include image crops or pixel data
@@ -21,7 +29,7 @@ Schema:
   "elements": [
     {
       "id": "unique_string_id",
-      "type": "time" | "date" | "steps" | "battery" | "heart_rate" | "spo2" | "calories" | "distance" | "weather" | "weekday" | "month" | "arc" | "text",
+      "type": "time" | "date" | "steps" | "battery" | "heart_rate" | "spo2" | "calories" | "distance" | "weather" | "weekday" | "month" | "stress" | "pai" | "arc" | "text",
       "representation": "text" | "arc" | "icon" | "text+icon" | "text+arc" | "number",
       "layout": "row" | "arc" | "standalone" | "grid",
       "group": "center" | "top" | "bottom" | "left_panel" | "right_panel" | "top_left" | "top_right" | "bottom_left" | "bottom_right",
@@ -52,6 +60,8 @@ Field definitions:
 - "calories": Calorie counter
 - "distance": Distance traveled
 - "weather": Weather icon or temperature
+- "stress": Stress level indicator
+- "pai": PAI (Personal Activity Intelligence) / Bio Charge / vitality score
 - "arc": Any circular progress indicator without clear metric
 - "text": Any other text label
 
@@ -169,12 +179,16 @@ Example 5 - Minimal design (only time + date):
 
 export const AI_USER_PROMPT = `Analyze this watchface design image for Amazfit Balance 2 (480×480 round display).
 
-Identify all visible UI elements. For each, classify its type, representation (how it visually appears), layout pattern, group (zone on the watch face), visual position, and dominant color.
+IMPORTANT: Report ONLY elements you can actually see in the image. Do NOT add elements that are not visible. If the image shows 6 specific elements (e.g., weather, battery, steps, heart rate, bio charge, stress), report exactly those 6 — not different ones.
+
+Decorative background elements (arcs, gradients, patterns that don't display data) are part of the background image — do NOT include them as elements.
+
+For each visible element, classify its type, representation, layout pattern, group (zone), visual position, and dominant color.
 
 For EVERY element:
 - Measure its bounding box ("bounds") as precisely as possible in 480×480 pixel coordinates
 - Report its dominant "color" as a hex string
-For circular/arc elements, also measure center, radius, start/end angles, and line thickness (lineWidth).
+For circular/arc elements that display data, also measure center, radius, start/end angles, and line thickness (lineWidth).
 
 Precision is critical — the generated watchface will reproduce these exact coordinates and colors.
 
@@ -193,7 +207,7 @@ export const AI_RESPONSE_SCHEMA = {
         type: 'object' as const,
         properties: {
           id:             { type: 'string' as const },
-          type:           { type: 'string' as const, enum: ['time', 'date', 'steps', 'battery', 'heart_rate', 'spo2', 'calories', 'distance', 'weather', 'weekday', 'month', 'arc', 'text'] },
+          type:           { type: 'string' as const, enum: ['time', 'date', 'steps', 'battery', 'heart_rate', 'spo2', 'calories', 'distance', 'weather', 'weekday', 'month', 'stress', 'pai', 'arc', 'text'] },
           representation: { type: 'string' as const, enum: ['text', 'arc', 'icon', 'text+icon', 'text+arc', 'number'] },
           layout:         { type: 'string' as const, enum: ['row', 'arc', 'standalone', 'grid'] },
           group:          { type: 'string' as const, enum: ['center', 'top', 'bottom', 'left_panel', 'right_panel', 'top_left', 'top_right', 'bottom_left', 'bottom_right'] },
@@ -296,7 +310,7 @@ export const STAGE_B_RESPONSE_SCHEMA = {
           id:         { type: 'string' as const },
           widget:     { type: 'string' as const, enum: ['TIME_POINTER', 'IMG_TIME', 'IMG_DATE', 'IMG_WEEK', 'ARC_PROGRESS', 'TEXT', 'TEXT_IMG', 'IMG', 'IMG_STATUS', 'IMG_LEVEL'] },
           region:     { type: 'string' as const, enum: ['center', 'top', 'bottom', 'left', 'right'] },
-          sourceType: { type: 'string' as const, enum: ['time', 'date', 'steps', 'battery', 'heart_rate', 'spo2', 'calories', 'distance', 'weather', 'weekday', 'month', 'arc', 'text'] },
+          sourceType: { type: 'string' as const, enum: ['time', 'date', 'steps', 'battery', 'heart_rate', 'spo2', 'calories', 'distance', 'weather', 'weekday', 'month', 'stress', 'pai', 'arc', 'text'] },
           dataType:   { type: 'string' as const },
         },
         required: ['id', 'widget', 'region', 'sourceType'],
