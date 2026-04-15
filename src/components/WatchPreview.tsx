@@ -102,32 +102,3 @@ export function WatchPreview({
     </div>
   );
 }
-
-// Simplified preview for small displays
-interface MiniWatchPreviewProps {
-  backgroundImage: string;
-  className?: string;
-}
-
-export function MiniWatchPreview({ backgroundImage, className }: MiniWatchPreviewProps) {
-  return (
-    <div
-      className={cn(
-        'relative rounded-full overflow-hidden border-2 border-zinc-700',
-        className
-      )}
-    >
-      <img
-        src={backgroundImage}
-        alt="Watch face"
-        className="w-full h-full object-cover"
-      />
-      <div
-        className="absolute inset-0 rounded-full"
-        style={{
-          boxShadow: 'inset 0 0 15px rgba(0, 0, 0, 0.4)',
-        }}
-      />
-    </div>
-  );
-}

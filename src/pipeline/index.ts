@@ -14,7 +14,7 @@ import { sortArcsByPriority } from './semanticPriority';
 import { applyLayout } from './layoutEngine';
 import { solveGeometry } from './geometrySolver';
 import { resolveAssets } from './assetResolver';
-import { generateWatchFaceCodeV2 } from '@/lib/jsCodeGeneratorV2';
+import { generateWatchFaceCode } from '@/lib/jsCodeGenerator';
 import { normalizeWithAI, resolveAmbiguities, type PipelineAIConfig } from './pipelineAIService';
 
 // ─── Pipeline Orchestrator ──────────────────────────────────────────────────────
@@ -129,7 +129,7 @@ export async function runPipeline(
   // ─── Stage F: Bridge to V2 code generator ──────────────────────────────
   log('Stage F: Generating code...');
   const config = bridgeToWatchFaceConfig(resolved, options);
-  const code = generateWatchFaceCodeV2(config);
+  const code = generateWatchFaceCode(config);
   console.log('[Pipeline] Stage F code generated');
 
   return { config, code, resolved };
