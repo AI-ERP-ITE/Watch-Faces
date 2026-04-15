@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { ArrowRight, RefreshCw, Sparkles, Wand2, Settings, Eye, EyeOff } from 'lucide-react';
+import { ArrowRight, RefreshCw, Sparkles, Wand2, Settings, Eye, EyeOff, Grid3X3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,10 +18,12 @@ import { useApp, actions } from '@/context/AppContext';
 import { buildZPK } from '@/lib/zpkBuilder';
 import { uploadZPKWithQR } from '@/lib/githubApi';
 import { generateQRCode } from '@/lib/qrGenerator';
+import { getIconByKey } from '@/lib/iconLibrary';
+import { getFontStyle } from '@/lib/fontLibrary';
 import { testApiKey, type AIProvider } from '@/lib/aiService';
 import { runPipeline } from '@/pipeline';
 import { extractElementsFromImage, type PipelineAIProvider } from '@/pipeline/pipelineAIService';
-import { generatePipelineAssets } from '@/pipeline/assetImageGenerator';
+import { generatePipelineAssets, generateDigitImages } from '@/pipeline/assetImageGenerator';
 import type { WatchFaceConfig, WatchFaceElement, ElementImage } from '@/types';
 import { generateId } from '@/lib/utils';
 
@@ -961,6 +963,7 @@ function App() {
   const [watchModel, setWatchModel] = useState('Balance 2');
   const [watchFaceName, setWatchFaceName] = useState('');
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
+  const [showGrid, setShowGrid] = useState(false);
 
   // AI Provider settings (persisted in localStorage)
   const [aiProvider, setAiProvider] = useState<AIProvider>(
@@ -1073,6 +1076,37 @@ function App() {
         for (let i = 0; i < bstr.length; i++) u8arr[i] = bstr.charCodeAt(i);
         return { src: img.name, file: new File([u8arr], img.name, { type: mimeType }) };
       });
+      // Inject icon assets for elements with iconKey
+      for (const el of (state.watchFaceConfig?.elements ?? [])) {
+        if (el.iconKey) {
+          const iconEntry = getIconByKey(el.iconKey);
+          if (iconEntry) {
+            const filename = `icon_${el.iconKey}.png`;
+            const p = iconEntry.dataUrl.split(',');
+            const b = atob(p[1]);
+            const u8 = new Uint8Array(b.length);
+            for (let i = 0; i < b.length; i++) u8[i] = b.charCodeAt(i);
+            elementFiles.push({ src: filename, file: new File([u8], filename, { type: 'image/png' }) });
+          }
+        }
+        // Regenerate digit images using fontStyle
+        if (el.fontStyle && ['IMG_TIME', 'TEXT_IMG', 'IMG_DATE'].includes(el.type)) {
+          const style = getFontStyle(el.fontStyle);
+          const prefix = el.type === 'IMG_TIME' ? 'time_digit' : el.type === 'IMG_DATE' ? 'date_digit' : 'digit';
+          const digits = generateDigitImages(prefix, el.bounds.width || 30, el.bounds.height || 46, style.color, { fontFamily: style.fontFamily, fontWeight: style.fontWeight });
+          for (const d of digits) {
+            const parts2 = d.dataUrl.split(',');
+            const b2 = atob(parts2[1]);
+            const u8b = new Uint8Array(b2.length);
+            for (let i = 0; i < b2.length; i++) u8b[i] = b2.charCodeAt(i);
+            // Replace existing digit file if present
+            const idx = elementFiles.findIndex(f => f.src === d.name);
+            const f = new File([u8b], d.name, { type: 'image/png' });
+            if (idx >= 0) elementFiles[idx] = { src: d.name, file: f };
+            else elementFiles.push({ src: d.name, file: f });
+          }
+        }
+      }
       const result = await buildZPK({ config: state.watchFaceConfig, backgroundFile: state.backgroundFile, elementFiles });
       const url = URL.createObjectURL(result.blob);
       const a = document.createElement('a');
@@ -1147,6 +1181,21 @@ function App() {
         console.warn('[App] WARNING: No element files were prepared!');
       }
       
+      // Inject icon assets for elements with iconKey
+      for (const el of state.watchFaceConfig.elements) {
+        if (el.iconKey) {
+          const iconEntry = getIconByKey(el.iconKey);
+          if (iconEntry) {
+            const filename = `icon_${el.iconKey}.png`;
+            const p = iconEntry.dataUrl.split(',');
+            const b = atob(p[1]);
+            const u8 = new Uint8Array(b.length);
+            for (let i = 0; i < b.length; i++) u8[i] = b.charCodeAt(i);
+            elementFiles.push({ src: filename, file: new File([u8], filename, { type: 'image/png' }) });
+          }
+        }
+      }
+
       const zpkResult = await buildZPK({
         config: state.watchFaceConfig,
         backgroundFile: state.backgroundFile,
@@ -1434,13 +1483,25 @@ function App() {
                 {/* Interactive canvas + property panel */}
                 <div className="flex flex-col lg:flex-row gap-6">
                   <div className="flex flex-col items-center shrink-0">
-                    <h4 className="text-sm font-medium text-zinc-400 mb-4">Live Editor — drag to reposition</h4>
+                    <div className="flex items-center justify-between w-full max-w-sm mb-4">
+                      <h4 className="text-sm font-medium text-zinc-400">Live Editor — drag to reposition</h4>
+                      <button
+                        onClick={() => setShowGrid(g => !g)}
+                        className={`p-1.5 rounded-lg border text-xs transition-colors ${
+                          showGrid ? 'bg-cyan-500/20 border-cyan-500 text-cyan-400' : 'bg-white/5 border-white/10 text-white/40'
+                        }`}
+                        title="Toggle grid"
+                      >
+                        <Grid3X3 className="h-4 w-4" />
+                      </button>
+                    </div>
                     <InteractiveCanvas
                       backgroundImage={state.backgroundImage}
                       elements={state.watchFaceConfig.elements}
                       selectedElementId={selectedElementId}
                       onSelectElement={setSelectedElementId}
                       onUpdateElement={(id, changes) => dispatch({ type: 'UPDATE_ELEMENT', payload: { id, changes } })}
+                      showGrid={showGrid}
                       className="w-full max-w-sm"
                     />
                   </div>

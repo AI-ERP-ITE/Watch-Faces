@@ -540,9 +540,10 @@ function generateWidgetCodeV2(element: WatchFaceElement, widgetIndex: number, is
   }
   
   // Handle IMG elements (static images)
-  if (element.type === 'IMG' && element.src) {
+  if (element.type === 'IMG') {
     const w = element.bounds.width || 50;
     const h = element.bounds.height || 50;
+    const imgSrc = element.iconKey ? `icon_${element.iconKey}.png` : (element.src || 'placeholder.png');
     
     // Regular IMG elements (icons, indicators) - raw coordinates matching reference
     return `
@@ -552,7 +553,7 @@ function generateWidgetCodeV2(element: WatchFaceElement, widgetIndex: number, is
                     y: ${element.bounds.y},
                     w: ${w},
                     h: ${h},
-                    src: '${element.src}',
+                    src: '${imgSrc}',
                     alpha: 255,
                     show_level: hmUI.show_level.${showLevel}
                 });`;

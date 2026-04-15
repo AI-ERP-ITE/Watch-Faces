@@ -1,6 +1,8 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
 import { cn } from '@/lib/utils';
 import type { WatchFaceElement } from '@/types';
+import { getIconByKey } from '@/lib/iconLibrary';
+import { getFontStyle } from '@/lib/fontLibrary';
 
 const CANVAS_SIZE = 480;
 const CX = 240;
@@ -17,6 +19,7 @@ export interface InteractiveCanvasProps {
   selectedElementId?: string | null;
   onSelectElement?: (id: string | null) => void;
   onUpdateElement?: (id: string, changes: Partial<WatchFaceElement>) => void;
+  showGrid?: boolean;
   className?: string;
 }
 
@@ -26,6 +29,7 @@ export function InteractiveCanvas({
   selectedElementId,
   onSelectElement,
   onUpdateElement,
+  showGrid,
   className,
 }: InteractiveCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -40,6 +44,9 @@ export function InteractiveCanvas({
   const resizeHandleRef = useRef<string | null>(null); // 'TL','TC','TR','ML','MR','BL','BC','BR'
   const selectedElementIdRef = useRef(selectedElementId);
   selectedElementIdRef.current = selectedElementId;
+  const showGridRef = useRef(showGrid);
+  showGridRef.current = showGrid;
+  const iconImageCache = useRef(new Map<string, HTMLImageElement>());
   useState(0); // reserved for future forced re-renders
 
   // Draw everything to canvas
@@ -58,8 +65,11 @@ export function InteractiveCanvas({
       drawBlackCircle(ctx);
     }
 
+    // Grid overlay
+    if (showGridRef.current) drawGrid(ctx);
+
     // Elements
-    drawElements(ctx, elements);
+    drawElements(ctx, elements, iconImageCache.current, draw);
 
     // Selection highlight
     if (selectedElementId) {
@@ -91,7 +101,8 @@ export function InteractiveCanvas({
     const selId = selectedElementIdRef.current;
     if (selId) {
       const selEl = elementsRef.current.find(el => el.id === selId);
-      if (selEl && selEl.type !== 'ARC_PROGRESS' && selEl.type !== 'TIME_POINTER') {
+      if (selEl && selEl.type !== 'ARC_PROGRESS' && selEl.type !== 'TIME_POINTER'
+        && selEl.type !== 'IMG_TIME' && selEl.type !== 'IMG_DATE' && selEl.type !== 'IMG_WEEK') {
         const handle = hitTestRectHandle(x, y, selEl.bounds);
         if (handle) {
           resizeHandleRef.current = handle;
@@ -439,6 +450,8 @@ function drawSelection(ctx: CanvasRenderingContext2D, el: WatchFaceElement) {
 
 function drawRectSelection(ctx: CanvasRenderingContext2D, el: WatchFaceElement) {
   const { x, y, width, height } = el.bounds;
+  const isLocked = el.type === 'IMG_TIME' || el.type === 'IMG_DATE' || el.type === 'IMG_WEEK';
+
   ctx.save();
   ctx.strokeStyle = SEL_COLOR;
   ctx.lineWidth = 2;
@@ -446,18 +459,27 @@ function drawRectSelection(ctx: CanvasRenderingContext2D, el: WatchFaceElement) 
   ctx.strokeRect(x - 1, y - 1, width + 2, height + 2);
   ctx.setLineDash([]);
 
-  // 8 handles: corners + edge midpoints
-  const handles = [
-    [x, y], [x + width / 2, y], [x + width, y],
-    [x, y + height / 2],            [x + width, y + height / 2],
-    [x, y + height], [x + width / 2, y + height], [x + width, y + height],
-  ];
-  for (const [hx, hy] of handles) {
-    ctx.fillStyle = '#FFFFFF';
-    ctx.strokeStyle = SEL_COLOR;
-    ctx.lineWidth = 1.5;
-    ctx.fillRect(hx - HANDLE_SIZE / 2, hy - HANDLE_SIZE / 2, HANDLE_SIZE, HANDLE_SIZE);
-    ctx.strokeRect(hx - HANDLE_SIZE / 2, hy - HANDLE_SIZE / 2, HANDLE_SIZE, HANDLE_SIZE);
+  if (isLocked) {
+    // Show size-locked badge instead of handles
+    ctx.fillStyle = 'rgba(0, 212, 255, 0.85)';
+    ctx.font = 'bold 10px Arial';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText('Size: digit images', x, y - 3);
+  } else {
+    // 8 handles: corners + edge midpoints
+    const handles = [
+      [x, y], [x + width / 2, y], [x + width, y],
+      [x, y + height / 2],            [x + width, y + height / 2],
+      [x, y + height], [x + width / 2, y + height], [x + width, y + height],
+    ];
+    for (const [hx, hy] of handles) {
+      ctx.fillStyle = '#FFFFFF';
+      ctx.strokeStyle = SEL_COLOR;
+      ctx.lineWidth = 1.5;
+      ctx.fillRect(hx - HANDLE_SIZE / 2, hy - HANDLE_SIZE / 2, HANDLE_SIZE, HANDLE_SIZE);
+      ctx.strokeRect(hx - HANDLE_SIZE / 2, hy - HANDLE_SIZE / 2, HANDLE_SIZE, HANDLE_SIZE);
+    }
   }
   ctx.restore();
 }
@@ -524,6 +546,21 @@ function drawPointerSelection(ctx: CanvasRenderingContext2D, el: WatchFaceElemen
 
 // ─── Background ─────────────────────────────────────────────────────────────────
 
+function drawGrid(ctx: CanvasRenderingContext2D) {
+  const STEP = 48;
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+  ctx.lineWidth = 1;
+  for (let i = STEP; i < CANVAS_SIZE; i += STEP) {
+    ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, CANVAS_SIZE); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(CANVAS_SIZE, i); ctx.stroke();
+  }
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+  ctx.beginPath(); ctx.moveTo(CX, 0); ctx.lineTo(CX, CANVAS_SIZE); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, CY); ctx.lineTo(CANVAS_SIZE, CY); ctx.stroke();
+  ctx.restore();
+}
+
 function drawBlackCircle(ctx: CanvasRenderingContext2D) {
   ctx.save();
   ctx.beginPath();
@@ -544,7 +581,7 @@ function drawBackground(ctx: CanvasRenderingContext2D, img: HTMLImageElement) {
 
 // ─── Element Dispatcher ─────────────────────────────────────────────────────────
 
-function drawElements(ctx: CanvasRenderingContext2D, elements: WatchFaceElement[]) {
+function drawElements(ctx: CanvasRenderingContext2D, elements: WatchFaceElement[], iconCache?: Map<string, HTMLImageElement>, onIconLoaded?: () => void) {
   const sorted = [...elements].filter(e => e.visible).sort((a, b) => a.zIndex - b.zIndex);
 
   for (const el of sorted) {
@@ -554,6 +591,41 @@ function drawElements(ctx: CanvasRenderingContext2D, elements: WatchFaceElement[
         break;
       case 'TIME_POINTER':
         drawTimePointer(ctx, el);
+        break;
+      case 'IMG_TIME':
+      case 'TEXT_IMG': {
+        const style = el.fontStyle ? getFontStyle(el.fontStyle) : undefined;
+        const fontFamily = style?.fontFamily ?? 'Arial';
+        const fontWeight = style?.fontWeight ?? 'bold';
+        const fontSize = Math.floor(el.bounds.height * 0.75);
+        const color = el.color ? parseZeppColor(el.color) : (style?.color ?? '#FFFFFF');
+        const sampleText = el.type === 'IMG_TIME' ? '10:28' : (el.dataType ?? el.name);
+        ctx.save();
+        ctx.fillStyle = color;
+        ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(sampleText, el.bounds.x + el.bounds.width / 2, el.bounds.y + el.bounds.height / 2);
+        ctx.restore();
+        break;
+      }
+      case 'IMG':
+        if (el.iconKey && iconCache) {
+          const cached = iconCache.get(el.iconKey);
+          if (cached) {
+            ctx.drawImage(cached, el.bounds.x, el.bounds.y, el.bounds.width, el.bounds.height);
+          } else {
+            const entry = getIconByKey(el.iconKey);
+            if (entry) {
+              const img = new Image();
+              img.onload = () => { iconCache.set(el.iconKey!, img); onIconLoaded?.(); };
+              img.src = entry.dataUrl;
+            }
+            drawPlaceholder(ctx, el);
+          }
+        } else {
+          drawPlaceholder(ctx, el);
+        }
         break;
       default:
         drawPlaceholder(ctx, el);

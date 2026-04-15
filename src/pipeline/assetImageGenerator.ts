@@ -24,18 +24,21 @@ function createCanvasImage(
 
 // ─── Digit Generator ────────────────────────────────────────────────────────────
 
-function generateDigitImages(
+export function generateDigitImages(
   prefix: string,
   width: number,
   height: number,
   color: string,
+  style?: { fontFamily: string; fontWeight: string },
 ): ElementImage[] {
+  const fontFamily = style?.fontFamily ?? 'Arial';
+  const fontWeight = style?.fontWeight ?? 'bold';
   const images: ElementImage[] = [];
   for (let i = 0; i < 10; i++) {
     const name = `${prefix}_${i}.png`;
     const dataUrl = createCanvasImage(width, height, (ctx, w, h) => {
       ctx.fillStyle = color;
-      ctx.font = `bold ${Math.floor(h * 0.75)}px Arial`;
+      ctx.font = `${fontWeight} ${Math.floor(h * 0.75)}px ${fontFamily}`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(String(i), w / 2, h / 2);

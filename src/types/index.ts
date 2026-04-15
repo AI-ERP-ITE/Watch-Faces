@@ -2,7 +2,7 @@
 
 export interface WatchFaceElement {
   id: string;
-  type: 'TIME_POINTER' | 'IMG_LEVEL' | 'TEXT' | 'IMG' | 'ARC_PROGRESS' | 'CIRCLE' | 'TEXT_IMG' | 'BUTTON' | 'IMG_STATUS';
+  type: 'TIME_POINTER' | 'IMG_LEVEL' | 'TEXT' | 'IMG' | 'ARC_PROGRESS' | 'CIRCLE' | 'TEXT_IMG' | 'BUTTON' | 'IMG_STATUS' | 'IMG_TIME' | 'IMG_DATE' | 'IMG_WEEK';
   subtype?: string;
   name: string;
   bounds: {
@@ -55,6 +55,12 @@ export interface WatchFaceElement {
   fontArray?: string[];
   hSpace?: number;
   alignH?: string;
+
+  // Icon library
+  iconKey?: string;
+
+  // Font library
+  fontStyle?: string;
 }
 
 export interface WatchFaceConfig {

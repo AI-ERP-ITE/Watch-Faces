@@ -2,12 +2,28 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import type { WatchFaceElement } from '@/types';
+import { getIconLibrary } from '@/lib/iconLibrary';
+import { cn } from '@/lib/utils';
+import { FONT_STYLES, generateFontPreview } from '@/lib/fontLibrary';
 
 export interface PropertyPanelProps {
   element: WatchFaceElement | null;
   onUpdateElement?: (id: string, changes: Partial<WatchFaceElement>) => void;
   className?: string;
 }
+
+const WIDGET_TYPES: WatchFaceElement['type'][] = [
+  'ARC_PROGRESS', 'TIME_POINTER', 'TEXT_IMG', 'IMG', 'TEXT',
+  'IMG_LEVEL', 'IMG_STATUS', 'CIRCLE', 'BUTTON',
+];
+
+const DATA_TYPES = [
+  'BATTERY', 'STEP', 'HEART', 'SPO2', 'CAL', 'DISTANCE',
+  'STRESS', 'PAI', 'SLEEP', 'STAND', 'FAT_BURN',
+  'UVI', 'AQI', 'HUMIDITY', 'SUN_RISE', 'SUN_SET',
+  'WIND', 'ALARM', 'NOTIFICATION', 'MOON',
+  'WEATHER_CURRENT',
+];
 
 const TYPE_LABELS: Record<string, string> = {
   ARC_PROGRESS: 'Arc Progress',
@@ -35,10 +51,45 @@ export function PropertyPanel({ element, onUpdateElement, className }: PropertyP
 
   const update = (changes: Partial<WatchFaceElement>) => onUpdateElement?.(element.id, changes);
 
+  const handleTypeChange = (newType: WatchFaceElement['type']) => {
+    if (newType === element.type) return;
+    const changes: Partial<WatchFaceElement> = { type: newType };
+    switch (newType) {
+      case 'ARC_PROGRESS':
+        changes.center = element.center ?? { x: 240, y: 240 };
+        changes.radius = element.radius ?? 100;
+        changes.startAngle = element.startAngle ?? 135;
+        changes.endAngle = element.endAngle ?? 345;
+        changes.lineWidth = element.lineWidth ?? 8;
+        changes.color = element.color ?? '0x00FF00';
+        break;
+      case 'TIME_POINTER':
+        changes.center = { x: 240, y: 240 };
+        changes.hourPos = { x: 11, y: 70 };
+        changes.minutePos = { x: 8, y: 100 };
+        changes.secondPos = { x: 3, y: 120 };
+        break;
+      case 'TEXT':
+        changes.fontSize = element.fontSize ?? 20;
+        changes.color = element.color ?? '0xFFFFFFFF';
+        changes.text = element.text ?? '';
+        break;
+      case 'CIRCLE':
+        changes.center = element.center ?? { x: element.bounds.x + element.bounds.width / 2, y: element.bounds.y + element.bounds.height / 2 };
+        changes.radius = element.radius ?? Math.min(element.bounds.width, element.bounds.height) / 2;
+        changes.color = element.color ?? '0xFFFFFF';
+        break;
+    }
+    update(changes);
+  };
+
   const setX = (v: number) => update({ bounds: { ...element.bounds, x: clamp(v, 0, 480) } });
   const setY = (v: number) => update({ bounds: { ...element.bounds, y: clamp(v, 0, 480) } });
   const setW = (v: number) => update({ bounds: { ...element.bounds, width: clamp(v, 1, 480) } });
   const setH = (v: number) => update({ bounds: { ...element.bounds, height: clamp(v, 1, 480) } });
+
+  const isCentered = element.type === 'ARC_PROGRESS' || element.type === 'TIME_POINTER';
+  const isSizeLocked = element.type === 'IMG_TIME' || element.type === 'IMG_DATE' || element.type === 'IMG_WEEK';
 
   return (
     <div className={`rounded-xl border border-white/10 bg-white/5 p-4 space-y-4 ${className ?? ''}`}>
@@ -50,21 +101,46 @@ export function PropertyPanel({ element, onUpdateElement, className }: PropertyP
         <span className="text-xs text-white/40 truncate max-w-[140px]">{element.name}</span>
       </div>
 
-      {/* Position */}
-      <Section label="Position">
-        <FieldRow>
-          <NumField label="X" value={element.bounds.x} onChange={setX} />
-          <NumField label="Y" value={element.bounds.y} onChange={setY} />
-        </FieldRow>
+      {/* Widget Type */}
+      <Section label="Widget Type">
+        <select
+          value={element.type}
+          onChange={e => handleTypeChange(e.target.value as WatchFaceElement['type'])}
+          className="w-full h-7 rounded-md text-xs bg-white/5 border border-white/10 text-white px-2 cursor-pointer"
+        >
+          {WIDGET_TYPES.map(wt => (
+            <option key={wt} value={wt}>{TYPE_LABELS[wt] ?? wt}</option>
+          ))}
+        </select>
       </Section>
 
-      {/* Size */}
-      <Section label="Size">
-        <FieldRow>
-          <NumField label="W" value={element.bounds.width} onChange={setW} />
-          <NumField label="H" value={element.bounds.height} onChange={setH} />
-        </FieldRow>
+      {/* Position */}
+      <Section label="Position">
+        {isCentered ? (
+          <FieldRow>
+            <NumField label="CX" value={element.center?.x ?? 240} onChange={v => update({ center: { x: clamp(v, 0, 480), y: element.center?.y ?? 240 } })} />
+            <NumField label="CY" value={element.center?.y ?? 240} onChange={v => update({ center: { x: element.center?.x ?? 240, y: clamp(v, 0, 480) } })} />
+          </FieldRow>
+        ) : (
+          <FieldRow>
+            <NumField label="X" value={element.bounds.x} onChange={setX} />
+            <NumField label="Y" value={element.bounds.y} onChange={setY} />
+          </FieldRow>
+        )}
       </Section>
+
+      {/* Size — hidden for centered (arc/pointer) elements */}
+      {!isCentered && (
+        <Section label="Size">
+          <FieldRow>
+            <NumField label="W" value={element.bounds.width} onChange={setW} disabled={isSizeLocked} />
+            <NumField label="H" value={element.bounds.height} onChange={setH} disabled={isSizeLocked} />
+          </FieldRow>
+          {isSizeLocked && (
+            <p className="text-[10px] text-white/30 mt-1">Size determined by digit images</p>
+          )}
+        </Section>
+      )}
 
       {/* Color */}
       {element.color !== undefined && (
@@ -85,15 +161,25 @@ export function PropertyPanel({ element, onUpdateElement, className }: PropertyP
         </Section>
       )}
 
-      {/* ARC-specific fields (T009) */}
+      {/* DataType — shown for all data-bindable elements */}
+      {['ARC_PROGRESS', 'TEXT_IMG', 'IMG', 'IMG_LEVEL', 'TEXT', 'CIRCLE', 'IMG_STATUS'].includes(element.type) && (
+        <Section label="Data Type">
+          <select
+            value={element.dataType ?? ''}
+            onChange={e => update({ dataType: e.target.value || undefined })}
+            className="w-full h-7 rounded-md text-xs bg-white/5 border border-white/10 text-white px-2 cursor-pointer"
+          >
+            <option value="">— none —</option>
+            {DATA_TYPES.map(dt => (
+              <option key={dt} value={dt}>{dt}</option>
+            ))}
+          </select>
+        </Section>
+      )}
+
+      {/* ARC-specific fields */}
       {element.type === 'ARC_PROGRESS' && (
         <>
-          <Section label="Arc Center">
-            <FieldRow>
-              <NumField label="CX" value={element.center?.x ?? 240} onChange={v => update({ center: { ...element.center, x: clamp(v, 0, 480), y: element.center?.y ?? 240 } })} />
-              <NumField label="CY" value={element.center?.y ?? 240} onChange={v => update({ center: { ...element.center, x: element.center?.x ?? 240, y: clamp(v, 0, 480) } })} />
-            </FieldRow>
-          </Section>
           <Section label="Arc Shape">
             <FieldRow>
               <NumField label="R" value={element.radius ?? 100} onChange={v => update({ radius: clamp(v, 10, 240) })} />
@@ -104,37 +190,70 @@ export function PropertyPanel({ element, onUpdateElement, className }: PropertyP
               <NumField label="End°" value={element.endAngle ?? 345} onChange={v => update({ endAngle: v })} />
             </FieldRow>
           </Section>
-          <Section label="Data Type">
-            <select
-              value={element.dataType ?? ''}
-              onChange={e => update({ dataType: e.target.value || undefined })}
-              className="w-full h-7 rounded-md text-xs bg-white/5 border border-white/10 text-white px-2 cursor-pointer"
-            >
-              <option value="">— none —</option>
-              {['BATTERY','STEP','HEART','SPO2','CAL','DISTANCE','STRESS','PAI','SLEEP','STAND','FAT_BURN'].map(dt => (
-                <option key={dt} value={dt}>{dt}</option>
-              ))}
-            </select>
-          </Section>
         </>
       )}
 
-      {/* TIME_POINTER-specific fields (T010) */}
+      {/* TIME_POINTER-specific fields */}
       {element.type === 'TIME_POINTER' && (
-        <Section label="Pointer Center">
-          <FieldRow>
-            <NumField
-              label="CX"
-              value={element.pointerCenter?.x ?? element.center?.x ?? 240}
-              onChange={v => update({ pointerCenter: { x: clamp(v, 0, 480), y: element.pointerCenter?.y ?? element.center?.y ?? 240 } })}
-            />
-            <NumField
-              label="CY"
-              value={element.pointerCenter?.y ?? element.center?.y ?? 240}
-              onChange={v => update({ pointerCenter: { x: element.pointerCenter?.x ?? element.center?.x ?? 240, y: clamp(v, 0, 480) } })}
-            />
-          </FieldRow>
-          <p className="text-[10px] text-white/30 mt-1">Hand images auto-sized from assets</p>
+        <Section label="Hands">
+          <p className="text-[10px] text-white/30">Hand images auto-sized from assets. Drag on canvas to reposition.</p>
+        </Section>
+      )}
+
+      {/* Icon picker — IMG elements only */}
+      {element.type === 'IMG' && (
+        <Section label="Icon">
+          <div className="grid grid-cols-5 gap-1.5">
+            <button
+              onClick={() => update({ iconKey: undefined })}
+              className={cn(
+                'w-9 h-9 rounded border text-[8px] text-white/40',
+                !element.iconKey ? 'border-cyan-500 bg-cyan-500/20' : 'border-white/10 bg-white/5'
+              )}
+            >
+              None
+            </button>
+            {getIconLibrary().map(icon => (
+              <button
+                key={icon.key}
+                onClick={() => update({ iconKey: icon.key })}
+                className={cn(
+                  'w-9 h-9 rounded border overflow-hidden',
+                  element.iconKey === icon.key ? 'border-cyan-500 bg-cyan-500/20' : 'border-white/10 bg-white/5'
+                )}
+                title={icon.label}
+              >
+                <img src={icon.dataUrl} alt={icon.label} className="w-full h-full object-contain" />
+              </button>
+            ))}
+          </div>
+        </Section>
+      )}
+
+      {/* Font style picker — text/digit elements */}
+      {['IMG_TIME', 'TEXT_IMG', 'TEXT', 'IMG_DATE'].includes(element.type) && (
+        <Section label="Font Style">
+          <div className="flex gap-1 overflow-x-auto pb-1">
+            {FONT_STYLES.map(style => (
+              <button
+                key={style.key}
+                onClick={() => update({ fontStyle: style.key, color: style.color })}
+                className={cn(
+                  'shrink-0 rounded border overflow-hidden',
+                  (element.fontStyle ?? 'bold-white') === style.key
+                    ? 'border-cyan-500 ring-1 ring-cyan-500/50'
+                    : 'border-white/10'
+                )}
+                title={style.label}
+              >
+                <img
+                  src={generateFontPreview(style)}
+                  alt={style.label}
+                  className="h-7 w-auto"
+                />
+              </button>
+            ))}
+          </div>
         </Section>
       )}
 
@@ -171,7 +290,7 @@ function FieldRow({ children }: { children: React.ReactNode }) {
   return <div className="flex gap-2">{children}</div>;
 }
 
-function NumField({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
+function NumField({ label, value, onChange, disabled }: { label: string; value: number; onChange: (v: number) => void; disabled?: boolean }) {
   return (
     <div className="flex items-center gap-1 flex-1">
       <span className="text-[10px] text-white/40 w-4 shrink-0">{label}</span>
@@ -179,7 +298,11 @@ function NumField({ label, value, onChange }: { label: string; value: number; on
         type="number"
         value={Math.round(value)}
         onChange={e => onChange(Number(e.target.value))}
-        className="h-7 text-xs bg-white/5 border-white/10 text-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+        disabled={disabled}
+        className={cn(
+          'h-7 text-xs bg-white/5 border-white/10 text-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none',
+          disabled && 'opacity-50 cursor-not-allowed'
+        )}
       />
     </div>
   );
