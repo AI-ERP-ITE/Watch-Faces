@@ -303,6 +303,20 @@ const ARC_COLORS: Record<string, string> = {
   SPO2:     '0xEE5A24',
   CAL:      '0xFF9F43',
   DISTANCE: '0x54A0FF',
+  STRESS:   '0x9B59B6',
+  PAI:      '0xE74C3C',
+  SLEEP:    '0x3498DB',
+  STAND:    '0x1ABC9C',
+  FAT_BURN: '0xF39C12',
+  UVI:      '0xF1C40F',
+  AQI:      '0x27AE60',
+  HUMIDITY: '0x2980B9',
+  SUN_RISE: '0xF5AB35',
+  SUN_SET:  '0xE55039',
+  WIND:     '0x7F8C8D',
+  ALARM:    '0xD35400',
+  NOTIFICATION: '0x8E44AD',
+  MOON:     '0xBDC3C7',
 };
 
 /** Convert CSS hex (#RRGGBB or #RGB) to Zepp hex (0xRRGGBB) */

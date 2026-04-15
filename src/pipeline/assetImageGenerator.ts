@@ -175,6 +175,20 @@ const DATA_TYPE_COLORS: Record<string, string> = {
   DISTANCE: '#54A0FF',
   SPO2:     '#EE5A24',
   WEATHER_CURRENT: '#FFD700',
+  STRESS:   '#9B59B6',
+  PAI:      '#E74C3C',
+  SLEEP:    '#3498DB',
+  STAND:    '#1ABC9C',
+  FAT_BURN: '#F39C12',
+  UVI:      '#F1C40F',
+  AQI:      '#27AE60',
+  HUMIDITY: '#2980B9',
+  SUN_RISE: '#F5AB35',
+  SUN_SET:  '#E55039',
+  WIND:     '#7F8C8D',
+  ALARM:    '#D35400',
+  NOTIFICATION: '#8E44AD',
+  MOON:     '#BDC3C7',
 };
 
 /** Get the color for an element: prefer AI-extracted color, fallback to data type palette. */
@@ -191,6 +205,20 @@ const DATA_TYPE_PREFIXES: Record<string, string> = {
   SPO2:     'spo2_digit',
   CAL:      'cal_digit',
   DISTANCE: 'dist_digit',
+  STRESS:   'stress_digit',
+  PAI:      'pai_digit',
+  SLEEP:    'sleep_digit',
+  STAND:    'stand_digit',
+  FAT_BURN: 'fatburn_digit',
+  UVI:      'uvi_digit',
+  AQI:      'aqi_digit',
+  HUMIDITY: 'humid_digit',
+  SUN_RISE: 'sunrise_digit',
+  SUN_SET:  'sunset_digit',
+  WIND:     'wind_digit',
+  ALARM:    'alarm_digit',
+  NOTIFICATION: 'notif_digit',
+  MOON:     'moon_digit',
 };
 
 // ─── Main: Generate All Assets for Pipeline Elements ────────────────────────────

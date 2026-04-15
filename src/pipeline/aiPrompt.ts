@@ -29,7 +29,7 @@ Schema:
   "elements": [
     {
       "id": "unique_string_id",
-      "type": "time" | "date" | "steps" | "battery" | "heart_rate" | "spo2" | "calories" | "distance" | "weather" | "weekday" | "month" | "stress" | "pai" | "arc" | "text",
+      "type": "time" | "date" | "steps" | "battery" | "heart_rate" | "spo2" | "calories" | "distance" | "weather" | "weekday" | "month" | "stress" | "pai" | "sleep" | "stand" | "fat_burn" | "uvi" | "aqi" | "humidity" | "sunrise" | "sunset" | "wind" | "alarm" | "notification" | "moon" | "arc" | "text",
       "representation": "text" | "arc" | "icon" | "text+icon" | "text+arc" | "number",
       "layout": "row" | "arc" | "standalone" | "grid",
       "group": "center" | "top" | "bottom" | "left_panel" | "right_panel" | "top_left" | "top_right" | "bottom_left" | "bottom_right",
@@ -62,6 +62,18 @@ Field definitions:
 - "weather": Weather icon or temperature
 - "stress": Stress level indicator
 - "pai": PAI (Personal Activity Intelligence) / Bio Charge / vitality score
+- "sleep": Sleep data or sleep quality
+- "stand": Standing / idle alerts counter
+- "fat_burn": Fat burn / active minutes
+- "uvi": UV index
+- "aqi": Air quality index
+- "humidity": Humidity percentage
+- "sunrise": Sunrise time
+- "sunset": Sunset time
+- "wind": Wind speed
+- "alarm": Alarm / next alarm time
+- "notification": Notification count / icon
+- "moon": Moon phase
 - "arc": Any circular progress indicator without clear metric
 - "text": Any other text label
 
@@ -207,7 +219,7 @@ export const AI_RESPONSE_SCHEMA = {
         type: 'object' as const,
         properties: {
           id:             { type: 'string' as const },
-          type:           { type: 'string' as const, enum: ['time', 'date', 'steps', 'battery', 'heart_rate', 'spo2', 'calories', 'distance', 'weather', 'weekday', 'month', 'stress', 'pai', 'arc', 'text'] },
+          type:           { type: 'string' as const, enum: ['time', 'date', 'steps', 'battery', 'heart_rate', 'spo2', 'calories', 'distance', 'weather', 'weekday', 'month', 'stress', 'pai', 'sleep', 'stand', 'fat_burn', 'uvi', 'aqi', 'humidity', 'sunrise', 'sunset', 'wind', 'alarm', 'notification', 'moon', 'arc', 'text'] },
           representation: { type: 'string' as const, enum: ['text', 'arc', 'icon', 'text+icon', 'text+arc', 'number'] },
           layout:         { type: 'string' as const, enum: ['row', 'arc', 'standalone', 'grid'] },
           group:          { type: 'string' as const, enum: ['center', 'top', 'bottom', 'left_panel', 'right_panel', 'top_left', 'top_right', 'bottom_left', 'bottom_right'] },
@@ -310,7 +322,7 @@ export const STAGE_B_RESPONSE_SCHEMA = {
           id:         { type: 'string' as const },
           widget:     { type: 'string' as const, enum: ['TIME_POINTER', 'IMG_TIME', 'IMG_DATE', 'IMG_WEEK', 'ARC_PROGRESS', 'TEXT', 'TEXT_IMG', 'IMG', 'IMG_STATUS', 'IMG_LEVEL'] },
           region:     { type: 'string' as const, enum: ['center', 'top', 'bottom', 'left', 'right'] },
-          sourceType: { type: 'string' as const, enum: ['time', 'date', 'steps', 'battery', 'heart_rate', 'spo2', 'calories', 'distance', 'weather', 'weekday', 'month', 'stress', 'pai', 'arc', 'text'] },
+          sourceType: { type: 'string' as const, enum: ['time', 'date', 'steps', 'battery', 'heart_rate', 'spo2', 'calories', 'distance', 'weather', 'weekday', 'month', 'stress', 'pai', 'sleep', 'stand', 'fat_burn', 'uvi', 'aqi', 'humidity', 'sunrise', 'sunset', 'wind', 'alarm', 'notification', 'moon', 'arc', 'text'] },
           dataType:   { type: 'string' as const },
         },
         required: ['id', 'widget', 'region', 'sourceType'],

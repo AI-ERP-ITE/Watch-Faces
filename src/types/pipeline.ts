@@ -39,7 +39,19 @@ export type AIElementType =
   | 'weekday'
   | 'month'
   | 'stress'
-  | 'pai';
+  | 'pai'
+  | 'sleep'
+  | 'stand'
+  | 'fat_burn'
+  | 'uvi'
+  | 'aqi'
+  | 'humidity'
+  | 'sunrise'
+  | 'sunset'
+  | 'wind'
+  | 'alarm'
+  | 'notification'
+  | 'moon';
 
 export type AIStyle = 'analog' | 'digital' | 'minimal' | 'bold';
 

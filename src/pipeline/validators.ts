@@ -9,6 +9,8 @@ import { PipelineValidationError } from '@/types/pipeline';
 const VALID_AI_TYPES = new Set([
   'time', 'date', 'steps', 'battery', 'heart_rate', 'arc', 'text',
   'weather', 'spo2', 'calories', 'distance', 'weekday', 'month',
+  'stress', 'pai', 'sleep', 'stand', 'fat_burn', 'uvi', 'aqi',
+  'humidity', 'sunrise', 'sunset', 'wind', 'alarm', 'notification', 'moon',
 ]);
 
 const VALID_REPRESENTATIONS = new Set<Representation>([
