@@ -101,6 +101,12 @@ export interface AIElement {
   lineWidth?: number;
   /** Dominant color of this element as hex string (e.g. "#FF6B6B"). */
   color?: string;
+  /** Font size in pixels for text elements. */
+  fontSize?: number;
+  /** Visual font style category. */
+  fontFamily?: string;
+  /** Zepp OS data binding type (e.g. BATTERY, STEP, HEART). */
+  dataType?: string;
 }
 
 /** Wrapper for the full AI response payload. */
@@ -153,6 +159,10 @@ export interface NormalizedElement {
   lineWidth?: number;
   /** Dominant color of this element as hex string. */
   color?: string;
+  /** Font size in pixels for text elements. */
+  fontSize?: number;
+  /** Visual font style category. */
+  fontFamily?: string;
 }
 
 // ─── Stage 2: Layout ────────────────────────────────────────────────────────────

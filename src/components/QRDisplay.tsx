@@ -10,6 +10,7 @@ interface QRDisplayProps {
   zpkBlob?: Blob | null;
   filename?: string;
   className?: string;
+  previewImageUrl?: string;
 }
 
 export function QRDisplay({
@@ -18,6 +19,7 @@ export function QRDisplay({
   zpkBlob,
   filename = 'watchface.zpk',
   className,
+  previewImageUrl,
 }: QRDisplayProps) {
   const handleDownloadQR = () => {
     try {
@@ -71,25 +73,42 @@ export function QRDisplay({
         <span className="text-sm font-medium">Watch face created successfully!</span>
       </div>
 
-      {/* QR Code */}
-      <div className="relative">
-        <div
-          className="p-4 bg-white rounded-2xl shadow-xl"
-          style={{
-            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
-          }}
-        >
-          <img
-            src={qrCodeDataUrl}
-            alt="QR Code for watch face installation"
-            className="w-64 h-64"
-          />
+      {/* Preview + QR side by side */}
+      <div className="flex items-center justify-center gap-6 flex-wrap">
+        {/* Preview thumbnail */}
+        {previewImageUrl && (
+          <div className="rounded-2xl overflow-hidden border-2 border-white/10 flex-shrink-0">
+            <img
+              src={previewImageUrl}
+              alt="Watchface preview"
+              className="w-48 h-48 object-cover"
+            />
+          </div>
+        )}
+
+        {/* QR Code */}
+        <div className="relative flex-shrink-0">
+          <div
+            className="p-4 bg-white rounded-2xl shadow-xl"
+            style={{ boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)' }}
+          >
+            <img
+              src={qrCodeDataUrl}
+              alt="QR Code for watch face installation"
+              className="w-48 h-48"
+            />
+          </div>
+          {/* Decorative ring */}
+          <div className="absolute -inset-3 rounded-3xl border-2 border-cyan-500/20 pointer-events-none" />
         </div>
-        
-        {/* Decorative ring */}
-        <div
-          className="absolute -inset-3 rounded-3xl border-2 border-cyan-500/20 pointer-events-none"
-        />
+      </div>
+
+      {/* File info */}
+      <div className="text-center space-y-1">
+        <p className="text-white font-medium font-mono text-sm">{filename}</p>
+        {zpkBlob && (
+          <p className="text-zinc-500 text-xs">{(zpkBlob.size / 1024).toFixed(1)} KB</p>
+        )}
       </div>
 
       {/* Instructions */}

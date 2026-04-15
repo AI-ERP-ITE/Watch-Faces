@@ -47,6 +47,7 @@ export function InteractiveCanvas({
   const showGridRef = useRef(showGrid);
   showGridRef.current = showGrid;
   const iconImageCache = useRef(new Map<string, HTMLImageElement>());
+  const digitImageCache = useRef(new Map<string, HTMLImageElement>());
   useState(0); // reserved for future forced re-renders
 
   // Draw everything to canvas
@@ -69,7 +70,7 @@ export function InteractiveCanvas({
     if (showGridRef.current) drawGrid(ctx);
 
     // Elements
-    drawElements(ctx, elements, iconImageCache.current, draw);
+    drawElements(ctx, elements, iconImageCache.current, digitImageCache.current, draw);
 
     // Selection highlight
     if (selectedElementId) {
@@ -581,10 +582,28 @@ function drawBackground(ctx: CanvasRenderingContext2D, img: HTMLImageElement) {
 
 // ─── Element Dispatcher ─────────────────────────────────────────────────────────
 
-function drawElements(ctx: CanvasRenderingContext2D, elements: WatchFaceElement[], iconCache?: Map<string, HTMLImageElement>, onIconLoaded?: () => void) {
+function drawElements(ctx: CanvasRenderingContext2D, elements: WatchFaceElement[], iconCache?: Map<string, HTMLImageElement>, digitCache?: Map<string, HTMLImageElement>, onIconLoaded?: () => void) {
   const sorted = [...elements].filter(e => e.visible).sort((a, b) => a.zIndex - b.zIndex);
 
   for (const el of sorted) {
+    // Curved TEXT: draw along arc path
+    if (el.type === 'TEXT' && el.curvedText) {
+      const cx = el.center?.x ?? (el.bounds.x + el.bounds.width / 2);
+      const cy = el.center?.y ?? (el.bounds.y + el.bounds.height / 2);
+      const rawColor = el.color ? parseZeppColor(el.color) : '#FFFFFF';
+      drawCurvedText(
+        ctx,
+        el.text ?? el.name,
+        cx, cy,
+        el.curvedText.radius,
+        el.curvedText.startAngle,
+        el.curvedText.endAngle,
+        el.fontSize ?? 16,
+        rawColor
+      );
+      continue;
+    }
+
     switch (el.type) {
       case 'ARC_PROGRESS':
         drawArc(ctx, el);
@@ -593,22 +612,11 @@ function drawElements(ctx: CanvasRenderingContext2D, elements: WatchFaceElement[
         drawTimePointer(ctx, el);
         break;
       case 'IMG_TIME':
-      case 'TEXT_IMG': {
-        const style = el.fontStyle ? getFontStyle(el.fontStyle) : undefined;
-        const fontFamily = style?.fontFamily ?? 'Arial';
-        const fontWeight = style?.fontWeight ?? 'bold';
-        const fontSize = Math.floor(el.bounds.height * 0.75);
-        const color = el.color ? parseZeppColor(el.color) : (style?.color ?? '#FFFFFF');
-        const sampleText = el.type === 'IMG_TIME' ? '10:28' : (el.dataType ?? el.name);
-        ctx.save();
-        ctx.fillStyle = color;
-        ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(sampleText, el.bounds.x + el.bounds.width / 2, el.bounds.y + el.bounds.height / 2);
-        ctx.restore();
+      case 'IMG_DATE':
+      case 'IMG_WEEK':
+      case 'TEXT_IMG':
+        drawDigitElement(ctx, el, digitCache, onIconLoaded);
         break;
-      }
       case 'IMG':
         if (el.iconKey && iconCache) {
           const cached = iconCache.get(el.iconKey);
@@ -632,6 +640,74 @@ function drawElements(ctx: CanvasRenderingContext2D, elements: WatchFaceElement[
         break;
     }
   }
+}
+
+// ─── Digit element: IMG_TIME, IMG_DATE, IMG_WEEK, TEXT_IMG ──────────────────────
+
+function getCachedImage(src: string, cache: Map<string, HTMLImageElement>, onLoad: (() => void) | undefined): HTMLImageElement | null {
+  if (cache.has(src)) return cache.get(src)!;
+  const img = new Image();
+  img.onload = () => { onLoad?.(); };
+  img.src = src;
+  cache.set(src, img);
+  return null; // Will be ready on next frame after onLoad fires
+}
+
+function getPlaceholderText(el: WatchFaceElement): string {
+  const name = el.name.toLowerCase();
+  if (el.type === 'IMG_TIME' || name.includes('time')) return '10:28';
+  if (name.includes('date')) return '24';
+  if (name.includes('month')) return 'APR';
+  if (el.type === 'IMG_WEEK' || name.includes('week')) return 'WED';
+  if (el.dataType === 'BATTERY') return '85%';
+  if (el.dataType === 'STEP') return '8432';
+  if (el.dataType === 'HEART') return '72';
+  return el.dataType ?? '123';
+}
+
+function drawDigitElement(
+  ctx: CanvasRenderingContext2D,
+  el: WatchFaceElement,
+  digitCache: Map<string, HTMLImageElement> | undefined,
+  onLoad: (() => void) | undefined,
+) {
+  const { x, y, width: w, height: h } = el.bounds;
+
+  // If digit images available, draw them
+  const images = el.images ?? el.fontArray;
+  if (images && images.length > 0 && digitCache) {
+    const sampleText = getPlaceholderText(el);
+    const digitCount = Math.max(1, sampleText.replace(/[^0-9A-Za-z]/g, '').length);
+    const digitW = Math.floor(w / digitCount);
+    let drawn = false;
+    for (let i = 0; i < Math.min(digitCount, images.length); i++) {
+      const imgSrc = images[i];
+      if (!imgSrc) continue;
+      const img = getCachedImage(imgSrc, digitCache, onLoad);
+      if (img?.complete && img.naturalWidth > 0) {
+        ctx.drawImage(img, x + i * digitW, y, digitW, h);
+        drawn = true;
+      }
+    }
+    if (drawn) return;
+  }
+
+  // Fallback: draw placeholder text scaled to fit bounds
+  const style = el.fontStyle ? getFontStyle(el.fontStyle) : undefined;
+  const fontFamily = style?.fontFamily ?? 'Arial';
+  const fontWeight = style?.fontWeight ?? 'bold';
+  const text = getPlaceholderText(el);
+  const color = el.color ? parseZeppColor(el.color) : (style?.color ?? '#FFFFFF');
+  // Fit font size to bounds height, but also ensure it doesn't overflow width
+  const maxFontSize = Math.min(Math.floor(h * 0.8), Math.floor(w / (text.length * 0.6)));
+  const fontSize = Math.max(10, maxFontSize);
+  ctx.save();
+  ctx.fillStyle = color;
+  ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, x + w / 2, y + h / 2, w);
+  ctx.restore();
 }
 
 // ─── ARC_PROGRESS ───────────────────────────────────────────────────────────────
@@ -716,6 +792,42 @@ function drawHand(
 }
 
 // ─── Placeholder (rectangles for IMG_TIME, TEXT, etc.) ──────────────────────────
+
+function drawCurvedText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  centerX: number,
+  centerY: number,
+  radius: number,
+  startAngleDeg: number,
+  endAngleDeg: number,
+  fontSize: number,
+  color: string
+) {
+  const startAngle = (startAngleDeg * Math.PI) / 180;
+  const endAngle = (endAngleDeg * Math.PI) / 180;
+  const totalAngle = endAngle - startAngle;
+  const anglePerChar = totalAngle / Math.max(text.length - 1, 1);
+
+  ctx.save();
+  ctx.font = `bold ${fontSize}px Arial`;
+  ctx.fillStyle = color;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  for (let i = 0; i < text.length; i++) {
+    const angle = startAngle + i * anglePerChar;
+    const charX = centerX + radius * Math.cos(angle);
+    const charY = centerY + radius * Math.sin(angle);
+    ctx.save();
+    ctx.translate(charX, charY);
+    ctx.rotate(angle + Math.PI / 2);
+    ctx.fillText(text[i], 0, 0);
+    ctx.restore();
+  }
+
+  ctx.restore();
+}
 
 function drawPlaceholder(ctx: CanvasRenderingContext2D, el: WatchFaceElement) {
   const { x, y, width, height } = el.bounds;

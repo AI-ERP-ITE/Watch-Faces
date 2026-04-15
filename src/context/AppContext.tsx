@@ -22,6 +22,8 @@ const initialState: AppState = {
   error: null,
   githubToken: localStorage.getItem('githubToken') || '',
   githubRepo: localStorage.getItem('githubRepo') || 'AI-ERP-ITE/Watch-Faces',
+  undoStack: [],
+  redoStack: [],
 };
 
 // Action types
@@ -44,6 +46,8 @@ type Action =
   | { type: 'SET_GITHUB_REPO'; payload: string }
   | { type: 'UPDATE_ELEMENT'; payload: { id: string; changes: Partial<WatchFaceElement> } }
   | { type: 'UPDATE_ELEMENTS_BATCH'; payload: Array<{ id: string; changes: Partial<WatchFaceElement> }> }
+  | { type: 'UNDO' }
+  | { type: 'REDO' }
   | { type: 'RESET' };
 
 // Reducer
@@ -85,16 +89,20 @@ function appReducer(state: AppState, action: Action): AppState {
       return { ...state, githubRepo: action.payload };
     case 'UPDATE_ELEMENT': {
       if (!state.watchFaceConfig) return state;
+      const newUndoStack = [...state.undoStack, structuredClone(state.watchFaceConfig.elements)].slice(-30);
       const updatedElements = state.watchFaceConfig.elements.map(el =>
         el.id === action.payload.id ? { ...el, ...action.payload.changes } : el
       );
       return {
         ...state,
         watchFaceConfig: { ...state.watchFaceConfig, elements: updatedElements },
+        undoStack: newUndoStack,
+        redoStack: [],
       };
     }
     case 'UPDATE_ELEMENTS_BATCH': {
       if (!state.watchFaceConfig) return state;
+      const newUndoStack2 = [...state.undoStack, structuredClone(state.watchFaceConfig.elements)].slice(-30);
       const changeMap = new Map(action.payload.map(p => [p.id, p.changes]));
       const batchUpdated = state.watchFaceConfig.elements.map(el => {
         const changes = changeMap.get(el.id);
@@ -103,6 +111,30 @@ function appReducer(state: AppState, action: Action): AppState {
       return {
         ...state,
         watchFaceConfig: { ...state.watchFaceConfig, elements: batchUpdated },
+        undoStack: newUndoStack2,
+        redoStack: [],
+      };
+    }
+    case 'UNDO': {
+      if (state.undoStack.length === 0 || !state.watchFaceConfig) return state;
+      const previousElements = state.undoStack[state.undoStack.length - 1];
+      const currentForRedo = structuredClone(state.watchFaceConfig.elements);
+      return {
+        ...state,
+        watchFaceConfig: { ...state.watchFaceConfig, elements: previousElements },
+        undoStack: state.undoStack.slice(0, -1),
+        redoStack: [...state.redoStack, currentForRedo].slice(-30),
+      };
+    }
+    case 'REDO': {
+      if (state.redoStack.length === 0 || !state.watchFaceConfig) return state;
+      const nextElements = state.redoStack[state.redoStack.length - 1];
+      const currentForUndo = structuredClone(state.watchFaceConfig.elements);
+      return {
+        ...state,
+        watchFaceConfig: { ...state.watchFaceConfig, elements: nextElements },
+        undoStack: [...state.undoStack, currentForUndo].slice(-30),
+        redoStack: state.redoStack.slice(0, -1),
       };
     }
     case 'RESET':
@@ -164,5 +196,7 @@ export const actions = {
   setGithubRepo: (repo: string) => ({ type: 'SET_GITHUB_REPO' as const, payload: repo }),
   updateElement: (id: string, changes: Partial<WatchFaceElement>) => ({ type: 'UPDATE_ELEMENT' as const, payload: { id, changes } }),
   updateElementsBatch: (updates: Array<{ id: string; changes: Partial<WatchFaceElement> }>) => ({ type: 'UPDATE_ELEMENTS_BATCH' as const, payload: updates }),
+  undo: () => ({ type: 'UNDO' as const }),
+  redo: () => ({ type: 'REDO' as const }),
   reset: () => ({ type: 'RESET' as const }),
 };

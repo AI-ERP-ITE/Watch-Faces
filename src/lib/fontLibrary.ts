@@ -15,6 +15,18 @@ export const FONT_STYLES: FontStyle[] = [
   { key: 'rounded-blue',     label: 'Rounded Blue',     fontFamily: 'Verdana',        fontWeight: 'bold',   color: '#4A9EFF' },
   { key: 'condensed-silver', label: 'Condensed Silver', fontFamily: 'Arial Narrow',   fontWeight: 'bold',   color: '#C0C0C0' },
   { key: 'digital-green',    label: 'Digital Green',    fontFamily: 'Lucida Console', fontWeight: 'normal', color: '#33FF33' },
+  { key: 'roboto',           label: 'Roboto',           fontFamily: 'Roboto',         fontWeight: '700',    color: '#FFFFFF' },
+  { key: 'roboto-mono',      label: 'Roboto Mono',      fontFamily: 'Roboto Mono',    fontWeight: '400',    color: '#E0E0E0' },
+  { key: 'orbitron',         label: 'Orbitron',         fontFamily: 'Orbitron',       fontWeight: '700',    color: '#00D4FF' },
+  { key: 'oswald',           label: 'Oswald',           fontFamily: 'Oswald',         fontWeight: '700',    color: '#FFFFFF' },
+  { key: 'bebas',            label: 'Bebas Neue',       fontFamily: 'Bebas Neue',     fontWeight: '400',    color: '#FFD700' },
+  { key: 'rajdhani',         label: 'Rajdhani',         fontFamily: 'Rajdhani',       fontWeight: '700',    color: '#00FF88' },
+  { key: 'share-tech',       label: 'Share Tech',       fontFamily: 'Share Tech Mono', fontWeight: '400',   color: '#33FF33' },
+  { key: 'goldman',          label: 'Goldman',          fontFamily: 'Goldman',        fontWeight: '700',    color: '#FF9F43' },
+  { key: 'russo',            label: 'Russo One',        fontFamily: 'Russo One',      fontWeight: '400',    color: '#FFFFFF' },
+  { key: 'audiowide',        label: 'Audiowide',        fontFamily: 'Audiowide',      fontWeight: '400',    color: '#4A9EFF' },
+  { key: 'rationale',        label: 'Rationale',        fontFamily: 'Rationale',      fontWeight: '400',    color: '#C0C0C0' },
+  { key: 'black-ops',        label: 'Black Ops One',    fontFamily: 'Black Ops One',  fontWeight: '400',    color: '#FF4444' },
 ];
 
 export function getFontStyle(key: string): FontStyle {

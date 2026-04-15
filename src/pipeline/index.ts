@@ -233,7 +233,8 @@ function resolvedToWatchFaceElement(el: ResolvedElement, idx: number): WatchFace
   if (el.widget === 'TEXT') {
     base.bounds = { x: el.x!, y: el.y!, width: el.w!, height: el.h! };
     base.text = '';
-    base.fontSize = 20;
+    base.fontSize = el.fontSize ?? 20;
+    base.font = el.fontFamily;
     base.color = el.color ? toZeppHex(el.color) : '0xFFFFFFFF';
     return base;
   }

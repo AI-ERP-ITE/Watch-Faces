@@ -41,7 +41,10 @@ Schema:
       "radius": number,
       "startAngle": number,
       "endAngle": number,
-      "lineWidth": number
+      "lineWidth": number,
+      "fontSize": number,
+      "fontFamily": "sans-serif" | "serif" | "monospace" | "digital" | "rounded",
+      "dataType": "BATTERY" | "STEP" | "HEART" | "SPO2" | "CAL" | "DISTANCE" | "STRESS" | "PAI" | "SLEEP" | "STAND" | "FAT_BURN" | "UVI" | "AQI" | "HUMIDITY" | "WEATHER_CURRENT" | "SUN_RISE" | "SUN_SET" | "WIND" | "ALARM" | "NOTIFICATION" | "MOON"
     }
   ]
 }
@@ -133,6 +136,23 @@ Field definitions:
 - 270° = up (12 o'clock position)
 
 "endAngle" — arc end angle in degrees (for arc elements only)
+
+"fontSize" — font size in pixels for text elements (for text/number/text+icon elements only):
+- Estimate from the visual size of the text in the bounding box
+- Typical values: 16-80px
+- Omit for non-text elements
+
+"fontFamily" — visual font style category (for text/number elements only):
+- "sans-serif": Clean modern text (default for most watchface text)
+- "serif": Decorative serif font
+- "monospace": Fixed-width/technical font
+- "digital": 7-segment LCD/LED digital clock style
+- "rounded": Rounded/soft letterforms
+- Omit for non-text elements
+
+"dataType" — Zepp OS data binding type (when the element displays live sensor data):
+- Map from element type: battery→BATTERY, steps→STEP, heart_rate→HEART, spo2→SPO2, calories→CAL, distance→DISTANCE, stress→STRESS, pai→PAI, sleep→SLEEP, stand→STAND, fat_burn→FAT_BURN, uvi→UVI, aqi→AQI, humidity→HUMIDITY, weather→WEATHER_CURRENT, sunrise→SUN_RISE, sunset→SUN_SET, wind→WIND, alarm→ALARM, notification→NOTIFICATION, moon→MOON
+- Omit for time, date, weekday, month, arc, text (no live binding)
 
 EXAMPLES:
 
@@ -247,6 +267,9 @@ export const AI_RESPONSE_SCHEMA = {
           startAngle: { type: 'number' as const },
           endAngle:   { type: 'number' as const },
           lineWidth:  { type: 'number' as const },
+          fontSize:   { type: 'number' as const },
+          fontFamily: { type: 'string' as const, enum: ['sans-serif', 'serif', 'monospace', 'digital', 'rounded'] },
+          dataType:   { type: 'string' as const, enum: ['BATTERY', 'STEP', 'HEART', 'SPO2', 'CAL', 'DISTANCE', 'STRESS', 'PAI', 'SLEEP', 'STAND', 'FAT_BURN', 'UVI', 'AQI', 'HUMIDITY', 'WEATHER_CURRENT', 'SUN_RISE', 'SUN_SET', 'WIND', 'ALARM', 'NOTIFICATION', 'MOON'] },
         },
         required: ['id', 'type', 'representation', 'layout', 'group', 'bounds', 'color'],
       },

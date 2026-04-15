@@ -61,6 +61,13 @@ export interface WatchFaceElement {
 
   // Font library
   fontStyle?: string;
+
+  // Curved text
+  curvedText?: {
+    radius: number;      // Arc radius for text path
+    startAngle: number;  // Start angle in degrees
+    endAngle: number;    // End angle in degrees
+  };
 }
 
 export interface WatchFaceConfig {
@@ -136,4 +143,6 @@ export interface AppState {
   error: string | null;
   githubToken: string;
   githubRepo: string;
+  undoStack: WatchFaceElement[][];
+  redoStack: WatchFaceElement[][];
 }

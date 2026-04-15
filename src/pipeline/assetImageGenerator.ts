@@ -5,6 +5,7 @@
 import type { ElementImage } from '@/types';
 import type { ResolvedElement } from '@/types/pipeline';
 import { TIME_DIGIT, DATE_DIGIT, MONTH_LABEL, WEEK_LABEL, WEATHER_ICON, TEXT_IMG_DIGIT } from './constants';
+import { getIconByKey } from '@/lib/iconLibrary';
 
 // ─── Canvas Utility ─────────────────────────────────────────────────────────────
 
@@ -20,6 +21,43 @@ function createCanvasImage(
   ctx.clearRect(0, 0, width, height);
   drawFn(ctx, width, height);
   return canvas.toDataURL('image/png');
+}
+
+// ─── Curved Text Generator ──────────────────────────────────────────────────────
+
+export function generateCurvedTextImage(
+  text: string,
+  radius: number,
+  startAngleDeg: number,
+  endAngleDeg: number,
+  fontSize: number,
+  color: string,
+): string {
+  const size = (radius + fontSize) * 2 + 20;
+  return createCanvasImage(size, size, (ctx, w, h) => {
+    const cx = w / 2;
+    const cy = h / 2;
+    const startAngle = (startAngleDeg * Math.PI) / 180;
+    const endAngle = (endAngleDeg * Math.PI) / 180;
+    const totalAngle = endAngle - startAngle;
+    const anglePerChar = totalAngle / Math.max(text.length - 1, 1);
+
+    ctx.font = `bold ${fontSize}px Arial`;
+    ctx.fillStyle = color;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    for (let i = 0; i < text.length; i++) {
+      const angle = startAngle + i * anglePerChar;
+      const charX = cx + radius * Math.cos(angle);
+      const charY = cy + radius * Math.sin(angle);
+      ctx.save();
+      ctx.translate(charX, charY);
+      ctx.rotate(angle + Math.PI / 2);
+      ctx.fillText(text[i], 0, 0);
+      ctx.restore();
+    }
+  });
 }
 
 // ─── Digit Generator ────────────────────────────────────────────────────────────
@@ -312,9 +350,38 @@ export function generatePipelineAssets(elements: ResolvedElement[]): ElementImag
       }
 
       case 'TEXT':
-      case 'IMG':
-        // No image assets needed for plain text or generic IMG
+        // No image assets needed for plain text
         break;
+
+      case 'IMG': {
+        // Generate icon PNG if element has an icon src assigned by assetResolver
+        const iconSrc = el.assets?.src;
+        if (iconSrc && iconSrc.startsWith('icon_') && iconSrc.endsWith('.png')) {
+          if (!generatedSets.has(iconSrc)) {
+            const iconKey = iconSrc.replace('icon_', '').replace('.png', '');
+            const iconEntry = getIconByKey(iconKey);
+            if (iconEntry) {
+              // Render icon at element's geometry size (w/h from pipeline), fallback 48x48
+              const targetW = el.w ?? 48;
+              const targetH = el.h ?? 48;
+              const dataUrl = createCanvasImage(targetW, targetH, (ctx, w, h) => {
+                const img = new Image();
+                img.src = iconEntry.dataUrl;
+                // Draw synchronously — icon dataUrl is already loaded as data URL
+                ctx.drawImage(img, 0, 0, w, h);
+              });
+              images.push({
+                name: iconSrc,
+                dataUrl,
+                bounds: { x: 0, y: 0, width: targetW, height: targetH },
+                type: 'IMG',
+              });
+              generatedSets.add(iconSrc);
+            }
+          }
+        }
+        break;
+      }
     }
   }
 

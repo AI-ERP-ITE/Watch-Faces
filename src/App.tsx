@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react';
-import { ArrowRight, RefreshCw, Sparkles, Wand2, Settings, Eye, EyeOff, Grid3X3 } from 'lucide-react';
+import { useState, useCallback, useEffect } from 'react';
+import { ArrowRight, RefreshCw, Sparkles, Wand2, Settings, Eye, EyeOff, Grid3X3, Undo2, Redo2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,7 +23,7 @@ import { getFontStyle } from '@/lib/fontLibrary';
 import { testApiKey, type AIProvider } from '@/lib/aiService';
 import { runPipeline } from '@/pipeline';
 import { extractElementsFromImage, type PipelineAIProvider } from '@/pipeline/pipelineAIService';
-import { generatePipelineAssets, generateDigitImages } from '@/pipeline/assetImageGenerator';
+import { generatePipelineAssets, generateDigitImages, generateCurvedTextImage } from '@/pipeline/assetImageGenerator';
 import type { WatchFaceConfig, WatchFaceElement, ElementImage } from '@/types';
 import { generateId } from '@/lib/utils';
 
@@ -964,6 +964,24 @@ function App() {
   const [watchFaceName, setWatchFaceName] = useState('');
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
   const [showGrid, setShowGrid] = useState(false);
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+
+  // Keyboard undo/redo
+  const { dispatch: dispatchRef } = { dispatch };
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        dispatchRef({ type: 'UNDO' });
+      }
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+        e.preventDefault();
+        dispatchRef({ type: 'REDO' });
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [dispatchRef]);
 
   // AI Provider settings (persisted in localStorage)
   const [aiProvider, setAiProvider] = useState<AIProvider>(
@@ -1196,6 +1214,27 @@ function App() {
         }
       }
 
+      // Inject curved text PNGs for TEXT elements with curvedText
+      for (const el of state.watchFaceConfig.elements) {
+        if (el.type === 'TEXT' && el.curvedText) {
+          const filename = `curved_text_${el.id}.png`;
+          const rawColor = el.color?.startsWith('#') ? el.color : '#FFFFFF';
+          const dataUrl = generateCurvedTextImage(
+            el.text ?? el.name,
+            el.curvedText.radius,
+            el.curvedText.startAngle,
+            el.curvedText.endAngle,
+            el.fontSize ?? 16,
+            rawColor
+          );
+          const p2 = dataUrl.split(',');
+          const b2 = atob(p2[1]);
+          const u2 = new Uint8Array(b2.length);
+          for (let i = 0; i < b2.length; i++) u2[i] = b2.charCodeAt(i);
+          elementFiles.push({ src: filename, file: new File([u2], filename, { type: 'image/png' }) });
+        }
+      }
+
       const zpkResult = await buildZPK({
         config: state.watchFaceConfig,
         backgroundFile: state.backgroundFile,
@@ -1253,6 +1292,12 @@ function App() {
 
       dispatch(actions.setGithubUrl(uploadResult.downloadUrl || ''));
       dispatch(actions.setQrCode(qrDataUrl));
+
+      // Capture canvas preview before showing success screen
+      const previewCanvas = document.querySelector('canvas') as HTMLCanvasElement | null;
+      if (previewCanvas) {
+        setPreviewImageUrl(previewCanvas.toDataURL('image/png'));
+      }
 
       dispatch(actions.setStep('success'));
       toast.success('Watch face created successfully!');
@@ -1485,15 +1530,33 @@ function App() {
                   <div className="flex flex-col items-center shrink-0">
                     <div className="flex items-center justify-between w-full max-w-sm mb-4">
                       <h4 className="text-sm font-medium text-zinc-400">Live Editor — drag to reposition</h4>
-                      <button
-                        onClick={() => setShowGrid(g => !g)}
-                        className={`p-1.5 rounded-lg border text-xs transition-colors ${
-                          showGrid ? 'bg-cyan-500/20 border-cyan-500 text-cyan-400' : 'bg-white/5 border-white/10 text-white/40'
-                        }`}
-                        title="Toggle grid"
-                      >
-                        <Grid3X3 className="h-4 w-4" />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => dispatch({ type: 'UNDO' })}
+                          disabled={state.undoStack.length === 0}
+                          className="p-1.5 rounded-lg border transition-colors bg-white/5 border-white/10 text-white/40 disabled:opacity-30"
+                          title="Undo (Ctrl+Z)"
+                        >
+                          <Undo2 className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => dispatch({ type: 'REDO' })}
+                          disabled={state.redoStack.length === 0}
+                          className="p-1.5 rounded-lg border transition-colors bg-white/5 border-white/10 text-white/40 disabled:opacity-30"
+                          title="Redo (Ctrl+Y)"
+                        >
+                          <Redo2 className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => setShowGrid(g => !g)}
+                          className={`p-1.5 rounded-lg border text-xs transition-colors ${
+                            showGrid ? 'bg-cyan-500/20 border-cyan-500 text-cyan-400' : 'bg-white/5 border-white/10 text-white/40'
+                          }`}
+                          title="Toggle grid"
+                        >
+                          <Grid3X3 className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
                     <InteractiveCanvas
                       backgroundImage={state.backgroundImage}
@@ -1589,6 +1652,7 @@ function App() {
                 githubUrl={state.githubUrl}
                 zpkBlob={state.zpkBlob}
                 filename={state.watchFaceConfig?.name + '.zpk'}
+                previewImageUrl={previewImageUrl ?? undefined}
               />
             )}
 

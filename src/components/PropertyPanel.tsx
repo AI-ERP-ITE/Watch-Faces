@@ -1,10 +1,11 @@
+import { useState } from 'react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import type { WatchFaceElement } from '@/types';
 import { getIconLibrary } from '@/lib/iconLibrary';
 import { cn } from '@/lib/utils';
-import { FONT_STYLES, generateFontPreview } from '@/lib/fontLibrary';
+import { FONT_STYLES, generateFontPreview, getFontStyle } from '@/lib/fontLibrary';
 
 export interface PropertyPanelProps {
   element: WatchFaceElement | null;
@@ -25,6 +26,22 @@ const DATA_TYPES = [
   'WEATHER_CURRENT',
 ];
 
+const APP_SHORTCUTS = [
+  { value: '', label: '— none —' },
+  { value: 'HeartRate', label: 'Heart Rate' },
+  { value: 'Sport', label: 'Exercise' },
+  { value: 'Weather', label: 'Weather' },
+  { value: 'Alarm', label: 'Alarm' },
+  { value: 'Settings', label: 'Settings' },
+  { value: 'Music', label: 'Music' },
+  { value: 'Notification', label: 'Notifications' },
+  { value: 'StopWatch', label: 'Stopwatch' },
+  { value: 'Timer', label: 'Timer' },
+  { value: 'Compass', label: 'Compass' },
+  { value: 'Barometer', label: 'Barometer' },
+  { value: 'WorldClock', label: 'World Clock' },
+];
+
 const TYPE_LABELS: Record<string, string> = {
   ARC_PROGRESS: 'Arc Progress',
   TIME_POINTER: 'Clock Hands',
@@ -41,6 +58,8 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 export function PropertyPanel({ element, onUpdateElement, className }: PropertyPanelProps) {
+  const [hoveredFont, setHoveredFont] = useState<string | null>(null);
+
   if (!element) {
     return (
       <div className={`rounded-xl border border-white/10 bg-white/5 p-4 text-center text-sm text-white/40 ${className ?? ''}`}>
@@ -203,29 +222,41 @@ export function PropertyPanel({ element, onUpdateElement, className }: PropertyP
       {/* Icon picker — IMG elements only */}
       {element.type === 'IMG' && (
         <Section label="Icon">
-          <div className="grid grid-cols-5 gap-1.5">
+          <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+            {/* None button */}
             <button
               onClick={() => update({ iconKey: undefined })}
               className={cn(
-                'w-9 h-9 rounded border text-[8px] text-white/40',
+                'w-full h-7 rounded border text-[10px] text-white/40',
                 !element.iconKey ? 'border-cyan-500 bg-cyan-500/20' : 'border-white/10 bg-white/5'
               )}
             >
               None
             </button>
-            {getIconLibrary().map(icon => (
-              <button
-                key={icon.key}
-                onClick={() => update({ iconKey: icon.key })}
-                className={cn(
-                  'w-9 h-9 rounded border overflow-hidden',
-                  element.iconKey === icon.key ? 'border-cyan-500 bg-cyan-500/20' : 'border-white/10 bg-white/5'
-                )}
-                title={icon.label}
-              >
-                <img src={icon.dataUrl} alt={icon.label} className="w-full h-full object-contain" />
-              </button>
-            ))}
+            {(['health', 'activity', 'environment', 'system', 'time'] as const).map(cat => {
+              const icons = getIconLibrary().filter(i => i.category === cat);
+              if (icons.length === 0) return null;
+              return (
+                <div key={cat}>
+                  <p className="text-[9px] text-white/40 uppercase tracking-wider mb-1">{cat}</p>
+                  <div className="grid grid-cols-6 gap-1">
+                    {icons.map(icon => (
+                      <button
+                        key={icon.key}
+                        onClick={() => update({ iconKey: icon.key })}
+                        className={cn(
+                          'p-1 rounded border',
+                          element.iconKey === icon.key ? 'border-cyan-500 bg-cyan-500/20' : 'border-white/10 bg-white/5 hover:border-white/30'
+                        )}
+                        title={icon.label}
+                      >
+                        <img src={icon.dataUrl} alt={icon.label} className="w-6 h-6 object-contain" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </Section>
       )}
@@ -238,11 +269,15 @@ export function PropertyPanel({ element, onUpdateElement, className }: PropertyP
               <button
                 key={style.key}
                 onClick={() => update({ fontStyle: style.key, color: style.color })}
+                onMouseEnter={() => setHoveredFont(style.key)}
+                onMouseLeave={() => setHoveredFont(null)}
                 className={cn(
-                  'shrink-0 rounded border overflow-hidden',
+                  'shrink-0 rounded border overflow-hidden p-0.5',
                   (element.fontStyle ?? 'bold-white') === style.key
                     ? 'border-cyan-500 ring-1 ring-cyan-500/50'
-                    : 'border-white/10'
+                    : hoveredFont === style.key
+                      ? 'border-yellow-500 bg-yellow-500/10'
+                      : 'border-white/10'
                 )}
                 title={style.label}
               >
@@ -254,8 +289,67 @@ export function PropertyPanel({ element, onUpdateElement, className }: PropertyP
               </button>
             ))}
           </div>
+          {hoveredFont && (
+            <div className="mt-2 p-3 rounded-lg bg-black/50 border border-yellow-500/30 text-center">
+              <span style={{
+                fontFamily: getFontStyle(hoveredFont).fontFamily,
+                fontWeight: getFontStyle(hoveredFont).fontWeight,
+                color: getFontStyle(hoveredFont).color,
+                fontSize: '28px',
+                letterSpacing: '0.05em',
+              }}>
+                12:34
+              </span>
+              <p className="text-[10px] text-white/50 mt-1">{getFontStyle(hoveredFont).label}</p>
+            </div>
+          )}
         </Section>
       )}
+
+      {/* Curved Text — TEXT elements only */}
+      {element.type === 'TEXT' && (
+        <Section label="Curved Text">
+          <div className="flex items-center gap-2 mb-2">
+            <input
+              type="checkbox"
+              checked={!!element.curvedText}
+              onChange={e => {
+                if (e.target.checked) {
+                  update({ curvedText: { radius: 180, startAngle: -45, endAngle: 45 } });
+                } else {
+                  update({ curvedText: undefined });
+                }
+              }}
+              className="rounded"
+            />
+            <span className="text-xs text-white/60">Enable arc text</span>
+          </div>
+          {element.curvedText && (
+            <div className="space-y-2">
+              <FieldRow>
+                <NumField label="Radius" value={element.curvedText.radius} onChange={v => update({ curvedText: { ...element.curvedText!, radius: v } })} />
+              </FieldRow>
+              <FieldRow>
+                <NumField label="Start°" value={element.curvedText.startAngle} onChange={v => update({ curvedText: { ...element.curvedText!, startAngle: v } })} />
+                <NumField label="End°" value={element.curvedText.endAngle} onChange={v => update({ curvedText: { ...element.curvedText!, endAngle: v } })} />
+              </FieldRow>
+            </div>
+          )}
+        </Section>
+      )}
+
+      {/* App Shortcut */}
+      <Section label="App Shortcut">
+        <select
+          value={element.clickAction ?? ''}
+          onChange={e => update({ clickAction: e.target.value || undefined })}
+          className="w-full h-7 rounded-md text-xs bg-white/5 border border-white/10 text-white px-2 cursor-pointer"
+        >
+          {APP_SHORTCUTS.map(s => (
+            <option key={s.value} value={s.value}>{s.label}</option>
+          ))}
+        </select>
+      </Section>
 
       {/* Visible + zIndex */}
       <Section label="Layer">

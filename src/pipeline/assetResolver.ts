@@ -80,8 +80,14 @@ function resolveForWidget(
         src: 'bluetooth_5_b_30x30.png',
       };
 
-    case 'IMG':
+    case 'IMG': {
+      // If IMG element has a sourceType that maps to a known icon, assign icon src
+      const iconKey = resolveIconKey(sourceType, dataType);
+      if (iconKey) {
+        return { src: `icon_${iconKey}.png` };
+      }
       return {};
+    }
 
     case 'TEXT':
       return {};
@@ -107,4 +113,58 @@ function monthArray(): string[] {
 
 function weatherArray(): string[] {
   return Array.from({ length: 29 }, (_, i) => `weather_${i}.png`);
+}
+
+// ─── Icon key resolution ─────────────────────────────────────────────────────────
+
+const SOURCE_TYPE_ICON_MAP: Record<string, string> = {
+  battery:      'battery',
+  heart_rate:   'heart',
+  steps:        'steps',
+  spo2:         'spo2',
+  calories:     'calories',
+  distance:     'distance',
+  stress:       'stress',
+  pai:          'pai',
+  sleep:        'sleep',
+  stand:        'stand',
+  fat_burn:     'fat_burn',
+  uvi:          'uvi',
+  aqi:          'aqi',
+  humidity:     'humidity',
+  alarm:        'alarm',
+  notification: 'notification',
+  moon:         'moon',
+  sunrise:      'sunrise',
+  sunset:       'sunset',
+  wind:         'wind',
+};
+
+const DATA_TYPE_ICON_MAP: Record<string, string> = {
+  BATTERY:      'battery',
+  HEART:        'heart',
+  STEP:         'steps',
+  SPO2:         'spo2',
+  CAL:          'calories',
+  DISTANCE:     'distance',
+  STRESS:       'stress',
+  PAI:          'pai',
+  SLEEP:        'sleep',
+  STAND:        'stand',
+  FAT_BURN:     'fat_burn',
+  UVI:          'uvi',
+  AQI:          'aqi',
+  HUMIDITY:     'humidity',
+  ALARM:        'alarm',
+  NOTIFICATION: 'notification',
+  MOON:         'moon',
+  SUN_RISE:     'sunrise',
+  SUN_SET:      'sunset',
+  WIND:         'wind',
+};
+
+function resolveIconKey(sourceType?: string, dataType?: string): string | null {
+  if (sourceType && SOURCE_TYPE_ICON_MAP[sourceType]) return SOURCE_TYPE_ICON_MAP[sourceType];
+  if (dataType && DATA_TYPE_ICON_MAP[dataType]) return DATA_TYPE_ICON_MAP[dataType];
+  return null;
 }

@@ -323,10 +323,10 @@ try {
                 
                 // ========== NORMAL MODE BACKGROUND ==========
                 let widget_1 = hmUI.createWidget(hmUI.widget.IMG, {
-                    x: 0,
-                    y: 0,
-                    w: ${config.resolution.width},
-                    h: ${config.resolution.height},
+                    x: px(0),
+                    y: px(0),
+                    w: px(${config.resolution.width}),
+                    h: px(${config.resolution.height}),
                     src: '${backgroundSrc}',
                     alpha: 255,
                     show_level: hmUI.show_level.ONLY_NORMAL
@@ -337,10 +337,10 @@ ${normalWidgetsCode}
                 
                 // ========== AOD MODE BACKGROUND ==========
                 let widget_aod_bg = hmUI.createWidget(hmUI.widget.IMG, {
-                    x: 0,
-                    y: 0,
-                    w: ${config.resolution.width},
-                    h: ${config.resolution.height},
+                    x: px(0),
+                    y: px(0),
+                    w: px(${config.resolution.width}),
+                    h: px(${config.resolution.height}),
                     src: '${backgroundSrc}',
                     alpha: 255,
                     show_level: hmUI.show_level.ONLY_AOD
@@ -403,14 +403,14 @@ function generateIMGTimeWidget(element: WatchFaceElement, widgetIndex: number, s
                 // ${element.name} - IMG_TIME Widget
                 let widget_${widgetIndex} = hmUI.createWidget(hmUI.widget.IMG_TIME, {
                     hour_zero: 1,
-                    hour_startX: ${x},
-                    hour_startY: ${y},
+                    hour_startX: px(${x}),
+                    hour_startY: px(${y}),
                     hour_array: ${digitArrayStr},
                     hour_space: 0,
                     hour_align: hmUI.align.LEFT,
                     minute_zero: 1,
-                    minute_startX: ${x + HOUR_CONTENT_W + TIME_COLON_GAP},
-                    minute_startY: ${y},
+                    minute_startX: px(${x + HOUR_CONTENT_W + TIME_COLON_GAP}),
+                    minute_startY: px(${y}),
                     minute_array: ${digitArrayStr},
                     minute_space: 0,
                     minute_align: hmUI.align.LEFT,
@@ -434,8 +434,8 @@ function generateIMGDateWidget(element: WatchFaceElement, widgetIndex: number, s
   return `
                 // ${element.name} - IMG_DATE Widget
                 let widget_${widgetIndex} = hmUI.createWidget(hmUI.widget.IMG_DATE, {
-                    day_startX: ${x},
-                    day_startY: ${y},
+                    day_startX: px(${x}),
+                    day_startY: px(${y}),
                     day_sc_array: ${digitArrayStr},
                     day_tc_array: ${digitArrayStr},
                     day_en_array: ${digitArrayStr},
@@ -463,8 +463,8 @@ function generateIMGMonthWidget(element: WatchFaceElement, widgetIndex: number, 
   return `
                 // ${element.name} - IMG_DATE Month Widget
                 let widget_${widgetIndex} = hmUI.createWidget(hmUI.widget.IMG_DATE, {
-                    month_startX: ${x},
-                    month_startY: ${y},
+                    month_startX: px(${x}),
+                    month_startY: px(${y}),
                     month_sc_array: ${monthArrayStr},
                     month_tc_array: ${monthArrayStr},
                     month_en_array: ${monthArrayStr},
@@ -491,8 +491,8 @@ function generateIMGWeekWidget(element: WatchFaceElement, widgetIndex: number, s
   return `
                 // ${element.name} - IMG_WEEK Widget
                 let widget_${widgetIndex} = hmUI.createWidget(hmUI.widget.IMG_WEEK, {
-                    x: ${x},
-                    y: ${y},
+                    x: px(${x}),
+                    y: px(${y}),
                     week_en: ${weekArrayStr},
                     week_sc: ${weekArrayStr},
                     week_tc: ${weekArrayStr},
@@ -549,10 +549,10 @@ function generateWidgetCodeV2(element: WatchFaceElement, widgetIndex: number, is
     return `
                 // ${element.name}
                 let widget_${widgetIndex} = hmUI.createWidget(hmUI.widget.IMG, {
-                    x: ${element.bounds.x},
-                    y: ${element.bounds.y},
-                    w: ${w},
-                    h: ${h},
+                    x: px(${element.bounds.x}),
+                    y: px(${element.bounds.y}),
+                    w: px(${w}),
+                    h: px(${h}),
                     src: '${imgSrc}',
                     alpha: 255,
                     show_level: hmUI.show_level.${showLevel}
@@ -585,13 +585,13 @@ function generateArcProgressWidget(element: WatchFaceElement, widgetIndex: numbe
   return `
                 // ${element.name} - ARC_PROGRESS Widget
                 let widget_${widgetIndex} = hmUI.createWidget(hmUI.widget.ARC_PROGRESS, {
-                    center_x: ${centerX},
-                    center_y: ${centerY},
-                    radius: ${radius},
+                    center_x: px(${centerX}),
+                    center_y: px(${centerY}),
+                    radius: px(${radius}),
                     start_angle: ${startAngle},
                     end_angle: ${endAngle},
                     color: ${colorValue},
-                    line_width: ${lineWidth},${typeParam}
+                    line_width: px(${lineWidth}),${typeParam}
                     show_level: hmUI.show_level.${showLevel}
                 });`;
 }
@@ -628,12 +628,12 @@ function generateTextImgWidget(element: WatchFaceElement, widgetIndex: number, s
   return `
                 // ${element.name} - TEXT_IMG Widget
                 let widget_${widgetIndex} = hmUI.createWidget(hmUI.widget.TEXT_IMG, {
-                    x: ${element.bounds.x},
-                    y: ${element.bounds.y},
-                    w: ${element.bounds.width || 100},
-                    h: ${element.bounds.height || 40},
+                    x: px(${element.bounds.x}),
+                    y: px(${element.bounds.y}),
+                    w: px(${element.bounds.width || 100}),
+                    h: px(${element.bounds.height || 40}),
                     font_array: ${fontArrayStr},${typeParam}
-                    h_space: ${hSpace},
+                    h_space: px(${hSpace}),
                     align_h: hmUI.align.${alignH},
                     show_level: hmUI.show_level.${showLevel}
                 });`;
@@ -661,27 +661,27 @@ function generateTimePointerWidget(element: WatchFaceElement, widgetIndex: numbe
   if (coverSrc) {
     coverParams = `
                     hour_cover_path: '${coverSrc}',
-                    hour_cover_x: ${centerX - 15},
-                    hour_cover_y: ${centerY - 15},`;
+                    hour_cover_x: px(${centerX - 15}),
+                    hour_cover_y: px(${centerY - 15}),`;
   }
 
   return `
                 // ${element.name} - TIME_POINTER Widget (Analog Clock)
                 let widget_${widgetIndex} = hmUI.createWidget(hmUI.widget.TIME_POINTER, {
-                    hour_centerX: ${centerX},
-                    hour_centerY: ${centerY},
-                    hour_posX: ${hourPosX},
-                    hour_posY: ${hourPosY},
+                    hour_centerX: px(${centerX}),
+                    hour_centerY: px(${centerY}),
+                    hour_posX: px(${hourPosX}),
+                    hour_posY: px(${hourPosY}),
                     hour_path: '${hourSrc}',${coverParams}
-                    minute_centerX: ${centerX},
-                    minute_centerY: ${centerY},
-                    minute_posX: ${minutePosX},
-                    minute_posY: ${minutePosY},
+                    minute_centerX: px(${centerX}),
+                    minute_centerY: px(${centerY}),
+                    minute_posX: px(${minutePosX}),
+                    minute_posY: px(${minutePosY}),
                     minute_path: '${minuteSrc}',
-                    second_centerX: ${centerX},
-                    second_centerY: ${centerY},
-                    second_posX: ${secondPosX},
-                    second_posY: ${secondPosY},
+                    second_centerX: px(${centerX}),
+                    second_centerY: px(${centerY}),
+                    second_posX: px(${secondPosX}),
+                    second_posY: px(${secondPosY}),
                     second_path: '${secondSrc}',
                     show_level: hmUI.show_level.${showLevel}
                 });`;
@@ -700,11 +700,11 @@ function generateTextWidget(element: WatchFaceElement, widgetIndex: number, show
   return `
                 // ${element.name} - TEXT Widget
                 let widget_${widgetIndex} = hmUI.createWidget(hmUI.widget.TEXT, {
-                    x: ${element.bounds.x},
-                    y: ${element.bounds.y},
-                    w: ${element.bounds.width || 100},
-                    h: ${element.bounds.height || 40},
-                    text_size: ${textSize},
+                    x: px(${element.bounds.x}),
+                    y: px(${element.bounds.y}),
+                    w: px(${element.bounds.width || 100}),
+                    h: px(${element.bounds.height || 40}),
+                    text_size: px(${textSize}),
                     char_space: 0,
                     color: ${colorValue},
                     line_space: 0,
@@ -738,10 +738,10 @@ function generateButtonWidget(element: WatchFaceElement, widgetIndex: number, sh
   return `
                 // ${element.name} - BUTTON Widget
                 let widget_${widgetIndex} = hmUI.createWidget(hmUI.widget.BUTTON, {
-                    x: ${element.bounds.x},
-                    y: ${element.bounds.y},
-                    w: ${element.bounds.width || 100},
-                    h: ${element.bounds.height || 35},
+                    x: px(${element.bounds.x}),
+                    y: px(${element.bounds.y}),
+                    w: px(${element.bounds.width || 100}),
+                    h: px(${element.bounds.height || 35}),
                     text: '',
                     press_src: '${pressSrc}',
                     normal_src: '${normalSrc}',
@@ -761,8 +761,8 @@ function generateImgStatusWidget(element: WatchFaceElement, widgetIndex: number,
   return `
                 // ${element.name} - IMG_STATUS Widget
                 let widget_${widgetIndex} = hmUI.createWidget(hmUI.widget.IMG_STATUS, {
-                    x: ${element.bounds.x},
-                    y: ${element.bounds.y},
+                    x: px(${element.bounds.x}),
+                    y: px(${element.bounds.y}),
                     src: '${src}',
                     type: hmUI.system_status.${statusType},
                     show_level: hmUI.show_level.${showLevel}
@@ -783,9 +783,9 @@ function generateCircleWidget(element: WatchFaceElement, widgetIndex: number, sh
   return `
                 // ${element.name} - CIRCLE Widget
                 let widget_${widgetIndex} = hmUI.createWidget(hmUI.widget.CIRCLE, {
-                    center_x: ${centerX},
-                    center_y: ${centerY},
-                    radius: ${radius},
+                    center_x: px(${centerX}),
+                    center_y: px(${centerY}),
+                    radius: px(${radius}),
                     color: ${colorValue},
                     show_level: hmUI.show_level.${showLevel}
                 });`;
@@ -808,8 +808,8 @@ function generateImgLevelWidget(element: WatchFaceElement, widgetIndex: number, 
   return `
                 // ${element.name} - IMG_LEVEL Widget
                 let widget_${widgetIndex} = hmUI.createWidget(hmUI.widget.IMG_LEVEL, {
-                    x: ${element.bounds.x},
-                    y: ${element.bounds.y},
+                    x: px(${element.bounds.x}),
+                    y: px(${element.bounds.y}),
                     image_array: ${imageArrayStr},
                     image_length: ${images.length},${typeParam}
                     show_level: hmUI.show_level.${showLevel}
