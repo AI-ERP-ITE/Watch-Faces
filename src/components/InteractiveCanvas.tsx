@@ -102,8 +102,7 @@ export function InteractiveCanvas({
     const selId = selectedElementIdRef.current;
     if (selId) {
       const selEl = elementsRef.current.find(el => el.id === selId);
-      if (selEl && selEl.type !== 'ARC_PROGRESS' && selEl.type !== 'TIME_POINTER'
-        && selEl.type !== 'IMG_TIME' && selEl.type !== 'IMG_DATE' && selEl.type !== 'IMG_WEEK') {
+      if (selEl && selEl.type !== 'ARC_PROGRESS' && selEl.type !== 'TIME_POINTER') {
         const handle = hitTestRectHandle(x, y, selEl.bounds);
         if (handle) {
           resizeHandleRef.current = handle;
@@ -451,7 +450,6 @@ function drawSelection(ctx: CanvasRenderingContext2D, el: WatchFaceElement) {
 
 function drawRectSelection(ctx: CanvasRenderingContext2D, el: WatchFaceElement) {
   const { x, y, width, height } = el.bounds;
-  const isLocked = el.type === 'IMG_TIME' || el.type === 'IMG_DATE' || el.type === 'IMG_WEEK';
 
   ctx.save();
   ctx.strokeStyle = SEL_COLOR;
@@ -460,27 +458,18 @@ function drawRectSelection(ctx: CanvasRenderingContext2D, el: WatchFaceElement) 
   ctx.strokeRect(x - 1, y - 1, width + 2, height + 2);
   ctx.setLineDash([]);
 
-  if (isLocked) {
-    // Show size-locked badge instead of handles
-    ctx.fillStyle = 'rgba(0, 212, 255, 0.85)';
-    ctx.font = 'bold 10px Arial';
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'bottom';
-    ctx.fillText('Size: digit images', x, y - 3);
-  } else {
-    // 8 handles: corners + edge midpoints
-    const handles = [
-      [x, y], [x + width / 2, y], [x + width, y],
-      [x, y + height / 2],            [x + width, y + height / 2],
-      [x, y + height], [x + width / 2, y + height], [x + width, y + height],
-    ];
-    for (const [hx, hy] of handles) {
-      ctx.fillStyle = '#FFFFFF';
-      ctx.strokeStyle = SEL_COLOR;
-      ctx.lineWidth = 1.5;
-      ctx.fillRect(hx - HANDLE_SIZE / 2, hy - HANDLE_SIZE / 2, HANDLE_SIZE, HANDLE_SIZE);
-      ctx.strokeRect(hx - HANDLE_SIZE / 2, hy - HANDLE_SIZE / 2, HANDLE_SIZE, HANDLE_SIZE);
-    }
+  // 8 handles: corners + edge midpoints
+  const handles = [
+    [x, y], [x + width / 2, y], [x + width, y],
+    [x, y + height / 2],            [x + width, y + height / 2],
+    [x, y + height], [x + width / 2, y + height], [x + width, y + height],
+  ];
+  for (const [hx, hy] of handles) {
+    ctx.fillStyle = '#FFFFFF';
+    ctx.strokeStyle = SEL_COLOR;
+    ctx.lineWidth = 1.5;
+    ctx.fillRect(hx - HANDLE_SIZE / 2, hy - HANDLE_SIZE / 2, HANDLE_SIZE, HANDLE_SIZE);
+    ctx.strokeRect(hx - HANDLE_SIZE / 2, hy - HANDLE_SIZE / 2, HANDLE_SIZE, HANDLE_SIZE);
   }
   ctx.restore();
 }
