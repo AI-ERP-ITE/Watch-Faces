@@ -1176,65 +1176,6 @@ function App() {
   }, [htmlInput, state.backgroundImage, watchFaceName, watchModel, dispatch]);
 
   // Handle regenerate ZPK (local download, no GitHub upload)
-  const handleRegenerateDownload = useCallback(async () => {
-    if (!state.watchFaceConfig || !state.backgroundFile) {
-      toast.error('Missing configuration or background file');
-      return;
-    }
-    try {
-      toast.info('Rebuilding ZPK from current edits...');
-      const elementFiles = state.elementImages.map((img) => {
-        const parts = img.dataUrl.split(',');
-        const mimeType = parts[0].match(/:(.*?);/)?.[1] || 'image/png';
-        const bstr = atob(parts[1]);
-        const u8arr = new Uint8Array(bstr.length);
-        for (let i = 0; i < bstr.length; i++) u8arr[i] = bstr.charCodeAt(i);
-        return { src: img.name, file: new File([u8arr], img.name, { type: mimeType }) };
-      });
-      // Inject icon assets for elements with iconKey
-      for (const el of (state.watchFaceConfig?.elements ?? [])) {
-        if (el.iconKey) {
-          const iconEntry = getIconByKey(el.iconKey);
-          if (iconEntry) {
-            const filename = `icon_${el.iconKey}.png`;
-            const p = iconEntry.dataUrl.split(',');
-            const b = atob(p[1]);
-            const u8 = new Uint8Array(b.length);
-            for (let i = 0; i < b.length; i++) u8[i] = b.charCodeAt(i);
-            elementFiles.push({ src: filename, file: new File([u8], filename, { type: 'image/png' }) });
-          }
-        }
-        // Regenerate digit images using fontStyle
-        if (el.fontStyle && ['IMG_TIME', 'TEXT_IMG', 'IMG_DATE'].includes(el.type)) {
-          const style = getFontStyle(el.fontStyle);
-          const prefix = el.type === 'IMG_TIME' ? 'time_digit' : el.type === 'IMG_DATE' ? 'date_digit' : 'digit';
-          const digits = generateDigitImages(prefix, el.bounds.width || 30, el.bounds.height || 46, style.color, { fontFamily: style.fontFamily, fontWeight: style.fontWeight });
-          for (const d of digits) {
-            const parts2 = d.dataUrl.split(',');
-            const b2 = atob(parts2[1]);
-            const u8b = new Uint8Array(b2.length);
-            for (let i = 0; i < b2.length; i++) u8b[i] = b2.charCodeAt(i);
-            // Replace existing digit file if present
-            const idx = elementFiles.findIndex(f => f.src === d.name);
-            const f = new File([u8b], d.name, { type: 'image/png' });
-            if (idx >= 0) elementFiles[idx] = { src: d.name, file: f };
-            else elementFiles.push({ src: d.name, file: f });
-          }
-        }
-      }
-      const result = await buildZPK({ config: state.watchFaceConfig, backgroundFile: state.backgroundFile, elementFiles });
-      const url = URL.createObjectURL(result.blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = result.filename;
-      a.click();
-      URL.revokeObjectURL(url);
-      toast.success('ZPK downloaded!');
-    } catch (err) {
-      toast.error('Regenerate failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
-    }
-  }, [state.watchFaceConfig, state.backgroundFile, state.elementImages]);
-
   // Handle generate ZPK
   const handleGenerate = useCallback(async () => {
     console.log('[App] handleGenerate called');
