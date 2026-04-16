@@ -834,7 +834,12 @@ function drawPlaceholder(ctx: CanvasRenderingContext2D, el: WatchFaceElement) {
 
   ctx.save();
 
-  const elColor = el.color ? parseZeppColor(el.color) : null;
+  // Use fontStyle if available, otherwise default colors
+  const style = el.fontStyle ? getFontStyle(el.fontStyle) : undefined;
+  const elColor = el.color ? parseZeppColor(el.color) : (style?.color ?? null);
+  const fontFamily = style?.fontFamily ?? 'Arial';
+  const fontWeight = style?.fontWeight ?? 'bold';
+
   const boxFill = elColor ? hexToRgba(elColor, 0.15) : 'rgba(0, 200, 255, 0.08)';
   const boxStroke = elColor ? hexToRgba(elColor, 0.5) : 'rgba(0, 200, 255, 0.3)';
   const labelFill = elColor ? hexToRgba(elColor, 0.9) : 'rgba(0, 200, 255, 0.7)';
@@ -846,7 +851,10 @@ function drawPlaceholder(ctx: CanvasRenderingContext2D, el: WatchFaceElement) {
   ctx.strokeRect(x, y, width, height);
 
   const label = formatLabel(el);
-  ctx.font = '10px monospace';
+  // Scale font to fill bounds
+  const maxFontSize = Math.min(Math.floor(height * 0.75), Math.floor(width / (label.length * 0.6)));
+  const fontSize = Math.max(10, maxFontSize);
+  ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
   ctx.fillStyle = labelFill;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
