@@ -28,6 +28,9 @@ import type { WatchFaceConfig, WatchFaceElement, ElementImage } from '@/types';
 import { generateId } from '@/lib/utils';
 import { parseDom } from '@/html/parseDom';
 import { mapDomToElements } from '@/html/mapDomToElements';
+import { BackgroundCropTool } from '@/components/BackgroundCropTool';
+import { DesignInput } from '@/components/DesignInput';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 // Mock Kimi analysis - simulates AI analysis
 async function mockKimiAnalysis(
@@ -996,10 +999,21 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [useMockAnalysis, setUseMockAnalysis] = useState(false);
 
-  // HTML-driven pipeline state (Spec 010)
-  const [inputMode, setInputMode] = useState<'ai' | 'html'>('ai');
+  // Spec 012 — unified design input tab
+  const [designTab, setDesignTab] = useState<'image' | 'html'>('image');
   const [htmlInput, setHtmlInput] = useState('');
-  const [htmlBgImage, setHtmlBgImage] = useState<string | null>(null);
+
+  // Spec 011 — Background crop tool
+  const [cropFile, setCropFile] = useState<File | null>(null);
+
+  const openCropTool = (file: File) => { setCropFile(file); };
+
+  const handleCropConfirm = (dataUrl: string) => {
+    dispatch(actions.setBackgroundImage(dataUrl));
+    setCropFile(null);
+  };
+
+  const handleCropCancel = () => { setCropFile(null); };
 
   // Persist AI settings
   const handleSetAiProvider = (provider: AIProvider) => {
@@ -1101,7 +1115,7 @@ function App() {
 
       // Add background element if image is set
       const allElements: WatchFaceElement[] = [];
-      if (htmlBgImage) {
+      if (state.backgroundImage) {
         allElements.push({
           id: generateId(),
           type: 'IMG',
@@ -1140,7 +1154,6 @@ function App() {
       // T022 — Set state and go to preview (same as AI pipeline)
       dispatch(actions.setWatchFaceConfig(config));
       dispatch(actions.setElementImages(elementImages));
-      if (htmlBgImage) dispatch(actions.setBackgroundImage(htmlBgImage));
       dispatch(actions.setStep('preview'));
       toast.success(`Loaded ${elements.length} elements from HTML`);
     } catch (err) {
@@ -1148,7 +1161,7 @@ function App() {
     } finally {
       dispatch(actions.setLoading(false));
     }
-  }, [htmlInput, htmlBgImage, watchFaceName, watchModel, dispatch]);
+  }, [htmlInput, state.backgroundImage, watchFaceName, watchModel, dispatch]);
 
   // Handle regenerate ZPK (local download, no GitHub upload)
   const handleRegenerateDownload = useCallback(async () => {
@@ -1545,140 +1558,48 @@ function App() {
               )}
             </div>
 
-            {/* Mode toggle */}
-            <div className="flex rounded-lg overflow-hidden border border-zinc-700">
-              <button
-                onClick={() => setInputMode('ai')}
-                className={`flex-1 py-2 text-sm font-medium transition-colors ${
-                  inputMode === 'ai' ? 'bg-cyan-600 text-white' : 'bg-[#141414] text-zinc-400 hover:text-white'
-                }`}
-              >
-                ✦ AI Pipeline
-              </button>
-              <button
-                onClick={() => setInputMode('html')}
-                className={`flex-1 py-2 text-sm font-medium transition-colors ${
-                  inputMode === 'html' ? 'bg-cyan-600 text-white' : 'bg-[#141414] text-zinc-400 hover:text-white'
-                }`}
-              >
-                {'</>'} HTML Layout
-              </button>
-            </div>
+            {/* Background upload — always visible */}
+            <UploadZone
+              label="Background Image"
+              sublabel="Any size — crop to fit"
+              value={state.backgroundImage}
+              onChange={(img) => dispatch(actions.setBackgroundImage(img))}
+              onFileChange={(file) => { dispatch(actions.setBackgroundFile(file)); if (file) openCropTool(file); }}
+            />
 
-            {inputMode === 'ai' ? (
-              <>
-                {/* Upload zones */}
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <UploadZone
-                    label="Background Image"
-                    sublabel="Clean 480×480 background"
-                    value={state.backgroundImage}
-                    onChange={(img) => dispatch(actions.setBackgroundImage(img))}
-                    onFileChange={(file) => dispatch(actions.setBackgroundFile(file))}
-                    expectedWidth={480}
-                    expectedHeight={480}
-                  />
-                  <UploadZone
-                    label="Full Design"
-                    sublabel="Complete design with elements"
-                    value={state.fullDesignImage}
-                    onChange={(img) => dispatch(actions.setFullDesignImage(img))}
-                    onFileChange={(file) => dispatch(actions.setFullDesignFile(file))}
-                  />
-                </div>
+            {/* Spec 012 — unified design input */}
+            <DesignInput
+              activeTab={designTab}
+              onTabChange={setDesignTab}
+              imageValue={state.fullDesignImage}
+              onImageChange={(img) => dispatch(actions.setFullDesignImage(img))}
+              onImageFileChange={(file) => dispatch(actions.setFullDesignFile(file))}
+              htmlValue={htmlInput}
+              onHtmlChange={setHtmlInput}
+              bgImage={state.backgroundImage}
+            />
 
-                {/* Continue button */}
-                <Button
-                  onClick={handleAnalyze}
-                  disabled={!state.backgroundImage || !state.fullDesignImage}
-                  className="w-full h-12 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-semibold disabled:opacity-50"
-                >
-                  <Sparkles className="h-5 w-5 mr-2" />
-                  Analyze with AI
-                  <ArrowRight className="h-5 w-5 ml-2" />
-                </Button>
-              </>
-            ) : (
-              <>
-                {/* HTML mode: background upload + HTML textarea */}
-                <UploadZone
-                  label="Background Image"
-                  sublabel="Clean 480×480 watch background"
-                  value={htmlBgImage}
-                  onChange={(img) => {
-                    setHtmlBgImage(img);
-                    dispatch(actions.setBackgroundImage(img));
-                  }}
-                  onFileChange={(file) => dispatch(actions.setBackgroundFile(file))}
-                  expectedWidth={480}
-                  expectedHeight={480}
-                />
-
-                <div className="space-y-2">
-                  <Label className="text-sm text-zinc-300">HTML Layout</Label>
-                  <textarea
-                    value={htmlInput}
-                    onChange={(e) => setHtmlInput(e.target.value)}
-                    placeholder="Paste your watch face HTML here..."
-                    className="w-full h-48 px-3 py-2 rounded-md bg-[#0F0F0F] border border-zinc-700 text-white text-xs font-mono placeholder:text-zinc-600 focus:border-cyan-500 focus:outline-none resize-y"
-                  />
-                </div>
-
-                {/* T010–T012: Live preview — background + HTML overlay + circular mask */}
-                {(htmlBgImage || htmlInput.trim()) && (
-                  <div className="space-y-2">
-                    <Label className="text-sm text-zinc-300">Preview</Label>
-                    <div className="flex justify-center">
-                      <div
-                        style={{
-                          position: 'relative',
-                          width: 240,
-                          height: 240,
-                          borderRadius: '50%',
-                          overflow: 'hidden',
-                          background: '#000',
-                          flexShrink: 0,
-                        }}
-                      >
-                        {/* T010 — Background image layer */}
-                        {htmlBgImage && (
-                          <img
-                            src={htmlBgImage}
-                            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
-                            alt="background"
-                          />
-                        )}
-                        {/* T011 — HTML overlay layer, scaled from 480 to 240 */}
-                        {htmlInput.trim() && (
-                          <div
-                            style={{
-                              position: 'absolute',
-                              inset: 0,
-                              width: 480,
-                              height: 480,
-                              transform: 'scale(0.5)',
-                              transformOrigin: 'top left',
-                              pointerEvents: 'none',
-                            }}
-                            dangerouslySetInnerHTML={{ __html: htmlInput }}
-                          />
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Load Layout button */}
-                <Button
-                  onClick={handleLoadLayout}
-                  disabled={!htmlInput.trim()}
-                  className="w-full h-12 bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-500 hover:to-cyan-500 text-white font-semibold disabled:opacity-50"
-                >
-                  {'</>'} Load Layout
-                  <ArrowRight className="h-5 w-5 ml-2" />
-                </Button>
-              </>
-            )}
+            {/* Action button */}
+            <Button
+              onClick={designTab === 'image' ? handleAnalyze : handleLoadLayout}
+              disabled={
+                designTab === 'image'
+                  ? !state.backgroundImage || !state.fullDesignImage
+                  : !htmlInput.trim()
+              }
+              className={`w-full h-12 bg-gradient-to-r text-white font-semibold disabled:opacity-50 ${
+                designTab === 'image'
+                  ? 'from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500'
+                  : 'from-purple-600 to-cyan-600 hover:from-purple-500 hover:to-cyan-500'
+              }`}
+            >
+              {designTab === 'image' ? (
+                <><Sparkles className="h-5 w-5 mr-2" />Analyze with AI</>
+              ) : (
+                <>{'</>'} Load Layout</>
+              )}
+              <ArrowRight className="h-5 w-5 ml-2" />
+            </Button>
           </div>
         );
 
@@ -1895,6 +1816,22 @@ function App() {
         isVisible={state.isLoading}
         title={state.loadingMessage || 'Processing...'}
       />
+
+      {/* Spec 011 — Background crop tool modal */}
+      <Dialog open={!!cropFile} onOpenChange={(open) => { if (!open) handleCropCancel(); }}>
+        <DialogContent className="max-w-[560px] bg-[#1a1a1a] border-zinc-700 p-0">
+          <DialogHeader className="px-4 pt-4">
+            <DialogTitle className="text-white text-sm font-medium">Crop Background Image</DialogTitle>
+          </DialogHeader>
+          {cropFile && (
+            <BackgroundCropTool
+              file={cropFile}
+              onConfirm={handleCropConfirm}
+              onCancel={handleCropCancel}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
