@@ -653,6 +653,17 @@ function drawElements(ctx: CanvasRenderingContext2D, elements: WatchFaceElement[
               const img = new Image();
               img.onload = () => { iconCache.set(el.iconKey!, img); onIconLoaded?.(); };
               img.src = entry.dataUrl;
+            } else if (el.iconKey.startsWith('tabler:')) {
+              // Tabler icon not yet in cache — trigger async render
+              import('@/lib/iconLibrary').then(({ getIconByKeyAsync }) =>
+                getIconByKeyAsync(el.iconKey!).then(asyncEntry => {
+                  if (asyncEntry) {
+                    const img = new Image();
+                    img.onload = () => { iconCache.set(el.iconKey!, img); onIconLoaded?.(); };
+                    img.src = asyncEntry.dataUrl;
+                  }
+                })
+              );
             }
             drawPlaceholder(ctx, el);
           }

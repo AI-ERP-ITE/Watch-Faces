@@ -2,6 +2,7 @@ export interface IconEntry {
   key: string;
   label: string;
   category: 'health' | 'fitness' | 'weather' | 'system' | 'time';
+  source?: 'custom' | 'tabler';
   dataUrl: string;
   width: number;
   height: number;
@@ -775,6 +776,7 @@ function generateAllIcons(): IconEntry[] {
     key: def.key,
     label: def.label,
     category: def.category,
+    source: 'custom' as const,
     dataUrl: drawIcon(def.draw),
     width: 48,
     height: 48,
@@ -783,11 +785,48 @@ function generateAllIcons(): IconEntry[] {
 
 let _cache: IconEntry[] | null = null;
 
+/** Returns the custom hand-drawn icon library (synchronous). */
 export function getIconLibrary(): IconEntry[] {
   if (!_cache) _cache = generateAllIcons();
   return _cache;
 }
 
+/**
+ * Look up an icon by key — checks custom library first, then the Tabler cache.
+ * For Tabler icons that haven't been rendered yet, returns undefined synchronously.
+ * Use getIconByKeyAsync() to guarantee a result for Tabler keys.
+ */
 export function getIconByKey(key: string): IconEntry | undefined {
-  return getIconLibrary().find(i => i.key === key);
+  // Custom icons (fast path)
+  const custom = getIconLibrary().find(i => i.key === key);
+  if (custom) return custom;
+  // Tabler icons (from cache, already rendered)
+  if (key.startsWith('tabler:')) {
+    const { getTablerIconByKey } = require('./tablerIconRenderer') as typeof import('./tablerIconRenderer');
+    return getTablerIconByKey(key);
+  }
+  return undefined;
+}
+
+/**
+ * Async version of getIconByKey — renders Tabler icons on demand if not cached.
+ */
+export async function getIconByKeyAsync(key: string): Promise<IconEntry | undefined> {
+  const custom = getIconLibrary().find(i => i.key === key);
+  if (custom) return custom;
+  if (key.startsWith('tabler:')) {
+    const { renderAndCacheTablerIcon } = await import('./tablerIconRenderer');
+    return renderAndCacheTablerIcon(key);
+  }
+  return undefined;
+}
+
+/**
+ * Returns custom icons + all rendered Tabler icons.
+ * Triggers async build of Tabler library if not started yet.
+ */
+export async function getFullIconLibrary(): Promise<IconEntry[]> {
+  const { buildTablerLibrary } = await import('./tablerIconRenderer');
+  const [custom, tabler] = await Promise.all([getIconLibrary(), buildTablerLibrary()]);
+  return [...custom, ...tabler];
 }

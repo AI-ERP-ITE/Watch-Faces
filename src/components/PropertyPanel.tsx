@@ -3,9 +3,11 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { WatchFaceElement } from '@/types';
-import { getIconLibrary } from '@/lib/iconLibrary';
+import { getIconLibrary, getFullIconLibrary } from '@/lib/iconLibrary';
+import type { IconEntry } from '@/lib/iconLibrary';
 import { cn } from '@/lib/utils';
 import { FONT_STYLES, getFontStyle } from '@/lib/fontLibrary';
+import { useState, useEffect, useRef } from 'react';
 
 export interface PropertyPanelProps {
   element: WatchFaceElement | null;
@@ -58,6 +60,17 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 export function PropertyPanel({ element, onUpdateElement, className }: PropertyPanelProps) {
+  const [allIcons, setAllIcons] = useState<IconEntry[]>(() => getIconLibrary());
+  const [iconSearch, setIconSearch] = useState('');
+  const tablerLoadedRef = useRef(false);
+
+  // Load Tabler icons lazily when an IMG element is selected
+  useEffect(() => {
+    if (element?.type !== 'IMG' || tablerLoadedRef.current) return;
+    tablerLoadedRef.current = true;
+    getFullIconLibrary().then(setAllIcons);
+  }, [element?.type]);
+
   if (!element) {
     return (
       <div className={`rounded-xl border border-white/10 bg-white/5 p-4 text-center text-sm text-white/40 ${className ?? ''}`}>
@@ -245,7 +258,15 @@ export function PropertyPanel({ element, onUpdateElement, className }: PropertyP
       {/* Icon picker — IMG elements only */}
       {element.type === 'IMG' && (
         <Section label="Icon">
-          <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+          <div className="space-y-2">
+            {/* Search box */}
+            <input
+              type="text"
+              placeholder="Search icons…"
+              value={iconSearch}
+              onChange={e => setIconSearch(e.target.value)}
+              className="w-full h-7 rounded border border-white/10 bg-white/5 px-2 text-[11px] text-white/80 placeholder:text-white/30 focus:outline-none focus:border-cyan-500/50"
+            />
             {/* None button */}
             <button
               onClick={() => update({ iconKey: undefined })}
@@ -256,30 +277,44 @@ export function PropertyPanel({ element, onUpdateElement, className }: PropertyP
             >
               None
             </button>
-            {(['health', 'fitness', 'weather', 'system', 'time'] as const).map(cat => {
-              const icons = getIconLibrary().filter(i => i.category === cat);
-              if (icons.length === 0) return null;
-              return (
-                <div key={cat}>
-                  <p className="text-[9px] text-white/40 uppercase tracking-wider mb-1">{cat}</p>
-                  <div className="grid grid-cols-6 gap-1">
-                    {icons.map(icon => (
-                      <button
-                        key={icon.key}
-                        onClick={() => update({ iconKey: icon.key })}
-                        className={cn(
-                          'p-1 rounded border',
-                          element.iconKey === icon.key ? 'border-cyan-500 bg-cyan-500/20' : 'border-white/10 bg-white/5 hover:border-white/30'
-                        )}
-                        title={icon.label}
-                      >
-                        <img src={icon.dataUrl} alt={icon.label} className="w-6 h-6 object-contain" />
-                      </button>
-                    ))}
+            <div className="max-h-56 overflow-y-auto pr-1 space-y-2">
+              {(['health', 'fitness', 'weather', 'system', 'time'] as const).map(cat => {
+                const q = iconSearch.trim().toLowerCase();
+                const icons = allIcons.filter(i =>
+                  i.category === cat &&
+                  (q === '' || i.label.toLowerCase().includes(q) || i.key.toLowerCase().includes(q))
+                );
+                if (icons.length === 0) return null;
+                return (
+                  <div key={cat}>
+                    <p className="text-[9px] text-white/40 uppercase tracking-wider mb-1">{cat}</p>
+                    <div className="grid grid-cols-6 gap-1">
+                      {icons.map(icon => (
+                        <button
+                          key={icon.key}
+                          onClick={() => update({ iconKey: icon.key })}
+                          className={cn(
+                            'relative p-1 rounded border',
+                            element.iconKey === icon.key ? 'border-cyan-500 bg-cyan-500/20' : 'border-white/10 bg-white/5 hover:border-white/30'
+                          )}
+                          title={`${icon.label}${icon.source === 'tabler' ? ' (Tabler)' : ''}`}
+                        >
+                          <img src={icon.dataUrl} alt={icon.label} className="w-6 h-6 object-contain" />
+                          {icon.source === 'tabler' && (
+                            <span className="absolute bottom-0 right-0 w-1.5 h-1.5 rounded-full bg-violet-400" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
+            <p className="text-[9px] text-white/25">
+              {allIcons.filter(i => i.source === 'tabler').length > 0
+                ? `${allIcons.length} icons — violet dot = Tabler`
+                : 'Loading Tabler icons…'}
+            </p>
           </div>
         </Section>
       )}

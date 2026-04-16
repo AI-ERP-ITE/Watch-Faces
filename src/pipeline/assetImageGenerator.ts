@@ -370,6 +370,7 @@ export function generatePipelineAssets(elements: ResolvedElement[]): ElementImag
         if (iconSrc && iconSrc.startsWith('icon_') && iconSrc.endsWith('.png')) {
           if (!generatedSets.has(iconSrc)) {
             const iconKey = iconSrc.replace('icon_', '').replace('.png', '');
+            // getIconByKey covers custom icons and already-cached Tabler icons
             const iconEntry = getIconByKey(iconKey);
             if (iconEntry) {
               // Render icon at element's geometry size (w/h from pipeline), fallback 48x48
