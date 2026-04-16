@@ -1016,7 +1016,9 @@ function App() {
     const bstr = atob(parts[1]);
     const u8 = new Uint8Array(bstr.length);
     for (let i = 0; i < bstr.length; i++) u8[i] = bstr.charCodeAt(i);
+    console.log('[Crop] Converted data URL → Uint8Array, size:', u8.length, 'mime:', mime, 'PNG magic:', u8[0] === 137 && u8[1] === 80);
     const croppedFile = new File([u8], 'background.png', { type: mime });
+    console.log('[Crop] Created File:', croppedFile.name, 'size:', croppedFile.size);
     dispatch(actions.setBackgroundFile(croppedFile));
     setCropFile(null);
   };
@@ -1384,10 +1386,9 @@ function App() {
       console.log('[App] ZPK URL:', uploadResult.downloadUrl);
       console.log('[App] QR URL:', uploadResult.qrUrl);
 
-      // Capture canvas preview FIRST before any state change unmounts it
-      const previewCanvas = document.querySelector('canvas') as HTMLCanvasElement | null;
-      if (previewCanvas) {
-        setPreviewImageUrl(previewCanvas.toDataURL('image/png'));
+      // Use the cropped background image as the preview thumbnail
+      if (state.backgroundImage) {
+        setPreviewImageUrl(state.backgroundImage);
       }
 
       dispatch(actions.setGithubUrl(uploadResult.downloadUrl || ''));
