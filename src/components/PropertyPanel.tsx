@@ -179,6 +179,29 @@ export function PropertyPanel({ element, onUpdateElement, className }: PropertyP
         </Section>
       )}
 
+      {/* Text Content — TEXT elements only */}
+      {element.type === 'TEXT' && (
+        <Section label="Text Content">
+          <Input
+            value={element.text ?? ''}
+            onChange={e => update({ text: e.target.value })}
+            placeholder="Enter text…"
+            className="h-7 text-xs bg-white/5 border-white/10 text-white placeholder:text-white/30"
+          />
+          <div className="flex items-center gap-2 mt-2">
+            <span className="text-[10px] text-white/40 w-14">Font size</span>
+            <input
+              type="number"
+              value={element.fontSize ?? 16}
+              min={8}
+              max={80}
+              onChange={e => update({ fontSize: Number(e.target.value) })}
+              className="w-full h-6 text-xs bg-white/5 border border-white/10 rounded px-2 text-white"
+            />
+          </div>
+        </Section>
+      )}
+
       {/* DataType — shown for all data-bindable elements */}
       {['ARC_PROGRESS', 'TEXT_IMG', 'IMG', 'IMG_LEVEL', 'TEXT', 'CIRCLE', 'IMG_STATUS'].includes(element.type) && (
         <Section label="Data Type">

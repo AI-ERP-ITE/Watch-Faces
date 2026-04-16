@@ -583,8 +583,9 @@ function drawElements(ctx: CanvasRenderingContext2D, elements: WatchFaceElement[
   for (const el of sorted) {
     // Curved TEXT: render same PNG used in ZPK (via generateCurvedTextImage)
     if (el.type === 'TEXT' && el.curvedText) {
-      const cx = el.center?.x ?? CX;
-      const cy = el.center?.y ?? CY;
+      // Derive center from bounds so drag/resize moves the arch text
+      const cx = el.bounds.x + el.bounds.width / 2;
+      const cy = el.bounds.y + el.bounds.height / 2;
       const text = el.text || el.name;
       const fontSize = el.fontSize ?? 16;
       const color = el.color ? parseZeppColor(el.color) : '#FFFFFF';
