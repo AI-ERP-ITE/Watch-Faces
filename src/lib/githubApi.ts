@@ -341,7 +341,8 @@ export async function uploadZPKWithQR(
   watchfaceId: string,
   zpkBlob: Blob,
   qrDataUrl: string,
-  watchfaceName: string
+  watchfaceName: string,
+  previewDataUrl?: string
 ): Promise<GitHubUploadResult> {
   try {
     console.log('[GitHub] Starting folder-based ZPK+QR upload flow...');
@@ -383,6 +384,25 @@ export async function uploadZPKWithQR(
     }
     
     console.log('[GitHub] QR code uploaded successfully to:', qrResult.downloadUrl);
+
+    // Step 4: Upload preview screenshot if provided
+    if (previewDataUrl) {
+      console.log('[GitHub] Step 4: Uploading preview screenshot...');
+      const previewBlob = await fetch(previewDataUrl).then(r => r.blob());
+      console.log('[GitHub] Preview blob created, size:', previewBlob.size);
+      const previewPath = `${watchfaceId}/preview.png`;
+      const previewResult = await uploadToGitHub(
+        config,
+        previewPath,
+        previewBlob,
+        `Upload preview screenshot for: ${watchfaceName}`
+      );
+      if (previewResult.success) {
+        console.log('[GitHub] Preview uploaded to:', previewResult.downloadUrl);
+      } else {
+        console.warn('[GitHub] Preview upload failed (non-fatal):', previewResult.error);
+      }
+    }
     
     // Note: Files may take 30-60 seconds to appear on GitHub Pages, but upload is successful
     console.log('[GitHub] Upload complete! Files will be accessible on GitHub Pages shortly.');

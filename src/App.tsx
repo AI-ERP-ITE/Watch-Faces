@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { ArrowRight, RefreshCw, Sparkles, Wand2, Settings, Eye, EyeOff, Grid3X3, Undo2, Redo2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -970,6 +970,7 @@ function App() {
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
   const [showGrid, setShowGrid] = useState(false);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Keyboard undo/redo
   const { dispatch: dispatchRef } = { dispatch };
@@ -1237,6 +1238,21 @@ function App() {
   // Handle generate ZPK
   const handleGenerate = useCallback(async () => {
     console.log('[App] handleGenerate called');
+
+    // Capture canvas screenshot FIRST before step change unmounts the canvas
+    let previewDataUrl: string | null = null;
+    try {
+      const canvas = canvasRef.current;
+      if (canvas) {
+        previewDataUrl = canvas.toDataURL('image/png');
+        setPreviewImageUrl(previewDataUrl);
+        console.log('[App] Canvas screenshot captured, size:', previewDataUrl.length);
+      }
+    } catch (e) {
+      console.warn('[App] Canvas capture failed (tainted?), falling back to backgroundImage', e);
+      previewDataUrl = state.backgroundImage;
+      if (previewDataUrl) setPreviewImageUrl(previewDataUrl);
+    }
     
     if (!state.watchFaceConfig) {
       console.log('[App] ERROR: Missing watchFaceConfig');
@@ -1374,7 +1390,8 @@ function App() {
         watchfaceId,
         zpkResult.blob,
         qrDataUrl,
-        state.watchFaceConfig.name
+        state.watchFaceConfig.name,
+        previewDataUrl ?? undefined
       );
 
       if (!uploadResult.success) {
@@ -1385,11 +1402,6 @@ function App() {
       console.log('[App] Upload successful!');
       console.log('[App] ZPK URL:', uploadResult.downloadUrl);
       console.log('[App] QR URL:', uploadResult.qrUrl);
-
-      // Use the cropped background image as the preview thumbnail
-      if (state.backgroundImage) {
-        setPreviewImageUrl(state.backgroundImage);
-      }
 
       dispatch(actions.setGithubUrl(uploadResult.downloadUrl || ''));
       dispatch(actions.setQrCode(qrDataUrl));
@@ -1405,7 +1417,7 @@ function App() {
     } finally {
       dispatch(actions.setLoading(false));
     }
-  }, [state.watchFaceConfig, state.backgroundFile, state.githubToken, state.githubRepo, dispatch]);
+  }, [state.watchFaceConfig, state.backgroundFile, state.backgroundImage, state.githubToken, state.githubRepo, dispatch]);
 
   // Handle reset
   const handleReset = useCallback(() => {
@@ -1664,6 +1676,7 @@ function App() {
                       </div>
                     </div>
                     <InteractiveCanvas
+                      ref={canvasRef}
                       backgroundImage={state.backgroundImage}
                       elements={state.watchFaceConfig.elements}
                       selectedElementId={selectedElementId}

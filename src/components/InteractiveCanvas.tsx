@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback, useState } from 'react';
+import React, { useRef, useEffect, useCallback, useState, forwardRef } from 'react';
 import { cn } from '@/lib/utils';
 import type { WatchFaceElement } from '@/types';
 import { getIconByKey } from '@/lib/iconLibrary';
@@ -23,7 +23,7 @@ export interface InteractiveCanvasProps {
   className?: string;
 }
 
-export function InteractiveCanvas({
+export const InteractiveCanvas = forwardRef<HTMLCanvasElement, InteractiveCanvasProps>(function InteractiveCanvas({
   backgroundImage,
   elements,
   selectedElementId,
@@ -31,7 +31,7 @@ export function InteractiveCanvas({
   onUpdateElement,
   showGrid,
   className,
-}: InteractiveCanvasProps) {
+}, forwardedRef) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const bgImageRef = useRef<HTMLImageElement | null>(null);
   const elementsRef = useRef(elements);
@@ -284,7 +284,11 @@ export function InteractiveCanvas({
 
   return (
     <canvas
-      ref={canvasRef}
+      ref={(node) => {
+        (canvasRef as React.MutableRefObject<HTMLCanvasElement | null>).current = node;
+        if (typeof forwardedRef === 'function') forwardedRef(node);
+        else if (forwardedRef) forwardedRef.current = node;
+      }}
       width={CANVAS_SIZE}
       height={CANVAS_SIZE}
       className={cn('rounded-full shadow-2xl cursor-pointer select-none', className)}
@@ -304,7 +308,7 @@ export function InteractiveCanvas({
       onTouchEnd={handleTouchEnd}
     />
   );
-}
+});
 
 // ─── Hit Testing ─────────────────────────────────────────────────────────────────
 
