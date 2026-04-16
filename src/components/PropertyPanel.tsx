@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { WatchFaceElement } from '@/types';
 import { getIconLibrary } from '@/lib/iconLibrary';
 import { cn } from '@/lib/utils';
@@ -122,15 +123,16 @@ export function PropertyPanel({ element, onUpdateElement, className }: PropertyP
 
       {/* Widget Type */}
       <Section label="Widget Type">
-        <select
-          value={element.type}
-          onChange={e => handleTypeChange(e.target.value as WatchFaceElement['type'])}
-          className="w-full h-7 rounded-md text-xs bg-zinc-800 border border-white/10 text-white px-2 cursor-pointer"
-        >
-          {WIDGET_TYPES.map(wt => (
-            <option key={wt} value={wt}>{TYPE_LABELS[wt] ?? wt}</option>
-          ))}
-        </select>
+        <Select value={element.type} onValueChange={v => handleTypeChange(v as WatchFaceElement['type'])}>
+          <SelectTrigger className="w-full h-7 text-xs bg-zinc-800 border-white/10 text-white">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {WIDGET_TYPES.map(wt => (
+              <SelectItem key={wt} value={wt}>{TYPE_LABELS[wt] ?? wt}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </Section>
 
       {/* Position */}
@@ -183,16 +185,17 @@ export function PropertyPanel({ element, onUpdateElement, className }: PropertyP
       {/* DataType — shown for all data-bindable elements */}
       {['ARC_PROGRESS', 'TEXT_IMG', 'IMG', 'IMG_LEVEL', 'TEXT', 'CIRCLE', 'IMG_STATUS'].includes(element.type) && (
         <Section label="Data Type">
-          <select
-            value={element.dataType ?? ''}
-            onChange={e => update({ dataType: e.target.value || undefined })}
-            className="w-full h-7 rounded-md text-xs bg-zinc-800 border border-white/10 text-white px-2 cursor-pointer"
-          >
-            <option value="">— none —</option>
-            {DATA_TYPES.map(dt => (
-              <option key={dt} value={dt}>{dt}</option>
-            ))}
-          </select>
+          <Select value={element.dataType ?? '__none__'} onValueChange={v => update({ dataType: v === '__none__' ? undefined : v })}>
+            <SelectTrigger className="w-full h-7 text-xs bg-zinc-800 border-white/10 text-white">
+              <SelectValue placeholder="— none —" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">— none —</SelectItem>
+              {DATA_TYPES.map(dt => (
+                <SelectItem key={dt} value={dt}>{dt}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </Section>
       )}
 
@@ -340,15 +343,16 @@ export function PropertyPanel({ element, onUpdateElement, className }: PropertyP
 
       {/* App Shortcut */}
       <Section label="App Shortcut">
-        <select
-          value={element.clickAction ?? ''}
-          onChange={e => update({ clickAction: e.target.value || undefined })}
-          className="w-full h-7 rounded-md text-xs bg-zinc-800 border border-white/10 text-white px-2 cursor-pointer"
-        >
-          {APP_SHORTCUTS.map(s => (
-            <option key={s.value} value={s.value}>{s.label}</option>
-          ))}
-        </select>
+        <Select value={element.clickAction ?? '__none__'} onValueChange={v => update({ clickAction: v === '__none__' ? undefined : v })}>
+          <SelectTrigger className="w-full h-7 text-xs bg-zinc-800 border-white/10 text-white">
+            <SelectValue placeholder="— none —" />
+          </SelectTrigger>
+          <SelectContent>
+            {APP_SHORTCUTS.map(s => (
+              <SelectItem key={s.value || '__none__'} value={s.value || '__none__'}>{s.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </Section>
 
       {/* Visible + zIndex */}
