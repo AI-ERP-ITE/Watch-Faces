@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import type { WatchFaceElement } from '@/types';
 import { getIconLibrary } from '@/lib/iconLibrary';
 import { cn } from '@/lib/utils';
-import { FONT_STYLES, generateFontPreview, getFontStyle } from '@/lib/fontLibrary';
+import { FONT_STYLES, getFontStyle } from '@/lib/fontLibrary';
 
 export interface PropertyPanelProps {
   element: WatchFaceElement | null;
@@ -59,8 +59,6 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 export function PropertyPanel({ element, onUpdateElement, className }: PropertyPanelProps) {
-  const [hoveredFont, setHoveredFont] = useState<string | null>(null);
-
   if (!element) {
     return (
       <div className={`rounded-xl border border-white/10 bg-white/5 p-4 text-center text-sm text-white/40 ${className ?? ''}`}>
@@ -267,45 +265,47 @@ export function PropertyPanel({ element, onUpdateElement, className }: PropertyP
       {/* Font style picker — text/digit elements */}
       {['IMG_TIME', 'TEXT_IMG', 'TEXT', 'IMG_DATE'].includes(element.type) && (
         <Section label="Font Style">
-          <div className="flex gap-1 overflow-x-auto pb-1">
-            {FONT_STYLES.map(style => (
-              <button
-                key={style.key}
-                onClick={() => update({ fontStyle: style.key, color: style.color })}
-                onMouseEnter={() => setHoveredFont(style.key)}
-                onMouseLeave={() => setHoveredFont(null)}
-                className={cn(
-                  'shrink-0 rounded border overflow-hidden p-0.5',
-                  (element.fontStyle ?? 'bold-white') === style.key
-                    ? 'border-cyan-500 ring-1 ring-cyan-500/50'
-                    : hoveredFont === style.key
-                      ? 'border-yellow-500 bg-yellow-500/10'
-                      : 'border-white/10'
-                )}
-                title={style.label}
-              >
-                <img
-                  src={generateFontPreview(style)}
-                  alt={style.label}
-                  className="h-7 w-auto"
-                />
-              </button>
-            ))}
-          </div>
-          {hoveredFont && (
-            <div className="mt-2 p-3 rounded-lg bg-black/50 border border-yellow-500/30 text-center">
+          <div className="rounded-md border border-white/10 overflow-hidden">
+            {/* Selected font preview */}
+            <div className="px-3 py-2 bg-zinc-800 border-b border-white/10 flex items-center justify-between">
               <span style={{
-                fontFamily: getFontStyle(hoveredFont).fontFamily,
-                fontWeight: getFontStyle(hoveredFont).fontWeight,
-                color: getFontStyle(hoveredFont).color,
-                fontSize: '28px',
-                letterSpacing: '0.05em',
+                fontFamily: getFontStyle(element.fontStyle ?? 'bold-white').fontFamily,
+                fontWeight: getFontStyle(element.fontStyle ?? 'bold-white').fontWeight,
+                color: getFontStyle(element.fontStyle ?? 'bold-white').color,
+                fontSize: '20px',
               }}>
                 12:34
               </span>
-              <p className="text-[10px] text-white/50 mt-1">{getFontStyle(hoveredFont).label}</p>
+              <span className="text-[10px] text-white/40">{getFontStyle(element.fontStyle ?? 'bold-white').label}</span>
             </div>
-          )}
+            {/* Scrollable list */}
+            <div className="max-h-48 overflow-y-auto bg-zinc-900">
+              {FONT_STYLES.map(style => (
+                <button
+                  key={style.key}
+                  onClick={() => update({ fontStyle: style.key, color: style.color })}
+                  className={cn(
+                    'w-full flex items-center justify-between px-3 py-1.5 text-left transition-colors',
+                    (element.fontStyle ?? 'bold-white') === style.key
+                      ? 'bg-cyan-500/20 border-l-2 border-cyan-500'
+                      : 'border-l-2 border-transparent hover:bg-white/5'
+                  )}
+                >
+                  <span style={{
+                    fontFamily: style.fontFamily,
+                    fontWeight: style.fontWeight,
+                    color: style.color,
+                    fontSize: '18px',
+                  }}>
+                    12:34
+                  </span>
+                  <span className="text-[10px] text-white/30 shrink-0 ml-2">
+                    {style.label}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
         </Section>
       )}
 
