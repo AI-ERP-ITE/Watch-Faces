@@ -1707,14 +1707,6 @@ function App() {
             {/* Action buttons */}
             <div className="flex flex-wrap gap-3 pt-4">
               <Button
-                onClick={handleRegenerateDownload}
-                variant="outline"
-                className="h-12 border-cyan-700 text-cyan-400 hover:bg-cyan-500/10"
-              >
-                <RefreshCw className="h-5 w-5 mr-2" />
-                Regenerate & Download
-              </Button>
-              <Button
                 onClick={handleGenerate}
                 className="flex-1 h-12 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-semibold"
               >
