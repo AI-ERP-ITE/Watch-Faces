@@ -19,16 +19,36 @@ const CONTAINER_SIZE = 480;
 /**
  * T008/T009 — Detect root container and wrap if missing.
  * Ensures HTML is inside a 480×480 relative div.
+ * If pasted HTML is a full document, extracts body content + head styles.
  */
-export function normalizeContainer(html: string): string {
+export function normalizeContainer(html: string): { body: string; styles: string } {
   const trimmed = html.trim();
 
-  // T008 — Check if root element is already a 480×480 container
-  const hasContainer = /style=["'][^"']*width\s*:\s*480px[^"']*["']/.test(trimmed);
-  if (hasContainer) return trimmed;
+  // Detect full HTML document
+  const isFullDoc = /<html[\s>]/i.test(trimmed);
+  if (isFullDoc) {
+    // Extract <style> blocks from <head>
+    const headStyleMatches = [...trimmed.matchAll(/<style[\s\S]*?<\/style>/gi)];
+    const styles = headStyleMatches.map(m => m[0]).join('\n');
 
-  // T009 — Wrap in 480×480 container
-  return `<div style="position:relative;width:480px;height:480px;overflow:hidden;">${trimmed}</div>`;
+    // Extract body content
+    const bodyMatch = trimmed.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+    const bodyContent = bodyMatch ? bodyMatch[1].trim() : trimmed;
+
+    // Wrap body content in 480×480 container if not already
+    const hasContainer = /style=["'][^"']*width\s*:\s*480px[^"']*["']/.test(bodyContent);
+    const body = hasContainer
+      ? bodyContent
+      : `<div style="position:relative;width:480px;height:480px;overflow:hidden;">${bodyContent}</div>`;
+    return { body, styles };
+  }
+
+  // Fragment HTML
+  const hasContainer = /style=["'][^"']*width\s*:\s*480px[^"']*["']/.test(trimmed);
+  const body = hasContainer
+    ? trimmed
+    : `<div style="position:relative;width:480px;height:480px;overflow:hidden;">${trimmed}</div>`;
+  return { body, styles: '' };
 }
 
 /**
@@ -39,7 +59,7 @@ export function normalizeContainer(html: string): string {
 export function parseDom(rawHtml: string): DomElement[] {
   // Sanitize (keep styles for layout) + normalize container
   const clean = sanitizeForParse(rawHtml);
-  const wrapped = normalizeContainer(clean);
+  const { body: wrapped, styles: extractedStyles } = normalizeContainer(clean);
 
   // Mount in hidden iframe to get accurate layout
   const iframe = document.createElement('iframe');
@@ -48,7 +68,7 @@ export function parseDom(rawHtml: string): DomElement[] {
 
   const doc = iframe.contentDocument!;
   doc.open();
-  doc.write(`<!DOCTYPE html><html><head><style>*{box-sizing:border-box;margin:0;padding:0;}</style></head><body style="margin:0;padding:0;">${wrapped}</body></html>`);
+  doc.write(`<!DOCTYPE html><html><head><style>*{box-sizing:border-box;margin:0;padding:0;}</style>${extractedStyles}</head><body style="margin:0;padding:0;">${wrapped}</body></html>`);
   doc.close();
 
   const container = doc.body.firstElementChild as HTMLElement | null;

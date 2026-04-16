@@ -115,6 +115,31 @@ export function mapDomToElements(domEls: DomElement[]): WatchFaceElement[] {
     // Skip near-full-screen elements that have no text (likely background containers)
     if (bounds.width >= 460 && bounds.height >= 460 && !text) continue;
 
+    // Handle <img> tags — treat as generic image element
+    if (el.tagName === 'img') {
+      result.push({
+        id: generateId(),
+        type: 'IMG',
+        name: 'Image',
+        bounds,
+        src: 'asset.png',
+        visible: true,
+        zIndex: zIndex++,
+      });
+      continue;
+    }
+
+    // Skip container divs/sections that have child elements and no direct text
+    if (!text && (el.tagName === 'div' || el.tagName === 'section' || el.tagName === 'main' || el.tagName === 'body')) {
+      const hasChildEls = domEls.some(
+        other => other !== el &&
+          other.x >= el.x && other.y >= el.y &&
+          other.x + other.width <= el.x + el.width &&
+          other.y + other.height <= el.y + el.height
+      );
+      if (hasChildEls) continue;
+    }
+
     // T017/T019 — Classify by text content
     const { type, name, dataType } = classifyText(text);
 
