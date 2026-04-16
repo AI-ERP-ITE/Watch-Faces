@@ -26,6 +26,8 @@ import { extractElementsFromImage, type PipelineAIProvider } from '@/pipeline/pi
 import { generatePipelineAssets, generateDigitImages, generateCurvedTextImage } from '@/pipeline/assetImageGenerator';
 import type { WatchFaceConfig, WatchFaceElement, ElementImage } from '@/types';
 import { generateId } from '@/lib/utils';
+import { parseDom } from '@/html/parseDom';
+import { mapDomToElements } from '@/html/mapDomToElements';
 
 // Mock Kimi analysis - simulates AI analysis
 async function mockKimiAnalysis(
@@ -994,6 +996,11 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [useMockAnalysis, setUseMockAnalysis] = useState(false);
 
+  // HTML-driven pipeline state (Spec 010)
+  const [inputMode, setInputMode] = useState<'ai' | 'html'>('ai');
+  const [htmlInput, setHtmlInput] = useState('');
+  const [htmlBgImage, setHtmlBgImage] = useState<string | null>(null);
+
   // Persist AI settings
   const handleSetAiProvider = (provider: AIProvider) => {
     setAiProvider(provider);
@@ -1077,6 +1084,71 @@ function App() {
       dispatch(actions.setLoading(false));
     }
   }, [state.backgroundImage, state.fullDesignImage, watchModel, watchFaceName, aiProvider, aiApiKey, useMockAnalysis, dispatch]);
+
+  // T020–T022: HTML-driven pipeline — no AI, DOM → elements → generator
+  const handleLoadLayout = useCallback(async () => {
+    if (!htmlInput.trim()) return;
+    dispatch(actions.setLoading(true));
+    try {
+      // T021 — Parse DOM and map to elements (replaces AI input)
+      const domEls = parseDom(htmlInput);
+      const elements = mapDomToElements(domEls);
+
+      if (elements.length === 0) {
+        toast.error('No elements detected in HTML. Check your layout.');
+        return;
+      }
+
+      // Add background element if image is set
+      const allElements: WatchFaceElement[] = [];
+      if (htmlBgImage) {
+        allElements.push({
+          id: generateId(),
+          type: 'IMG',
+          name: 'Background',
+          bounds: { x: 0, y: 0, width: 480, height: 480 },
+          src: 'background.png',
+          visible: true,
+          zIndex: 0,
+        });
+      }
+      allElements.push(...elements);
+
+      // T022 — Build WatchFaceConfig and feed into generator
+      const config: WatchFaceConfig = {
+        name: watchFaceName || 'HTML Watch Face',
+        watchModel: watchModel || 'Balance 2',
+        resolution: { width: 480, height: 480 },
+        background: { src: 'background.png', format: 'TGA-P' },
+        elements: allElements,
+      };
+
+      // Generate digit/asset images from element bounds
+      const resolvedElements = allElements.map(el => ({
+        widget: el.type,
+        dataType: el.dataType,
+        x: el.bounds.x,
+        y: el.bounds.y,
+        w: el.bounds.width,
+        h: el.bounds.height,
+        color: el.color,
+        assets: {},
+      })) as Parameters<typeof generatePipelineAssets>[0];
+
+      const elementImages: ElementImage[] = generatePipelineAssets(resolvedElements);
+
+      // T022 — Set state and go to preview (same as AI pipeline)
+      dispatch(actions.setWatchFaceConfig(config));
+      dispatch(actions.setElementImages(elementImages));
+      if (htmlBgImage) dispatch(actions.setBackgroundImage(htmlBgImage));
+      dispatch(actions.setStep('preview'));
+      toast.success(`Loaded ${elements.length} elements from HTML`);
+    } catch (err) {
+      toast.error('HTML parse failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
+    } finally {
+      dispatch(actions.setLoading(false));
+    }
+  }, [htmlInput, htmlBgImage, watchFaceName, watchModel, dispatch]);
 
   // Handle regenerate ZPK (local download, no GitHub upload)
   const handleRegenerateDownload = useCallback(async () => {
@@ -1473,36 +1545,140 @@ function App() {
               )}
             </div>
 
-            {/* Upload zones */}
-            <div className="grid gap-4 sm:grid-cols-2">
-              <UploadZone
-                label="Background Image"
-                sublabel="Clean 480×480 background"
-                value={state.backgroundImage}
-                onChange={(img) => dispatch(actions.setBackgroundImage(img))}
-                onFileChange={(file) => dispatch(actions.setBackgroundFile(file))}
-                expectedWidth={480}
-                expectedHeight={480}
-              />
-              <UploadZone
-                label="Full Design"
-                sublabel="Complete design with elements"
-                value={state.fullDesignImage}
-                onChange={(img) => dispatch(actions.setFullDesignImage(img))}
-                onFileChange={(file) => dispatch(actions.setFullDesignFile(file))}
-              />
+            {/* Mode toggle */}
+            <div className="flex rounded-lg overflow-hidden border border-zinc-700">
+              <button
+                onClick={() => setInputMode('ai')}
+                className={`flex-1 py-2 text-sm font-medium transition-colors ${
+                  inputMode === 'ai' ? 'bg-cyan-600 text-white' : 'bg-[#141414] text-zinc-400 hover:text-white'
+                }`}
+              >
+                ✦ AI Pipeline
+              </button>
+              <button
+                onClick={() => setInputMode('html')}
+                className={`flex-1 py-2 text-sm font-medium transition-colors ${
+                  inputMode === 'html' ? 'bg-cyan-600 text-white' : 'bg-[#141414] text-zinc-400 hover:text-white'
+                }`}
+              >
+                {'</>'} HTML Layout
+              </button>
             </div>
 
-            {/* Continue button */}
-            <Button
-              onClick={handleAnalyze}
-              disabled={!state.backgroundImage || !state.fullDesignImage}
-              className="w-full h-12 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-semibold disabled:opacity-50"
-            >
-              <Sparkles className="h-5 w-5 mr-2" />
-              Analyze with AI
-              <ArrowRight className="h-5 w-5 ml-2" />
-            </Button>
+            {inputMode === 'ai' ? (
+              <>
+                {/* Upload zones */}
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <UploadZone
+                    label="Background Image"
+                    sublabel="Clean 480×480 background"
+                    value={state.backgroundImage}
+                    onChange={(img) => dispatch(actions.setBackgroundImage(img))}
+                    onFileChange={(file) => dispatch(actions.setBackgroundFile(file))}
+                    expectedWidth={480}
+                    expectedHeight={480}
+                  />
+                  <UploadZone
+                    label="Full Design"
+                    sublabel="Complete design with elements"
+                    value={state.fullDesignImage}
+                    onChange={(img) => dispatch(actions.setFullDesignImage(img))}
+                    onFileChange={(file) => dispatch(actions.setFullDesignFile(file))}
+                  />
+                </div>
+
+                {/* Continue button */}
+                <Button
+                  onClick={handleAnalyze}
+                  disabled={!state.backgroundImage || !state.fullDesignImage}
+                  className="w-full h-12 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-semibold disabled:opacity-50"
+                >
+                  <Sparkles className="h-5 w-5 mr-2" />
+                  Analyze with AI
+                  <ArrowRight className="h-5 w-5 ml-2" />
+                </Button>
+              </>
+            ) : (
+              <>
+                {/* HTML mode: background upload + HTML textarea */}
+                <UploadZone
+                  label="Background Image"
+                  sublabel="Clean 480×480 watch background"
+                  value={htmlBgImage}
+                  onChange={(img) => {
+                    setHtmlBgImage(img);
+                    dispatch(actions.setBackgroundImage(img));
+                  }}
+                  onFileChange={(file) => dispatch(actions.setBackgroundFile(file))}
+                  expectedWidth={480}
+                  expectedHeight={480}
+                />
+
+                <div className="space-y-2">
+                  <Label className="text-sm text-zinc-300">HTML Layout</Label>
+                  <textarea
+                    value={htmlInput}
+                    onChange={(e) => setHtmlInput(e.target.value)}
+                    placeholder="Paste your watch face HTML here..."
+                    className="w-full h-48 px-3 py-2 rounded-md bg-[#0F0F0F] border border-zinc-700 text-white text-xs font-mono placeholder:text-zinc-600 focus:border-cyan-500 focus:outline-none resize-y"
+                  />
+                </div>
+
+                {/* T010–T012: Live preview — background + HTML overlay + circular mask */}
+                {(htmlBgImage || htmlInput.trim()) && (
+                  <div className="space-y-2">
+                    <Label className="text-sm text-zinc-300">Preview</Label>
+                    <div className="flex justify-center">
+                      <div
+                        style={{
+                          position: 'relative',
+                          width: 240,
+                          height: 240,
+                          borderRadius: '50%',
+                          overflow: 'hidden',
+                          background: '#000',
+                          flexShrink: 0,
+                        }}
+                      >
+                        {/* T010 — Background image layer */}
+                        {htmlBgImage && (
+                          <img
+                            src={htmlBgImage}
+                            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+                            alt="background"
+                          />
+                        )}
+                        {/* T011 — HTML overlay layer, scaled from 480 to 240 */}
+                        {htmlInput.trim() && (
+                          <div
+                            style={{
+                              position: 'absolute',
+                              inset: 0,
+                              width: 480,
+                              height: 480,
+                              transform: 'scale(0.5)',
+                              transformOrigin: 'top left',
+                              pointerEvents: 'none',
+                            }}
+                            dangerouslySetInnerHTML={{ __html: htmlInput }}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Load Layout button */}
+                <Button
+                  onClick={handleLoadLayout}
+                  disabled={!htmlInput.trim()}
+                  className="w-full h-12 bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-500 hover:to-cyan-500 text-white font-semibold disabled:opacity-50"
+                >
+                  {'</>'} Load Layout
+                  <ArrowRight className="h-5 w-5 ml-2" />
+                </Button>
+              </>
+            )}
           </div>
         );
 
