@@ -1121,7 +1121,7 @@ function App() {
           type: 'IMG',
           name: 'Background',
           bounds: { x: 0, y: 0, width: 480, height: 480 },
-          src: 'background.png',
+          src: state.backgroundImage ?? 'background.png',
           visible: true,
           zIndex: 0,
         });
@@ -1133,7 +1133,7 @@ function App() {
         name: watchFaceName || 'HTML Watch Face',
         watchModel: watchModel || 'Balance 2',
         resolution: { width: 480, height: 480 },
-        background: { src: 'background.png', format: 'TGA-P' },
+        background: { src: state.backgroundImage ?? 'background.png', format: 'TGA-P' },
         elements: allElements,
       };
 
@@ -1563,7 +1563,6 @@ function App() {
               label="Background Image"
               sublabel="Any size — crop to fit"
               value={state.backgroundImage}
-              onChange={(img) => dispatch(actions.setBackgroundImage(img))}
               onFileChange={(file) => { dispatch(actions.setBackgroundFile(file)); if (file) openCropTool(file); }}
             />
 

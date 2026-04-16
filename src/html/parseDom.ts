@@ -1,4 +1,4 @@
-// Spec 013 � Async DOM parser: leaf-node strategy, multi-signal data
+// Spec 013/014 — Async DOM parser: two-pass strategy, SVG as leaf
 import { sanitizeForParse } from './sanitizeHtml';
 
 export interface DomElement {
@@ -7,12 +7,30 @@ export interface DomElement {
   className: string;
   dataWidget: string;
   dataType: string;
+  matchedByClass: boolean;
   x: number;
   y: number;
   width: number;
   height: number;
   transform: string;
   style: Record<string, string>;
+}
+
+// Class keyword patterns (mirrors mapDomToElements CLASS_KEYWORDS)
+const CLASS_MATCH_PATTERNS: RegExp[] = [
+  /\b(time|clock|hour|minute|second)\b/i,
+  /\b(date|day|month|calendar)\b/i,
+  /\b(week|weekday)\b/i,
+  /\b(battery|batt|charge)\b/i,
+  /\b(step|walk|pedometer)\b/i,
+  /\b(heart|hr|bpm|pulse)\b/i,
+  /\b(weather|temp|temperature)\b/i,
+  /\b(arc|ring|progress|gauge)\b/i,
+  /\b(hand|pointer|analog)\b/i,
+];
+
+function matchesClassKeyword(className: string): boolean {
+  return CLASS_MATCH_PATTERNS.some(p => p.test(className));
 }
 
 const CONTAINER_SIZE = 480;
@@ -67,31 +85,38 @@ export function parseDom(rawHtml: string): Promise<DomElement[]> {
             rectMap.set(node, node.getBoundingClientRect());
           }
 
+          const claimedNodes = new Set<HTMLElement>();
+          const pass1: DomElement[] = [];
+          const pass2: DomElement[] = [];
+
+          // ── Pass 1: class-matched containers → single unit ──────────────────
           for (const el of allNodes) {
             const rect = rectMap.get(el)!;
             if (rect.width === 0 || rect.height === 0) continue;
+            const className = typeof el.className === 'string' ? el.className : '';
+            if (!matchesClassKeyword(className)) continue;
 
-            const children = Array.from(el.querySelectorAll('*')) as HTMLElement[];
-            const hasVisibleChild = children.some(child => {
-              const cr = rectMap.get(child) ?? child.getBoundingClientRect();
-              return cr.width > 0 && cr.height > 0;
-            });
-            if (hasVisibleChild) continue;
+            // Claim this element and all its descendants
+            claimedNodes.add(el);
+            for (const d of Array.from(el.querySelectorAll('*')) as HTMLElement[]) {
+              claimedNodes.add(d);
+            }
 
             const x = Math.round(rect.left - containerRect.left);
             const y = Math.round(rect.top - containerRect.top);
-            const width = Math.round(rect.width);
-            const height = Math.round(rect.height);
             if (x >= CONTAINER_SIZE || y >= CONTAINER_SIZE) continue;
 
             const cs = window.getComputedStyle(el);
-            elements.push({
+            pass1.push({
               tagName: el.tagName.toLowerCase(),
               textContent: el.textContent?.trim() ?? '',
-              className: typeof el.className === 'string' ? el.className : '',
+              className,
               dataWidget: el.dataset?.widget ?? '',
               dataType: el.dataset?.type ?? '',
-              x, y, width, height,
+              matchedByClass: true,
+              x, y,
+              width: Math.round(rect.width),
+              height: Math.round(rect.height),
               transform: cs.transform ?? '',
               style: {
                 color: cs.color,
@@ -101,6 +126,58 @@ export function parseDom(rawHtml: string): Promise<DomElement[]> {
               },
             });
           }
+
+          // ── Pass 2: unclaimed leaf nodes (SVG treated as leaf) ──────────────
+          for (const el of allNodes) {
+            if (claimedNodes.has(el)) continue;
+
+            const rect = rectMap.get(el)!;
+            if (rect.width === 0 || rect.height === 0) continue;
+
+            const isSvg = el.tagName.toLowerCase() === 'svg';
+
+            if (!isSvg) {
+              // Standard leaf check: skip if any unclaimed child is visible
+              const children = Array.from(el.querySelectorAll('*')) as HTMLElement[];
+              const hasVisibleChild = children.some(child => {
+                if (claimedNodes.has(child)) return false;
+                const cr = rectMap.get(child) ?? child.getBoundingClientRect();
+                return cr.width > 0 && cr.height > 0;
+              });
+              if (hasVisibleChild) continue;
+            } else {
+              // Claim all SVG children so they are not processed individually
+              for (const d of Array.from(el.querySelectorAll('*')) as HTMLElement[]) {
+                claimedNodes.add(d);
+              }
+            }
+
+            const x = Math.round(rect.left - containerRect.left);
+            const y = Math.round(rect.top - containerRect.top);
+            if (x >= CONTAINER_SIZE || y >= CONTAINER_SIZE) continue;
+
+            const cs = window.getComputedStyle(el);
+            pass2.push({
+              tagName: el.tagName.toLowerCase(),
+              textContent: el.textContent?.trim() ?? '',
+              className: typeof el.className === 'string' ? el.className : '',
+              dataWidget: el.dataset?.widget ?? '',
+              dataType: el.dataset?.type ?? '',
+              matchedByClass: false,
+              x, y,
+              width: Math.round(rect.width),
+              height: Math.round(rect.height),
+              transform: cs.transform ?? '',
+              style: {
+                color: cs.color,
+                fontSize: cs.fontSize,
+                fontFamily: cs.fontFamily,
+                backgroundColor: cs.backgroundColor,
+              },
+            });
+          }
+
+          elements.push(...pass1, ...pass2);
         }
 
         teardown();

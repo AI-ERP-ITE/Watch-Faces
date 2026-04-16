@@ -6,7 +6,7 @@ interface UploadZoneProps {
   label: string;
   sublabel: string;
   value: string | null;
-  onChange: (objectUrl: string | null) => void;
+  onChange?: (objectUrl: string | null) => void;
   onFileChange?: (file: File | null) => void;
   expectedWidth?: number;
   expectedHeight?: number;
@@ -35,7 +35,7 @@ export function UploadZone({
       try {
         // Use object URL instead of data URL (much more efficient for large images)
         const objectUrl = fileToObjectUrl(file);
-        onChange(objectUrl);
+        onChange?.(objectUrl);
         onFileChange?.(file);
 
         // Get image dimensions
@@ -89,7 +89,7 @@ export function UploadZone({
     if (value) {
       URL.revokeObjectURL(value);
     }
-    onChange(null);
+    onChange?.(null);
     onFileChange?.(null);
     setDimensions(null);
   }, [onChange, onFileChange, value]);

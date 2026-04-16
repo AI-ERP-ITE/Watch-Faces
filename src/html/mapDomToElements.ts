@@ -98,6 +98,9 @@ export function mapDomToElements(domEls: DomElement[]): WatchFaceElement[] {
       continue;
     }
 
+    // If matched by class in parseDom but no keyword hit here, skip — don't fall through
+    if (el.matchedByClass) continue;
+
     // ── Priority 3: text content pattern ───────────────────────────────────
     if (text) {
       const textMatch = classifyByText(text);
