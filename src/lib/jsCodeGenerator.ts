@@ -385,7 +385,28 @@ function generateImgLevelWidget(element: WatchFaceElement): string {
 }
 
 // TEXT - Text display (simplified, no scope issues)
+// If curvedText is set, use pre-rendered arch PNG as IMG widget
 function generateTextWidget(element: WatchFaceElement): string {
+  if (element.curvedText) {
+    const radius = element.curvedText.radius;
+    const fs = element.fontSize ?? 16;
+    const size = (radius + fs) * 2 + 20;
+    const cx = element.center?.x ?? (element.bounds.x + Math.floor(element.bounds.width / 2));
+    const cy = element.center?.y ?? (element.bounds.y + Math.floor(element.bounds.height / 2));
+    const imgX = Math.round(cx - size / 2);
+    const imgY = Math.round(cy - size / 2);
+    return `
+                // ${element.name} - Arch Text (pre-rendered PNG)
+                hmUI.createWidget(hmUI.widget.IMG, {
+                    x: px(${imgX}),
+                    y: px(${imgY}),
+                    w: px(${size}),
+                    h: px(${size}),
+                    src: 'curved_text_${element.id}.png',
+                    show_level: hmUI.show_level.ONLY_NORMAL
+                });`;
+  }
+
   return `
                 // ${element.name} - Text Display
                 hmUI.createWidget(hmUI.widget.TEXT, {

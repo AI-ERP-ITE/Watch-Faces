@@ -1272,7 +1272,7 @@ function App() {
           const filename = `curved_text_${el.id}.png`;
           const rawColor = el.color?.startsWith('#') ? el.color : '#FFFFFF';
           const dataUrl = generateCurvedTextImage(
-            el.text ?? el.name,
+            el.text || el.name,
             el.curvedText.radius,
             el.curvedText.startAngle,
             el.curvedText.endAngle,

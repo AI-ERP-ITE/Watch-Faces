@@ -586,7 +586,7 @@ function drawElements(ctx: CanvasRenderingContext2D, elements: WatchFaceElement[
       const rawColor = el.color ? parseZeppColor(el.color) : '#FFFFFF';
       drawCurvedText(
         ctx,
-        el.text ?? el.name,
+        el.text || el.name,
         cx, cy,
         el.curvedText.radius,
         el.curvedText.startAngle,
