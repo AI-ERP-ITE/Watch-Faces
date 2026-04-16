@@ -1113,9 +1113,21 @@ function App() {
         return;
       }
 
-      // Background is drawn by InteractiveCanvas via backgroundImage prop.
-      // Only include it in the config for ZPK generation, not in display elements.
-      const allElements: WatchFaceElement[] = [...elements];
+      // Background element needed for ZPK generation. Canvas draws bg separately
+      // via backgroundImage prop, so we mark this element hidden for canvas display.
+      const allElements: WatchFaceElement[] = [];
+      if (state.backgroundImage) {
+        allElements.push({
+          id: generateId(),
+          type: 'IMG',
+          name: 'Background',
+          bounds: { x: 0, y: 0, width: 480, height: 480 },
+          src: state.backgroundImage,
+          visible: false,
+          zIndex: 0,
+        });
+      }
+      allElements.push(...elements);
 
       // T022 — Build WatchFaceConfig and feed into generator
       const config: WatchFaceConfig = {
