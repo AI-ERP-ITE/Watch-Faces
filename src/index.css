@@ -40,6 +40,12 @@
     @apply bg-[#0F0F0F] text-white antialiased;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
   }
+
+  /* Native select dropdown options — force dark background */
+  option {
+    background-color: #18181b;
+    color: #ffffff;
+  }
 }
 
 @layer utilities {

@@ -125,7 +125,7 @@ export function PropertyPanel({ element, onUpdateElement, className }: PropertyP
         <select
           value={element.type}
           onChange={e => handleTypeChange(e.target.value as WatchFaceElement['type'])}
-          className="w-full h-7 rounded-md text-xs bg-white/5 border border-white/10 text-white px-2 cursor-pointer"
+          className="w-full h-7 rounded-md text-xs bg-zinc-800 border border-white/10 text-white px-2 cursor-pointer"
         >
           {WIDGET_TYPES.map(wt => (
             <option key={wt} value={wt}>{TYPE_LABELS[wt] ?? wt}</option>
@@ -186,7 +186,7 @@ export function PropertyPanel({ element, onUpdateElement, className }: PropertyP
           <select
             value={element.dataType ?? ''}
             onChange={e => update({ dataType: e.target.value || undefined })}
-            className="w-full h-7 rounded-md text-xs bg-white/5 border border-white/10 text-white px-2 cursor-pointer"
+            className="w-full h-7 rounded-md text-xs bg-zinc-800 border border-white/10 text-white px-2 cursor-pointer"
           >
             <option value="">— none —</option>
             {DATA_TYPES.map(dt => (
@@ -343,7 +343,7 @@ export function PropertyPanel({ element, onUpdateElement, className }: PropertyP
         <select
           value={element.clickAction ?? ''}
           onChange={e => update({ clickAction: e.target.value || undefined })}
-          className="w-full h-7 rounded-md text-xs bg-white/5 border border-white/10 text-white px-2 cursor-pointer"
+          className="w-full h-7 rounded-md text-xs bg-zinc-800 border border-white/10 text-white px-2 cursor-pointer"
         >
           {APP_SHORTCUTS.map(s => (
             <option key={s.value} value={s.value}>{s.label}</option>
