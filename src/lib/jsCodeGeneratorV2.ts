@@ -3,7 +3,6 @@
 // Compatible with Amazfit Balance 2, Balance, Active Max (older Zepp OS)
 
 import type { WatchFaceConfig, WatchFaceElement, GeneratedCode } from '@/types';
-import { HOUR_CONTENT_W, TIME_COLON_GAP } from '@/pipeline/constants';
 
 export function generateWatchFaceCodeV2(config: WatchFaceConfig): GeneratedCode {
   console.log('[JSGenV2] Starting v2 code generation for:', config.name);
@@ -391,6 +390,12 @@ ${aodWidgetsCode}
 function generateIMGTimeWidget(element: WatchFaceElement, widgetIndex: number, showLevel: string): string {
   const x = element.bounds.x || 25;
   const y = element.bounds.y || 220;
+  const totalW = element.bounds.width || 250;
+  
+  // Derive digit width from element bounds: 4 digits + 1 gap unit = 5 slots
+  const digitW = Math.floor(totalW / 5);
+  const hourContentW = digitW * 2;
+  const gap = totalW - digitW * 4;  // remaining space is the colon gap
   
   // Use time_digit_N.png naming — must match what mockKimiAnalysis generates
   const digitArray = [];
@@ -409,7 +414,7 @@ function generateIMGTimeWidget(element: WatchFaceElement, widgetIndex: number, s
                     hour_space: 0,
                     hour_align: hmUI.align.LEFT,
                     minute_zero: 1,
-                    minute_startX: px(${x + HOUR_CONTENT_W + TIME_COLON_GAP}),
+                    minute_startX: px(${x + hourContentW + gap}),
                     minute_startY: px(${y}),
                     minute_array: ${digitArrayStr},
                     minute_space: 0,

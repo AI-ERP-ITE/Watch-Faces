@@ -281,7 +281,10 @@ export function generatePipelineAssets(elements: ResolvedElement[]): ElementImag
       case 'IMG_TIME': {
         if (!generatedSets.has('time_digits')) {
           const color = getElementColor(el);
-          images.push(...generateDigitImages('time_digit', TIME_DIGIT.w, TIME_DIGIT.h, color));
+          // Derive digit size from element bounds (4 digits + gap)
+          const timeDigitW = el.w ? Math.floor(el.w / 5) : TIME_DIGIT.w;
+          const timeDigitH = el.h ?? TIME_DIGIT.h;
+          images.push(...generateDigitImages('time_digit', timeDigitW, timeDigitH, color));
           generatedSets.add('time_digits');
         }
         break;
@@ -299,7 +302,10 @@ export function generatePipelineAssets(elements: ResolvedElement[]): ElementImag
         } else {
           if (!generatedSets.has('date_digits')) {
             const dateColor = getElementColor(el);
-            images.push(...generateDigitImages('date_digit', DATE_DIGIT.w, DATE_DIGIT.h, dateColor));
+            // Derive digit size from element bounds (2 digits)
+            const dateDigitW = el.w ? Math.floor(el.w / 2) : DATE_DIGIT.w;
+            const dateDigitH = el.h ?? DATE_DIGIT.h;
+            images.push(...generateDigitImages('date_digit', dateDigitW, dateDigitH, dateColor));
             generatedSets.add('date_digits');
           }
         }
@@ -310,7 +316,9 @@ export function generatePipelineAssets(elements: ResolvedElement[]): ElementImag
         if (!generatedSets.has('week_images')) {
           const days = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
           const weekColor = getElementColor(el);
-          images.push(...generateTextImages('week', days, WEEK_LABEL.w, WEEK_LABEL.h, weekColor));
+          const weekW = el.w ?? WEEK_LABEL.w;
+          const weekH = el.h ?? WEEK_LABEL.h;
+          images.push(...generateTextImages('week', days, weekW, weekH, weekColor));
           generatedSets.add('week_images');
         }
         break;
@@ -325,7 +333,10 @@ export function generatePipelineAssets(elements: ResolvedElement[]): ElementImag
         const prefix = el.dataType ? DATA_TYPE_PREFIXES[el.dataType] || 'digit' : 'digit';
         if (!generatedSets.has(`textimg_${prefix}`)) {
           const color = getElementColor(el);
-          images.push(...generateDigitImages(prefix, TEXT_IMG_DIGIT.w, TEXT_IMG_DIGIT.h, color));
+          // Derive digit size from element bounds (estimate ~4 chars)
+          const txtDigitW = el.w ? Math.floor(el.w / 4) : TEXT_IMG_DIGIT.w;
+          const txtDigitH = el.h ?? TEXT_IMG_DIGIT.h;
+          images.push(...generateDigitImages(prefix, txtDigitW, txtDigitH, color));
           generatedSets.add(`textimg_${prefix}`);
         }
         break;
