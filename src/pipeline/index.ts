@@ -90,72 +90,18 @@ export async function runPipeline(
 }
 
 // ─── Fallback: Assign dataTypes to unresolved ARC_PROGRESS elements ────────────
-// Uses geometry-based inference: radius size + position → data type.
-// Logic:
-//   - Largest radius → STEP (outermost ring is almost always steps on Zepp watches)
-//   - Topmost arc center (y < 240) → BATTERY (battery typically displayed top-right/top)
-//   - Smallest radius OR innermost → HEART (heart rate typically innermost)
-//   - Remaining priority: SPO2, CAL in order
 
-function inferArcDataType(
-  el: NormalizedElement,
-  allArcs: NormalizedElement[],
-  used: Set<string | undefined>,
-): string | undefined {
-  if (used.has('BATTERY') && used.has('STEP') && used.has('HEART')) {
-    // All primary types taken — fall back to priority list
-    for (const dt of ['SPO2', 'CAL', 'DISTANCE', 'STRESS', 'PAI']) {
-      if (!used.has(dt)) return dt;
-    }
-    return undefined;
-  }
-
-  const radii = allArcs.map(a => a.radius ?? 0).filter(r => r > 0).sort((a, b) => a - b);
-  const myRadius = el.radius ?? 0;
-  const myCenterY = el.center?.y ?? el.bounds?.y ?? 240;
-
-  // Largest radius → STEP
-  if (!used.has('STEP') && radii.length > 0 && myRadius === Math.max(...radii)) {
-    return 'STEP';
-  }
-  // Topmost center → BATTERY
-  const topArc = allArcs.reduce((best, cur) => {
-    const curY = cur.center?.y ?? cur.bounds?.y ?? 240;
-    const bestY = best.center?.y ?? best.bounds?.y ?? 240;
-    return curY < bestY ? cur : best;
-  }, allArcs[0]);
-  if (!used.has('BATTERY') && topArc?.id === el.id) {
-    return 'BATTERY';
-  }
-  // Smallest radius → HEART
-  if (!used.has('HEART') && radii.length > 0 && myRadius === Math.min(...radii)) {
-    return 'HEART';
-  }
-  // Top half of watch → BATTERY fallback
-  if (!used.has('BATTERY') && myCenterY < 240) {
-    return 'BATTERY';
-  }
-  // Bottom half → STEP fallback
-  if (!used.has('STEP') && myCenterY >= 240) {
-    return 'STEP';
-  }
-  // Last resort
-  for (const dt of ['SPO2', 'CAL', 'DISTANCE', 'STRESS']) {
-    if (!used.has(dt)) return dt;
-  }
-  return undefined;
-}
+const ARC_FALLBACK_PRIORITY = ['BATTERY', 'STEP', 'HEART', 'SPO2', 'CAL'];
 
 function assignFallbackDataTypes(elements: NormalizedElement[]): NormalizedElement[] {
   const used = new Set(elements.map(e => e.dataType).filter(Boolean));
-  const unresolvedArcs = elements.filter(el => el.widget === 'ARC_PROGRESS' && !el.dataType);
 
   return elements.map(el => {
     if (el.widget === 'ARC_PROGRESS' && !el.dataType) {
-      const inferred = inferArcDataType(el, unresolvedArcs, used);
-      if (inferred) {
-        used.add(inferred);
-        return { ...el, dataType: inferred };
+      const fallback = ARC_FALLBACK_PRIORITY.find(dt => !used.has(dt));
+      if (fallback) {
+        used.add(fallback);
+        return { ...el, dataType: fallback };
       }
     }
     return el;

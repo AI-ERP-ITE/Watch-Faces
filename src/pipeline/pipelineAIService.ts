@@ -17,8 +17,8 @@ export interface PipelineAIConfig {
 
 // ─── Retry Config for Transient Errors ──────────────────────────────────────────
 
-const MAX_RETRIES = 5;
-const RETRY_BASE_MS = 3000;                    // 3s → 6s → 12s → 24s → 48s
+const MAX_RETRIES = 3;
+const RETRY_BASE_MS = 1000;                    // 1s → 2s → 4s
 const RETRYABLE_STATUS = new Set([429, 503]);  // Rate limit + Unavailable only
 
 async function fetchWithRetry(
@@ -294,27 +294,15 @@ function parseCenter(raw: unknown): AICenter | undefined {
 
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
-    const img = new Image();
-    const objectUrl = URL.createObjectURL(file);
-    img.onload = () => {
-      URL.revokeObjectURL(objectUrl);
-      const MAX = 1024;
-      let { width, height } = img;
-      if (width > MAX || height > MAX) {
-        const scale = MAX / Math.max(width, height);
-        width = Math.round(width * scale);
-        height = Math.round(height * scale);
-      }
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d')!;
-      ctx.drawImage(img, 0, 0, width, height);
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
-      resolve(dataUrl.split(',')[1]);
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      // Strip data:...;base64, prefix
+      const base64 = result.split(',')[1];
+      resolve(base64);
     };
-    img.onerror = reject;
-    img.src = objectUrl;
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
   });
 }
 
