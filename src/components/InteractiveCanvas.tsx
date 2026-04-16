@@ -3,7 +3,6 @@ import { cn } from '@/lib/utils';
 import type { WatchFaceElement } from '@/types';
 import { getIconByKey } from '@/lib/iconLibrary';
 import { getFontStyle } from '@/lib/fontLibrary';
-import { generateCurvedTextImage } from '@/pipeline/assetImageGenerator';
 
 const CANVAS_SIZE = 480;
 const CX = 240;
@@ -49,7 +48,6 @@ export const InteractiveCanvas = forwardRef<HTMLCanvasElement, InteractiveCanvas
   showGridRef.current = showGrid;
   const iconImageCache = useRef(new Map<string, HTMLImageElement>());
   const digitImageCache = useRef(new Map<string, HTMLImageElement>());
-  const curvedTextCache = useRef(new Map<string, HTMLImageElement>());
   useState(0); // reserved for future forced re-renders
 
   // Draw everything to canvas
@@ -72,7 +70,7 @@ export const InteractiveCanvas = forwardRef<HTMLCanvasElement, InteractiveCanvas
     if (showGridRef.current) drawGrid(ctx);
 
     // Elements
-    drawElements(ctx, elements, iconImageCache.current, digitImageCache.current, curvedTextCache.current, draw);
+    drawElements(ctx, elements, iconImageCache.current, digitImageCache.current, draw);
 
     // Selection highlight
     if (selectedElementId) {
@@ -577,37 +575,40 @@ function drawBackground(ctx: CanvasRenderingContext2D, img: HTMLImageElement) {
 
 // ─── Element Dispatcher ─────────────────────────────────────────────────────────
 
-function drawElements(ctx: CanvasRenderingContext2D, elements: WatchFaceElement[], iconCache?: Map<string, HTMLImageElement>, digitCache?: Map<string, HTMLImageElement>, curvedCache?: Map<string, HTMLImageElement>, onIconLoaded?: () => void) {
+function drawElements(ctx: CanvasRenderingContext2D, elements: WatchFaceElement[], iconCache?: Map<string, HTMLImageElement>, digitCache?: Map<string, HTMLImageElement>, onIconLoaded?: () => void) {
   const sorted = [...elements].filter(e => e.visible).sort((a, b) => a.zIndex - b.zIndex);
 
   for (const el of sorted) {
-    // Curved TEXT: render same PNG used in ZPK (via generateCurvedTextImage)
+    // Curved TEXT: draw directly on canvas — no async Image loading, always up to date
     if (el.type === 'TEXT' && el.curvedText) {
-      // Derive center from bounds so drag/resize moves the arch text
       const cx = el.bounds.x + el.bounds.width / 2;
       const cy = el.bounds.y + el.bounds.height / 2;
       const text = el.text || el.name;
       const fontSize = el.fontSize ?? 16;
       const color = el.color ? parseZeppColor(el.color) : '#FFFFFF';
-      const { radius, startAngle, endAngle } = el.curvedText;
-      const size = (radius + fontSize) * 2 + 20;
+      const { radius, startAngle: startDeg, endAngle: endDeg } = el.curvedText;
 
-      if (curvedCache) {
-        const cacheKey = `${el.id}|${text}|${radius}|${startAngle}|${endAngle}|${fontSize}|${color}`;
-        let img = curvedCache.get(cacheKey);
-        if (!img) {
-          // Invalidate old entries for this element
-          for (const k of curvedCache.keys()) { if (k.startsWith(el.id + '|')) curvedCache.delete(k); }
-          const dataUrl = generateCurvedTextImage(text, radius, startAngle, endAngle, fontSize, color);
-          img = new Image();
-          img.onload = () => onIconLoaded?.();
-          img.src = dataUrl;
-          curvedCache.set(cacheKey, img);
-        }
-        if (img.complete && img.naturalWidth > 0) {
-          ctx.drawImage(img, cx - size / 2, cy - size / 2, size, size);
-        }
+      const startAngle = (startDeg * Math.PI) / 180;
+      const endAngle = (endDeg * Math.PI) / 180;
+      const totalAngle = endAngle - startAngle;
+      const anglePerChar = text.length > 1 ? totalAngle / (text.length - 1) : 0;
+
+      ctx.save();
+      ctx.font = `bold ${fontSize}px Arial`;
+      ctx.fillStyle = color;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      for (let i = 0; i < text.length; i++) {
+        const angle = startAngle + i * anglePerChar;
+        const charX = cx + radius * Math.cos(angle);
+        const charY = cy + radius * Math.sin(angle);
+        ctx.save();
+        ctx.translate(charX, charY);
+        ctx.rotate(angle + Math.PI / 2);
+        ctx.fillText(text[i], 0, 0);
+        ctx.restore();
       }
+      ctx.restore();
       continue;
     }
 
