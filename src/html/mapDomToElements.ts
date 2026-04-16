@@ -1,164 +1,48 @@
-// Spec 010 — T017/T018/T019: Map DOM elements → WatchFaceElement[]
-// Deterministic mapping: no AI involved.
+// Spec 013 — Multi-signal classifier: data-widget → class keywords → text → tag → fallback
 
 import type { WatchFaceElement } from '@/types';
 import type { DomElement } from './parseDom';
 import { generateId } from '@/lib/utils';
 
 const CANVAS = 480;
-const CENTER = CANVAS / 2; // 240
+const CENTER = CANVAS / 2;
 
-/**
- * T018 — Detect analog clock hand from a DOM element.
- * Criteria: thin vertical rectangle, near center, has CSS transform.
- */
-function isAnalogHand(el: DomElement): boolean {
-  const nearCenter = Math.abs(el.x + el.width / 2 - CENTER) < 40 && Math.abs(el.y + el.height / 2 - CENTER) < 40;
-  const thin = (el.width < 20 && el.height > 40) || (el.height < 20 && el.width > 40);
-  const hasTransform = el.transform !== '' && el.transform !== 'none';
-  return nearCenter && thin && hasTransform;
-}
-
-/**
- * T017 — Map text content to widget type.
- */
-function classifyText(text: string): {
+// ── Class keyword lookup ──────────────────────────────────────────────────────
+const CLASS_KEYWORDS: Array<{
+  pattern: RegExp;
   type: WatchFaceElement['type'];
   name: string;
   dataType?: string;
-} {
-  const t = text.trim();
+}> = [
+  { pattern: /\b(time|clock|hour|minute|second)\b/i,   type: 'IMG_TIME',      name: 'Digital Time' },
+  { pattern: /\b(date|day|month|calendar)\b/i,          type: 'IMG_DATE',      name: 'Date' },
+  { pattern: /\b(week|weekday)\b/i,                     type: 'IMG_WEEK',      name: 'Weekday' },
+  { pattern: /\b(battery|batt|charge)\b/i,              type: 'TEXT_IMG',      name: 'Battery',    dataType: 'BATTERY' },
+  { pattern: /\b(step|walk|pedometer)\b/i,              type: 'TEXT_IMG',      name: 'Steps',      dataType: 'STEP' },
+  { pattern: /\b(heart|hr|bpm|pulse)\b/i,               type: 'TEXT_IMG',      name: 'Heart Rate', dataType: 'HEART' },
+  { pattern: /\b(weather|temp|temperature)\b/i,         type: 'TEXT_IMG',      name: 'Weather',    dataType: 'WEATHER' },
+  { pattern: /\b(arc|ring|progress|gauge)\b/i,          type: 'ARC_PROGRESS',  name: 'Progress' },
+  { pattern: /\b(hand|pointer|analog)\b/i,              type: 'TIME_POINTER',  name: 'Analog Clock' },
+];
 
-  // HH:MM or H:MM pattern → IMG_TIME
-  if (/^\d{1,2}:\d{2}$/.test(t)) return { type: 'IMG_TIME', name: 'Digital Time' };
-
-  // Two digits only (day) → IMG_DATE
-  if (/^\d{1,2}$/.test(t)) return { type: 'IMG_DATE', name: 'Date' };
-
-  // Month abbreviation → IMG_DATE (month)
-  if (/^(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)$/i.test(t))
-    return { type: 'IMG_DATE', name: 'Month' };
-
-  // Weekday abbreviation → IMG_WEEK
-  if (/^(MON|TUE|WED|THU|FRI|SAT|SUN)$/i.test(t))
-    return { type: 'IMG_WEEK', name: 'Weekday' };
-
-  // Battery: ⚡ 82% or "82%"
-  if (/battery|batt|⚡/i.test(t) || (/\d+%/.test(t) && t.length < 8))
-    return { type: 'TEXT_IMG', name: 'Battery', dataType: 'BATTERY' };
-
-  // Steps: 👟 or numeric >1000
-  if (/step|walk|👟/i.test(t) || /\d{4,}/.test(t))
-    return { type: 'TEXT_IMG', name: 'Steps', dataType: 'STEP' };
-
-  // Heart rate: ❤ or "bpm"
-  if (/heart|bpm|❤|♥/i.test(t))
-    return { type: 'TEXT_IMG', name: 'Heart Rate', dataType: 'HEART' };
-
-  // Weather: ☁ or °
-  if (/weather|☁|🌤|°/i.test(t))
-    return { type: 'TEXT_IMG', name: 'Weather', dataType: 'WEATHER' };
-
-  // Numeric → generic TEXT_IMG
-  if (/^\d+$/.test(t))
-    return { type: 'TEXT_IMG', name: 'Value' };
-
-  // Fallback: TEXT
-  return { type: 'TEXT', name: t.slice(0, 20) || 'Text' };
+// ── Text pattern classifier ───────────────────────────────────────────────────
+function classifyByText(t: string): { type: WatchFaceElement['type']; name: string; dataType?: string } | null {
+  if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(t))                              return { type: 'IMG_TIME',  name: 'Digital Time' };
+  if (/^(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)$/i.test(t)) return { type: 'IMG_DATE',  name: 'Month' };
+  if (/^(MON|TUE|WED|THU|FRI|SAT|SUN)$/i.test(t))                      return { type: 'IMG_WEEK',  name: 'Weekday' };
+  if (/battery|batt|⚡/i.test(t) || (/\d+%/.test(t) && t.length < 8))  return { type: 'TEXT_IMG',  name: 'Battery',    dataType: 'BATTERY' };
+  if (/step|walk|👟/i.test(t) || /^\d{4,}$/.test(t))                   return { type: 'TEXT_IMG',  name: 'Steps',      dataType: 'STEP' };
+  if (/heart|bpm|❤|♥/i.test(t))                                        return { type: 'TEXT_IMG',  name: 'Heart Rate', dataType: 'HEART' };
+  if (/weather|☁|🌤|°/.test(t))                                        return { type: 'TEXT_IMG',  name: 'Weather',    dataType: 'WEATHER' };
+  if (/^\d{1,2}$/.test(t))                                              return { type: 'IMG_DATE',  name: 'Date' };
+  if (/^\d+$/.test(t))                                                  return { type: 'TEXT_IMG',  name: 'Value' };
+  return null;
 }
 
-/**
- * T023/T024 — Clamp and validate bounds inside 480×480.
- */
 function clampBounds(x: number, y: number, w: number, h: number) {
   const cx = Math.max(0, Math.min(x, CANVAS - 1));
   const cy = Math.max(0, Math.min(y, CANVAS - 1));
-  const cw = Math.max(1, Math.min(w, CANVAS - cx));
-  const ch = Math.max(1, Math.min(h, CANVAS - cy));
-  return { x: cx, y: cy, width: cw, height: ch };
-}
-
-/**
- * T017–T019, T023/T024 — Map parsed DOM elements → WatchFaceElement[].
- * Analog hands are merged into a single TIME_POINTER widget.
- */
-export function mapDomToElements(domEls: DomElement[]): WatchFaceElement[] {
-  const result: WatchFaceElement[] = [];
-  let zIndex = 1;
-  let hasTimePointer = false;
-  let maxElements = 20;
-
-  for (const el of domEls) {
-    if (result.length >= maxElements) break;
-
-    // T018 — Detect analog hand → TIME_POINTER (only one widget)
-    if (isAnalogHand(el)) {
-      if (!hasTimePointer) {
-        hasTimePointer = true;
-        result.push({
-          id: generateId(),
-          type: 'TIME_POINTER',
-          name: 'Analog Clock',
-          bounds: { x: 0, y: 0, width: CANVAS, height: CANVAS },
-          center: { x: CENTER, y: CENTER },
-          visible: true,
-          zIndex: zIndex++,
-        });
-      }
-      continue;
-    }
-
-    // Skip elements with no useful text or too large (likely containers)
-    const text = el.textContent.trim();
-    const bounds = clampBounds(el.x, el.y, el.width, el.height);
-
-    // Skip near-full-screen elements that have no text (likely background containers)
-    if (bounds.width >= 460 && bounds.height >= 460 && !text) continue;
-
-    // Handle <img> tags — treat as generic image element
-    if (el.tagName === 'img') {
-      result.push({
-        id: generateId(),
-        type: 'IMG',
-        name: 'Image',
-        bounds,
-        src: 'asset.png',
-        visible: true,
-        zIndex: zIndex++,
-      });
-      continue;
-    }
-
-    // Skip container divs/sections that have child elements and no direct text
-    if (!text && (el.tagName === 'div' || el.tagName === 'section' || el.tagName === 'main' || el.tagName === 'body')) {
-      const hasChildEls = domEls.some(
-        other => other !== el &&
-          other.x >= el.x && other.y >= el.y &&
-          other.x + other.width <= el.x + el.width &&
-          other.y + other.height <= el.y + el.height
-      );
-      if (hasChildEls) continue;
-    }
-
-    // T017/T019 — Classify by text content
-    const { type, name, dataType } = classifyText(text);
-
-    const watchEl: WatchFaceElement = {
-      id: generateId(),
-      type,
-      name,
-      bounds,
-      visible: true,
-      zIndex: zIndex++,
-    };
-
-    if (dataType) watchEl.dataType = dataType;
-    if (el.style.color) watchEl.color = rgbToHex(el.style.color);
-
-    result.push(watchEl);
-  }
-
-  return result;
+  return { x: cx, y: cy, width: Math.max(1, Math.min(w, CANVAS - cx)), height: Math.max(1, Math.min(h, CANVAS - cy)) };
 }
 
 /** Convert rgb(r, g, b) string to #rrggbb hex */
@@ -167,3 +51,84 @@ function rgbToHex(rgb: string): string {
   if (!match || match.length < 3) return '#FFFFFF';
   return '#' + match.slice(0, 3).map(n => parseInt(n).toString(16).padStart(2, '0')).join('');
 }
+
+export function mapDomToElements(domEls: DomElement[]): WatchFaceElement[] {
+  const result: WatchFaceElement[] = [];
+  let zIndex = 1;
+  let hasTimePointer = false;
+
+  for (const el of domEls) {
+    if (result.length >= 20) break;
+
+    const bounds = clampBounds(el.x, el.y, el.width, el.height);
+    const text = el.textContent.trim();
+    const cls = (typeof el.className === 'string' ? el.className : '') + ' ' + el.tagName;
+
+    // ── Priority 1: data-widget attribute ──────────────────────────────────
+    if (el.dataWidget) {
+      const type = el.dataWidget.toUpperCase() as WatchFaceElement['type'];
+      if (type === 'TIME_POINTER' && !hasTimePointer) {
+        hasTimePointer = true;
+        result.push({ id: generateId(), type, name: 'Analog Clock', bounds: { x: 0, y: 0, width: CANVAS, height: CANVAS }, center: { x: CENTER, y: CENTER }, visible: true, zIndex: zIndex++ });
+      } else if (type !== 'TIME_POINTER') {
+        const watchEl: WatchFaceElement = { id: generateId(), type, name: el.dataWidget, bounds, visible: true, zIndex: zIndex++ };
+        if (el.dataType) watchEl.dataType = el.dataType;
+        result.push(watchEl);
+      }
+      continue;
+    }
+
+    // ── Priority 2: CSS class keywords ─────────────────────────────────────
+    let classMatch: typeof CLASS_KEYWORDS[0] | undefined;
+    for (const kw of CLASS_KEYWORDS) {
+      if (kw.pattern.test(cls)) { classMatch = kw; break; }
+    }
+    if (classMatch) {
+      if (classMatch.type === 'TIME_POINTER') {
+        if (!hasTimePointer) {
+          hasTimePointer = true;
+          result.push({ id: generateId(), type: 'TIME_POINTER', name: 'Analog Clock', bounds: { x: 0, y: 0, width: CANVAS, height: CANVAS }, center: { x: CENTER, y: CENTER }, visible: true, zIndex: zIndex++ });
+        }
+        continue;
+      }
+      const watchEl: WatchFaceElement = { id: generateId(), type: classMatch.type, name: classMatch.name, bounds, visible: true, zIndex: zIndex++ };
+      if (classMatch.dataType) watchEl.dataType = classMatch.dataType;
+      if (el.style.color) watchEl.color = rgbToHex(el.style.color);
+      result.push(watchEl);
+      continue;
+    }
+
+    // ── Priority 3: text content pattern ───────────────────────────────────
+    if (text) {
+      const textMatch = classifyByText(text);
+      if (textMatch) {
+        const watchEl: WatchFaceElement = { id: generateId(), type: textMatch.type, name: textMatch.name, bounds, visible: true, zIndex: zIndex++ };
+        if (textMatch.dataType) watchEl.dataType = textMatch.dataType;
+        if (el.style.color) watchEl.color = rgbToHex(el.style.color);
+        result.push(watchEl);
+        continue;
+      }
+    }
+
+    // ── Priority 4: tag type ────────────────────────────────────────────────
+    if (el.tagName === 'img') {
+      result.push({ id: generateId(), type: 'IMG', name: 'Image', bounds, src: 'asset.png', visible: true, zIndex: zIndex++ });
+      continue;
+    }
+    if (el.tagName === 'svg' || el.tagName === 'circle' || el.tagName === 'path') {
+      result.push({ id: generateId(), type: 'ARC_PROGRESS', name: 'Progress', bounds, visible: true, zIndex: zIndex++ });
+      continue;
+    }
+
+    // ── Priority 5: fallback — any element with text ────────────────────────
+    if (text) {
+      const watchEl: WatchFaceElement = { id: generateId(), type: 'TEXT', name: text.slice(0, 20), bounds, text, visible: true, zIndex: zIndex++ };
+      if (el.style.color) watchEl.color = rgbToHex(el.style.color);
+      if (el.style.fontSize) watchEl.fontSize = parseInt(el.style.fontSize);
+      result.push(watchEl);
+    }
+  }
+
+  return result;
+}
+

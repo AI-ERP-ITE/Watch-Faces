@@ -1105,7 +1105,7 @@ function App() {
     dispatch(actions.setLoading(true));
     try {
       // T021 — Parse DOM and map to elements (replaces AI input)
-      const domEls = parseDom(htmlInput);
+      const domEls = await parseDom(htmlInput);
       const elements = mapDomToElements(domEls);
 
       if (elements.length === 0) {
