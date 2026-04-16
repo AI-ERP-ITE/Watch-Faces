@@ -108,7 +108,7 @@ export function PropertyPanel({ element, onUpdateElement, className }: PropertyP
   const setH = (v: number) => update({ bounds: { ...element.bounds, height: clamp(v, 1, 480) } });
 
   const isCentered = element.type === 'ARC_PROGRESS' || element.type === 'TIME_POINTER';
-  const isSizeLocked = element.type === 'IMG_TIME' || element.type === 'IMG_DATE' || element.type === 'IMG_WEEK';
+  const isSizeLocked = false; // Allow resizing all elements in editor
 
   return (
     <div className={`rounded-xl border border-white/10 bg-white/5 p-4 space-y-4 ${className ?? ''}`}>
