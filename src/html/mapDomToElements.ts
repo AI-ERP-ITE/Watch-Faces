@@ -112,8 +112,8 @@ export function mapDomToElements(domEls: DomElement[]): WatchFaceElement[] {
     const text = el.textContent.trim();
     const bounds = clampBounds(el.x, el.y, el.width, el.height);
 
-    // Skip near-full-screen elements (containers/wrappers)
-    if (bounds.width > 400 && bounds.height > 400) continue;
+    // Skip near-full-screen elements that have no text (likely background containers)
+    if (bounds.width >= 460 && bounds.height >= 460 && !text) continue;
 
     // T017/T019 — Classify by text content
     const { type, name, dataType } = classifyText(text);

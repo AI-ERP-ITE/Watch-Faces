@@ -29,3 +29,23 @@ export function sanitizeHtml(raw: string): string {
 
   return html;
 }
+
+/**
+ * Sanitize HTML for iframe-based DOM parsing.
+ * Keeps <style> blocks (needed for layout) but removes <script> and event handlers.
+ */
+export function sanitizeForParse(raw: string): string {
+  let html = raw;
+
+  // Strip markdown code fences
+  html = html.replace(/^```[\w]*\n?/gm, '').replace(/^```\s*$/gm, '');
+
+  // Remove <script> blocks only (NOT <style> — needed for layout)
+  html = html.replace(/<script[\s\S]*?<\/script>/gi, '');
+
+  // Remove event handler attributes
+  html = html.replace(/\s+on\w+="[^"]*"/gi, '');
+  html = html.replace(/\s+on\w+='[^']*'/gi, '');
+
+  return html.trim();
+}

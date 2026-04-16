@@ -1,7 +1,7 @@
 // Spec 010 — T008/T009: Container Handling + T013–T016: DOM Parsing
 // Detects/wraps root container, traverses DOM, extracts geometry.
 
-import { sanitizeHtml } from './sanitizeHtml';
+import { sanitizeForParse } from './sanitizeHtml';
 
 export interface DomElement {
   tagName: string;
@@ -37,8 +37,8 @@ export function normalizeContainer(html: string): string {
  * relative to the 480×480 container, then tears down.
  */
 export function parseDom(rawHtml: string): DomElement[] {
-  // Sanitize + normalize container
-  const clean = sanitizeHtml(rawHtml);
+  // Sanitize (keep styles for layout) + normalize container
+  const clean = sanitizeForParse(rawHtml);
   const wrapped = normalizeContainer(clean);
 
   // Mount in hidden iframe to get accurate layout
