@@ -256,7 +256,7 @@ export function PropertyPanel({ element, onUpdateElement, className }: PropertyP
             >
               None
             </button>
-            {(['health', 'activity', 'environment', 'system', 'time'] as const).map(cat => {
+            {(['health', 'fitness', 'weather', 'system', 'time'] as const).map(cat => {
               const icons = getIconLibrary().filter(i => i.category === cat);
               if (icons.length === 0) return null;
               return (

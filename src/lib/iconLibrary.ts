@@ -1,7 +1,7 @@
 export interface IconEntry {
   key: string;
   label: string;
-  category: 'health' | 'activity' | 'environment' | 'system' | 'time';
+  category: 'health' | 'fitness' | 'weather' | 'system' | 'time';
   dataUrl: string;
   width: number;
   height: number;
@@ -462,7 +462,257 @@ function makeWorldClock(ctx: CanvasRenderingContext2D, _s: number) {
   ctx.beginPath(); ctx.moveTo(24, 24); ctx.lineTo(32, 24); ctx.stroke();
 }
 
-const ICON_DEFS: Array<{ key: string; label: string; category: 'health' | 'activity' | 'environment' | 'system' | 'time'; draw: (ctx: CanvasRenderingContext2D, s: number) => void }> = [
+function makeCharging(ctx: CanvasRenderingContext2D, _s: number) {
+  ctx.strokeStyle = '#44ff88'; ctx.lineWidth = 2.5; ctx.fillStyle = '#44ff88';
+  // Battery shell
+  ctx.beginPath(); ctx.roundRect(4, 12, 34, 24, 3); ctx.stroke();
+  ctx.beginPath(); ctx.roundRect(38, 18, 6, 12, 2); ctx.fill();
+  // Lightning bolt inside
+  ctx.fillStyle = '#44ff88';
+  ctx.beginPath();
+  ctx.moveTo(26, 15); ctx.lineTo(18, 26); ctx.lineTo(24, 26);
+  ctx.lineTo(22, 33); ctx.lineTo(30, 22); ctx.lineTo(24, 22);
+  ctx.closePath(); ctx.fill();
+}
+
+function makeLock(ctx: CanvasRenderingContext2D, _s: number) {
+  ctx.strokeStyle = '#ffaa55'; ctx.lineWidth = 2.5; ctx.fillStyle = '#ffaa55';
+  // Shackle
+  ctx.beginPath();
+  ctx.arc(24, 20, 10, Math.PI, 0);
+  ctx.stroke();
+  // Body
+  ctx.beginPath(); ctx.roundRect(10, 22, 28, 22, 4); ctx.fill();
+  // Keyhole
+  ctx.fillStyle = '#1a1a2e';
+  ctx.beginPath(); ctx.arc(24, 31, 4, 0, Math.PI * 2); ctx.fill();
+  ctx.fillRect(22, 31, 4, 8);
+}
+
+function makeGps(ctx: CanvasRenderingContext2D, _s: number) {
+  ctx.strokeStyle = '#44ddff'; ctx.lineWidth = 2;
+  // Globe arcs
+  ctx.beginPath(); ctx.arc(24, 24, 18, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(24, 24, 8, 18, 0, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(6, 24); ctx.lineTo(42, 24); ctx.stroke();
+  // GPS pin overlay
+  ctx.fillStyle = '#ff4444';
+  ctx.beginPath();
+  ctx.arc(24, 16, 5, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(20, 19); ctx.lineTo(24, 28); ctx.lineTo(28, 19);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#1a1a2e';
+  ctx.beginPath(); ctx.arc(24, 16, 2, 0, Math.PI * 2); ctx.fill();
+}
+
+function makeNfc(ctx: CanvasRenderingContext2D, _s: number) {
+  ctx.strokeStyle = '#aa88ff'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+  // NFC waves emanating right
+  const radii = [6, 11, 16];
+  radii.forEach(r => {
+    ctx.beginPath();
+    ctx.arc(20, 24, r, -Math.PI * 0.45, Math.PI * 0.45);
+    ctx.stroke();
+  });
+  // NFC chip dot
+  ctx.fillStyle = '#aa88ff';
+  ctx.beginPath(); ctx.arc(16, 24, 3, 0, Math.PI * 2); ctx.fill();
+  // N letter
+  ctx.strokeStyle = '#aa88ff'; ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(6, 32); ctx.lineTo(6, 18); ctx.lineTo(13, 32); ctx.lineTo(13, 18);
+  ctx.stroke();
+}
+
+function makeVolume(ctx: CanvasRenderingContext2D, _s: number) {
+  ctx.fillStyle = '#cccccc';
+  // Speaker body
+  ctx.beginPath();
+  ctx.moveTo(8, 18); ctx.lineTo(18, 18); ctx.lineTo(26, 10);
+  ctx.lineTo(26, 38); ctx.lineTo(18, 30); ctx.lineTo(8, 30);
+  ctx.closePath(); ctx.fill();
+  // Sound waves
+  ctx.strokeStyle = '#cccccc'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.arc(26, 24, 6, -Math.PI * 0.4, Math.PI * 0.4); ctx.stroke();
+  ctx.beginPath(); ctx.arc(26, 24, 11, -Math.PI * 0.4, Math.PI * 0.4); ctx.stroke();
+  ctx.beginPath(); ctx.arc(26, 24, 16, -Math.PI * 0.4, Math.PI * 0.4); ctx.stroke();
+}
+
+function makeGym(ctx: CanvasRenderingContext2D, _s: number) {
+  ctx.strokeStyle = '#ffaa33'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+  // Barbell bar
+  ctx.beginPath(); ctx.moveTo(8, 24); ctx.lineTo(40, 24); ctx.stroke();
+  // Left weights
+  ctx.strokeStyle = '#ffaa33'; ctx.lineWidth = 5;
+  ctx.beginPath(); ctx.moveTo(8, 18); ctx.lineTo(8, 30); ctx.stroke();
+  ctx.lineWidth = 7;
+  ctx.beginPath(); ctx.moveTo(12, 16); ctx.lineTo(12, 32); ctx.stroke();
+  // Right weights
+  ctx.lineWidth = 5;
+  ctx.beginPath(); ctx.moveTo(40, 18); ctx.lineTo(40, 30); ctx.stroke();
+  ctx.lineWidth = 7;
+  ctx.beginPath(); ctx.moveTo(36, 16); ctx.lineTo(36, 32); ctx.stroke();
+}
+
+function makeYoga(ctx: CanvasRenderingContext2D, _s: number) {
+  ctx.fillStyle = '#aa66ff';
+  // Head
+  ctx.beginPath(); ctx.arc(24, 8, 5, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#aa66ff'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+  // Body torso
+  ctx.beginPath(); ctx.moveTo(24, 13); ctx.lineTo(24, 26); ctx.stroke();
+  // Arms out wide (warrior pose)
+  ctx.beginPath(); ctx.moveTo(24, 18); ctx.lineTo(6, 22); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(24, 18); ctx.lineTo(42, 22); ctx.stroke();
+  // Legs spread
+  ctx.beginPath(); ctx.moveTo(24, 26); ctx.lineTo(12, 40); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(24, 26); ctx.lineTo(36, 40); ctx.stroke();
+}
+
+function makeHiking(ctx: CanvasRenderingContext2D, _s: number) {
+  ctx.fillStyle = '#88bb44';
+  // Head
+  ctx.beginPath(); ctx.arc(22, 8, 5, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#88bb44'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+  // Body leaning forward
+  ctx.beginPath(); ctx.moveTo(22, 13); ctx.lineTo(20, 26); ctx.stroke();
+  // Back arm with hiking pole
+  ctx.beginPath(); ctx.moveTo(22, 18); ctx.lineTo(30, 22); ctx.stroke();
+  ctx.strokeStyle = '#88bb44'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(30, 22); ctx.lineTo(34, 42); ctx.stroke();
+  // Front arm
+  ctx.strokeStyle = '#88bb44'; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.moveTo(22, 18); ctx.lineTo(14, 24); ctx.stroke();
+  // Legs mid-stride
+  ctx.beginPath(); ctx.moveTo(20, 26); ctx.lineTo(14, 40); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(20, 26); ctx.lineTo(28, 38); ctx.stroke();
+  // Mountain hint
+  ctx.strokeStyle = '#aaccaa'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(32, 42); ctx.lineTo(38, 28); ctx.lineTo(44, 42); ctx.stroke();
+}
+
+function makeBodyTemp(ctx: CanvasRenderingContext2D, _s: number) {
+  ctx.strokeStyle = '#ff6655'; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.roundRect(20, 4, 8, 26, 4); ctx.stroke();
+  ctx.fillStyle = '#ff6655';
+  ctx.beginPath(); ctx.arc(24, 34, 8, 0, Math.PI * 2); ctx.fill();
+  ctx.fillRect(21, 14, 6, 20);
+  ctx.strokeStyle = '#ff6655'; ctx.lineWidth = 1.5;
+  for (let i = 0; i < 3; i++) {
+    ctx.beginPath(); ctx.moveTo(28, 8 + i * 6); ctx.lineTo(34, 8 + i * 6); ctx.stroke();
+  }
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 7px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('°C', 38, 8);
+}
+
+function makeHydration(ctx: CanvasRenderingContext2D, _s: number) {
+  ctx.fillStyle = '#33aaff';
+  ctx.beginPath();
+  ctx.moveTo(24, 4);
+  ctx.bezierCurveTo(34, 16, 40, 26, 38, 33);
+  ctx.bezierCurveTo(36, 42, 28, 46, 24, 44);
+  ctx.bezierCurveTo(20, 46, 12, 42, 10, 33);
+  ctx.bezierCurveTo(8, 26, 14, 16, 24, 4);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  ctx.beginPath(); ctx.ellipse(18, 26, 4, 8, -0.4, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('%', 24, 28);
+}
+
+function makeBreathRate(ctx: CanvasRenderingContext2D, _s: number) {
+  ctx.strokeStyle = '#aaddff'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+  // Lungs outline left
+  ctx.beginPath();
+  ctx.moveTo(22, 14); ctx.lineTo(22, 22);
+  ctx.bezierCurveTo(22, 34, 10, 36, 10, 28);
+  ctx.bezierCurveTo(10, 20, 16, 18, 22, 22);
+  ctx.stroke();
+  // Lungs outline right
+  ctx.beginPath();
+  ctx.moveTo(26, 14); ctx.lineTo(26, 22);
+  ctx.bezierCurveTo(26, 34, 38, 36, 38, 28);
+  ctx.bezierCurveTo(38, 20, 32, 18, 26, 22);
+  ctx.stroke();
+  // Trachea
+  ctx.beginPath(); ctx.moveTo(22, 14); ctx.lineTo(26, 14); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(24, 10); ctx.lineTo(24, 14); ctx.stroke();
+}
+
+function makeEcg(ctx: CanvasRenderingContext2D, _s: number) {
+  ctx.strokeStyle = '#ff3366'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(4, 28);
+  ctx.lineTo(10, 28);
+  ctx.lineTo(14, 20);
+  ctx.lineTo(18, 36);
+  ctx.lineTo(20, 10);
+  ctx.lineTo(22, 38);
+  ctx.lineTo(26, 28);
+  ctx.lineTo(44, 28);
+  ctx.stroke();
+}
+
+function makeMenstrual(ctx: CanvasRenderingContext2D, _s: number) {
+  ctx.fillStyle = '#ff6699';
+  // Main drop
+  ctx.beginPath();
+  ctx.moveTo(24, 6);
+  ctx.bezierCurveTo(34, 18, 38, 28, 36, 34);
+  ctx.bezierCurveTo(34, 42, 28, 46, 24, 44);
+  ctx.bezierCurveTo(20, 46, 14, 42, 12, 34);
+  ctx.bezierCurveTo(10, 28, 14, 18, 24, 6);
+  ctx.fill();
+  // Cycle arrows hint
+  ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.arc(24, 28, 8, Math.PI * 1.1, Math.PI * 2.9); ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(24 + Math.cos(Math.PI * 2.9) * 8 - 3, 28 + Math.sin(Math.PI * 2.9) * 8 + 2);
+  ctx.lineTo(24 + Math.cos(Math.PI * 2.9) * 8, 28 + Math.sin(Math.PI * 2.9) * 8);
+  ctx.lineTo(24 + Math.cos(Math.PI * 2.9) * 8 + 3, 28 + Math.sin(Math.PI * 2.9) * 8 + 2);
+  ctx.stroke();
+}
+
+function makeCalendar(ctx: CanvasRenderingContext2D, _s: number) {
+  ctx.strokeStyle = '#55aaff'; ctx.lineWidth = 2.5; ctx.fillStyle = '#55aaff';
+  // Calendar shell
+  ctx.beginPath(); ctx.roundRect(4, 10, 40, 36, 4); ctx.stroke();
+  // Header band
+  ctx.fillStyle = '#55aaff';
+  ctx.beginPath(); ctx.roundRect(4, 10, 40, 11, [4, 4, 0, 0]); ctx.fill();
+  // Binding rings
+  ctx.fillStyle = '#1a1a2e';
+  ctx.beginPath(); ctx.roundRect(13, 6, 4, 10, 2); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(31, 6, 4, 10, 2); ctx.fill();
+  // Grid dots (3x3)
+  ctx.fillStyle = '#55aaff';
+  [14, 24, 34].forEach(x => [28, 35, 42].forEach(y => {
+    ctx.beginPath(); ctx.arc(x, y, 2, 0, Math.PI * 2); ctx.fill();
+  }));
+}
+
+function makeCountdown(ctx: CanvasRenderingContext2D, _s: number) {
+  ctx.strokeStyle = '#ff9944'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+  // Outer ring
+  ctx.beginPath(); ctx.arc(24, 24, 18, 0, Math.PI * 2); ctx.stroke();
+  // Countdown arc (about 2/3 filled)
+  ctx.strokeStyle = '#ff9944'; ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.arc(24, 24, 13, -Math.PI / 2, Math.PI * 0.8); ctx.stroke();
+  // Center digit "3"
+  ctx.fillStyle = '#ff9944';
+  ctx.font = 'bold 18px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('3', 24, 25);
+  // Top notch
+  ctx.fillStyle = '#ff9944';
+  ctx.beginPath(); ctx.roundRect(21, 4, 6, 4, 1); ctx.fill();
+}
+
+const ICON_DEFS: Array<{ key: string; label: string; category: 'health' | 'fitness' | 'weather' | 'system' | 'time'; draw: (ctx: CanvasRenderingContext2D, s: number) => void }> = [
   { key: 'battery',       label: 'Battery',          category: 'health',       draw: makeBattery },
   { key: 'heart',         label: 'Heart Rate',        category: 'health',       draw: makeHeart },
   { key: 'steps',         label: 'Steps',             category: 'health',       draw: makeSteps },
@@ -474,24 +724,37 @@ const ICON_DEFS: Array<{ key: string; label: string; category: 'health' | 'activ
   { key: 'pai',           label: 'PAI',               category: 'health',       draw: makePai },
   { key: 'stand',         label: 'Stand',             category: 'health',       draw: makeStand },
   { key: 'fat_burn',      label: 'Fat Burn',          category: 'health',       draw: makeFatBurn },
-  { key: 'running',       label: 'Running',           category: 'activity',     draw: makeRunning },
-  { key: 'cycling',       label: 'Cycling',           category: 'activity',     draw: makeCycling },
-  { key: 'swimming',      label: 'Swimming',          category: 'activity',     draw: makeSwimming },
+  { key: 'body_temp',     label: 'Body Temperature',  category: 'health',       draw: makeBodyTemp },
+  { key: 'hydration',     label: 'Hydration',         category: 'health',       draw: makeHydration },
+  { key: 'breath_rate',   label: 'Breathing Rate',    category: 'health',       draw: makeBreathRate },
+  { key: 'ecg',           label: 'ECG',               category: 'health',       draw: makeEcg },
+  { key: 'menstrual',     label: 'Menstrual Cycle',   category: 'health',       draw: makeMenstrual },
+  { key: 'running',       label: 'Running',           category: 'fitness',      draw: makeRunning },
+  { key: 'cycling',       label: 'Cycling',           category: 'fitness',      draw: makeCycling },
+  { key: 'swimming',      label: 'Swimming',          category: 'fitness',      draw: makeSwimming },
+  { key: 'gym',           label: 'Gym / Strength',    category: 'fitness',      draw: makeGym },
+  { key: 'yoga',          label: 'Yoga',              category: 'fitness',      draw: makeYoga },
+  { key: 'hiking',        label: 'Hiking',            category: 'fitness',      draw: makeHiking },
   { key: 'alarm',         label: 'Alarm',             category: 'time',         draw: makeAlarm },
   { key: 'bluetooth',     label: 'Bluetooth',         category: 'system',       draw: makeBluetooth },
-  { key: 'weather_sun',   label: 'Weather: Sun',      category: 'environment',  draw: makeWeatherSun },
-  { key: 'weather_cloud', label: 'Weather: Cloud',    category: 'environment',  draw: makeWeatherCloud },
-  { key: 'weather_rain',  label: 'Weather: Rain',     category: 'environment',  draw: makeWeatherRain },
-  { key: 'weather_snow',  label: 'Weather: Snow',     category: 'environment',  draw: makeWeatherSnow },
-  { key: 'temperature',   label: 'Temperature',       category: 'environment',  draw: makeTemperature },
-  { key: 'wind',          label: 'Wind',              category: 'environment',  draw: makeWind },
-  { key: 'barometer',     label: 'Barometer',         category: 'environment',  draw: makeBarometer },
+  { key: 'weather_sun',   label: 'Weather: Sun',      category: 'weather',      draw: makeWeatherSun },
+  { key: 'weather_cloud', label: 'Weather: Cloud',    category: 'weather',      draw: makeWeatherCloud },
+  { key: 'weather_rain',  label: 'Weather: Rain',     category: 'weather',      draw: makeWeatherRain },
+  { key: 'weather_snow',  label: 'Weather: Snow',     category: 'weather',      draw: makeWeatherSnow },
+  { key: 'temperature',   label: 'Temperature',       category: 'weather',      draw: makeTemperature },
+  { key: 'wind',          label: 'Wind',              category: 'weather',      draw: makeWind },
+  { key: 'barometer',     label: 'Barometer',         category: 'weather',      draw: makeBarometer },
   { key: 'notification',  label: 'Notification',      category: 'system',       draw: makeNotification },
-  { key: 'moon',          label: 'Moon Phase',        category: 'environment',  draw: makeMoon },
-  { key: 'uvi',           label: 'UV Index',          category: 'environment',  draw: makeUvi },
-  { key: 'aqi',           label: 'Air Quality',       category: 'environment',  draw: makeAqi },
-  { key: 'humidity',      label: 'Humidity',          category: 'environment',  draw: makeHumidity },
+  { key: 'moon',          label: 'Moon Phase',        category: 'weather',      draw: makeMoon },
+  { key: 'uvi',           label: 'UV Index',          category: 'weather',      draw: makeUvi },
+  { key: 'aqi',           label: 'Air Quality',       category: 'weather',      draw: makeAqi },
+  { key: 'humidity',      label: 'Humidity',          category: 'weather',      draw: makeHumidity },
   { key: 'battery_low',   label: 'Battery Low',       category: 'system',       draw: makeBatteryLow },
+  { key: 'charging',      label: 'Charging',           category: 'system',       draw: makeCharging },
+  { key: 'lock',          label: 'Lock / Security',    category: 'system',       draw: makeLock },
+  { key: 'gps',           label: 'GPS',                category: 'system',       draw: makeGps },
+  { key: 'nfc',           label: 'NFC',                category: 'system',       draw: makeNfc },
+  { key: 'volume',        label: 'Volume',             category: 'system',       draw: makeVolume },
   { key: 'wifi',          label: 'Wi-Fi',             category: 'system',       draw: makeWifi },
   { key: 'settings',      label: 'Settings',          category: 'system',       draw: makeGear },
   { key: 'dnd',           label: 'Do Not Disturb',    category: 'system',       draw: makeDnd },
@@ -501,6 +764,8 @@ const ICON_DEFS: Array<{ key: string; label: string; category: 'health' | 'activ
   { key: 'stopwatch',     label: 'Stopwatch',         category: 'time',         draw: makeStopwatch },
   { key: 'timer',         label: 'Timer',             category: 'time',         draw: makeHourglass },
   { key: 'world_clock',   label: 'World Clock',       category: 'time',         draw: makeWorldClock },
+  { key: 'calendar',      label: 'Calendar',          category: 'time',         draw: makeCalendar },
+  { key: 'countdown',     label: 'Countdown',         category: 'time',         draw: makeCountdown },
 ];
 
 export const ICON_KEYS = ICON_DEFS.map(d => d.key);
