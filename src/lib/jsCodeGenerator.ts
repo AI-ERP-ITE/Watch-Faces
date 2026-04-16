@@ -344,17 +344,17 @@ function generateTimePointerWidget(element: WatchFaceElement): string {
   return `
                 // ${element.name} - Time Pointer (Hour/Minute/Second)
                 hmUI.createWidget(hmUI.widget.TIME_POINTER, {
-                    hour_path: 'assets/${hourImagePath}',
+                    hour_path: '${hourImagePath}',
                     hour_centerX: px(${centerX}),
                     hour_centerY: px(${centerY}),
                     hour_posX: px(${hourPosX}),
                     hour_posY: px(${hourPosY}),
-                    minute_path: 'assets/${minuteImagePath}',
+                    minute_path: '${minuteImagePath}',
                     minute_centerX: px(${centerX}),
                     minute_centerY: px(${centerY}),
                     minute_posX: px(${minutePosX}),
                     minute_posY: px(${minutePosY}),
-                    second_path: 'assets/${secondImagePath}',
+                    second_path: '${secondImagePath}',
                     second_centerX: px(${centerX}),
                     second_centerY: px(${centerY}),
                     second_posX: px(${secondPosX}),
@@ -405,8 +405,6 @@ function generateTextWidget(element: WatchFaceElement): string {
 // IMG - Static image with proper asset paths
 function generateImgWidget(element: WatchFaceElement): string {
   const src = element.src || element.images?.[0] || 'background.png';
-  // Ensure assets/ prefix for proper path resolution
-  const srcPath = src.startsWith('assets/') ? src : `assets/${src}`;
   
   return `
                 // ${element.name}
@@ -415,7 +413,7 @@ function generateImgWidget(element: WatchFaceElement): string {
                     y: px(${element.bounds.y}),
                     w: px(${element.bounds.width}),
                     h: px(${element.bounds.height}),
-                    src: '${srcPath}',
+                    src: '${src}',
                     alpha: 255,
                     show_level: hmUI.show_level.ONLY_NORMAL
                 });`;

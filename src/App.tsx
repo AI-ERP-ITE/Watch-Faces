@@ -1010,6 +1010,14 @@ function App() {
 
   const handleCropConfirm = (dataUrl: string) => {
     dispatch(actions.setBackgroundImage(dataUrl));
+    // Convert cropped data URL to File so buildZPK gets the cropped version
+    const parts = dataUrl.split(',');
+    const mime = parts[0].match(/:(.*?);/)?.[1] || 'image/png';
+    const bstr = atob(parts[1]);
+    const u8 = new Uint8Array(bstr.length);
+    for (let i = 0; i < bstr.length; i++) u8[i] = bstr.charCodeAt(i);
+    const croppedFile = new File([u8], 'background.png', { type: mime });
+    dispatch(actions.setBackgroundFile(croppedFile));
     setCropFile(null);
   };
 
@@ -1376,15 +1384,14 @@ function App() {
       console.log('[App] ZPK URL:', uploadResult.downloadUrl);
       console.log('[App] QR URL:', uploadResult.qrUrl);
 
-      dispatch(actions.setGithubUrl(uploadResult.downloadUrl || ''));
-      dispatch(actions.setQrCode(qrDataUrl));
-
-      // Capture canvas preview before showing success screen
+      // Capture canvas preview FIRST before any state change unmounts it
       const previewCanvas = document.querySelector('canvas') as HTMLCanvasElement | null;
       if (previewCanvas) {
         setPreviewImageUrl(previewCanvas.toDataURL('image/png'));
       }
 
+      dispatch(actions.setGithubUrl(uploadResult.downloadUrl || ''));
+      dispatch(actions.setQrCode(qrDataUrl));
       dispatch(actions.setStep('success'));
       toast.success('Watch face created successfully!');
     } catch (error) {

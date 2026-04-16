@@ -613,8 +613,18 @@ function generateTextImgWidget(element: WatchFaceElement, widgetIndex: number, s
   if (fontImages.length > 0) {
     fontArrayStr = `[${fontImages.map(f => `'${f}'`).join(', ')}]`;
   } else {
-    // Default: generate 0-9 digit array using element name as prefix
-    const prefix = element.name.toLowerCase().replace(/\s+/g, '_');
+    // Use same prefix convention as assetImageGenerator DATA_TYPE_PREFIXES
+    const DATA_TYPE_PREFIXES: Record<string, string> = {
+      BATTERY: 'batt_digit', STEP: 'step_digit', HEART: 'heart_digit',
+      SPO2: 'spo2_digit', CAL: 'cal_digit', DISTANCE: 'dist_digit',
+      STRESS: 'stress_digit', PAI: 'pai_digit', SLEEP: 'sleep_digit',
+      STAND: 'stand_digit', FAT_BURN: 'fatburn_digit', UVI: 'uvi_digit',
+      AQI: 'aqi_digit', HUMIDITY: 'humid_digit', WIND: 'wind_digit',
+      WEATHER: 'weather_digit',
+    };
+    const prefix = (element.dataType && DATA_TYPE_PREFIXES[element.dataType])
+      ? DATA_TYPE_PREFIXES[element.dataType]
+      : element.name.toLowerCase().replace(/\s+/g, '_');
     const arr = [];
     for (let i = 0; i < 10; i++) {
       arr.push(`'${prefix}_${i}.png'`);
