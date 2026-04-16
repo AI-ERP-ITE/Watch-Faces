@@ -213,7 +213,7 @@ function generateWatchfaceIndexJsV2(config: WatchFaceConfig): string {
   console.log('[JSGenV2] Total elements in config:', config.elements.length);
   console.log('[JSGenV2] Visible elements after filter:', elements.length);
   
-  const backgroundSrc = config.background?.src || 'background.png';
+  const backgroundSrc = 'background.png';
   
   // Generate NORMAL mode widgets
   let normalWidgetsCode = '';

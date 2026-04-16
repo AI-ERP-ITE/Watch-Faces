@@ -256,7 +256,7 @@ try {
                     y: px(0),
                     w: px(${config.resolution.width}),
                     h: px(${config.resolution.height}),
-                    src: 'assets/bg.png',
+                    src: 'background.png',
                     alpha: 255,
                     show_level: hmUI.show_level.ONLY_NORMAL
                 });
@@ -404,7 +404,7 @@ function generateTextWidget(element: WatchFaceElement): string {
 
 // IMG - Static image with proper asset paths
 function generateImgWidget(element: WatchFaceElement): string {
-  const src = element.src || element.images?.[0] || 'bg.png';
+  const src = element.src || element.images?.[0] || 'background.png';
   // Ensure assets/ prefix for proper path resolution
   const srcPath = src.startsWith('assets/') ? src : `assets/${src}`;
   

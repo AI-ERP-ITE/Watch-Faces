@@ -112,7 +112,7 @@ export async function buildZPK(options: ZPKBuildOptions): Promise<ZPKBuildResult
         version: { code: 1, name: '1.0.0' },
         vender: 'AI-WatchFace-Creator',
         description: `Custom watch face - ${config.name}`,
-        icon: 'assets/bg.png',
+        icon: 'assets/background.png',
       },
       permissions: [],
     }, null, 2);

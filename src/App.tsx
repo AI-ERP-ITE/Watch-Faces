@@ -1134,7 +1134,7 @@ function App() {
         name: watchFaceName || 'HTML Watch Face',
         watchModel: watchModel || 'Balance 2',
         resolution: { width: 480, height: 480 },
-        background: { src: state.backgroundImage ?? 'background.png', format: 'TGA-P' },
+        background: { src: 'background.png', format: 'TGA-P' },
         elements: allElements,
       };
 
