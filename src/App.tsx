@@ -1270,7 +1270,15 @@ function App() {
       for (const el of state.watchFaceConfig.elements) {
         if (el.type === 'TEXT' && el.curvedText) {
           const filename = `curved_text_${el.id}.png`;
-          const rawColor = el.color?.startsWith('#') ? el.color : '#FFFFFF';
+          // Parse Zepp color format 0xRRGGBBAA → #RRGGBB
+          let rawColor = '#FFFFFF';
+          if (el.color) {
+            if (el.color.startsWith('0x') || el.color.startsWith('0X')) {
+              rawColor = '#' + el.color.slice(2, 8);
+            } else {
+              rawColor = el.color.substring(0, 7);
+            }
+          }
           const dataUrl = generateCurvedTextImage(
             el.text || el.name,
             el.curvedText.radius,

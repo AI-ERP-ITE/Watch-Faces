@@ -391,8 +391,9 @@ function generateTextWidget(element: WatchFaceElement): string {
     const radius = element.curvedText.radius;
     const fs = element.fontSize ?? 16;
     const size = (radius + fs) * 2 + 20;
-    const cx = element.center?.x ?? (element.bounds.x + Math.floor(element.bounds.width / 2));
-    const cy = element.center?.y ?? (element.bounds.y + Math.floor(element.bounds.height / 2));
+    // Default to watch center (240,240) — same logic as canvas preview
+    const cx = element.center?.x ?? 240;
+    const cy = element.center?.y ?? 240;
     const imgX = Math.round(cx - size / 2);
     const imgY = Math.round(cy - size / 2);
     return `

@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils';
 import type { WatchFaceElement } from '@/types';
 import { getIconByKey } from '@/lib/iconLibrary';
 import { getFontStyle } from '@/lib/fontLibrary';
+import { generateCurvedTextImage } from '@/pipeline/assetImageGenerator';
 
 const CANVAS_SIZE = 480;
 const CX = 240;
@@ -48,6 +49,7 @@ export const InteractiveCanvas = forwardRef<HTMLCanvasElement, InteractiveCanvas
   showGridRef.current = showGrid;
   const iconImageCache = useRef(new Map<string, HTMLImageElement>());
   const digitImageCache = useRef(new Map<string, HTMLImageElement>());
+  const curvedTextCache = useRef(new Map<string, HTMLImageElement>());
   useState(0); // reserved for future forced re-renders
 
   // Draw everything to canvas
@@ -70,7 +72,7 @@ export const InteractiveCanvas = forwardRef<HTMLCanvasElement, InteractiveCanvas
     if (showGridRef.current) drawGrid(ctx);
 
     // Elements
-    drawElements(ctx, elements, iconImageCache.current, digitImageCache.current, draw);
+    drawElements(ctx, elements, iconImageCache.current, digitImageCache.current, curvedTextCache.current, draw);
 
     // Selection highlight
     if (selectedElementId) {
@@ -575,25 +577,36 @@ function drawBackground(ctx: CanvasRenderingContext2D, img: HTMLImageElement) {
 
 // ─── Element Dispatcher ─────────────────────────────────────────────────────────
 
-function drawElements(ctx: CanvasRenderingContext2D, elements: WatchFaceElement[], iconCache?: Map<string, HTMLImageElement>, digitCache?: Map<string, HTMLImageElement>, onIconLoaded?: () => void) {
+function drawElements(ctx: CanvasRenderingContext2D, elements: WatchFaceElement[], iconCache?: Map<string, HTMLImageElement>, digitCache?: Map<string, HTMLImageElement>, curvedCache?: Map<string, HTMLImageElement>, onIconLoaded?: () => void) {
   const sorted = [...elements].filter(e => e.visible).sort((a, b) => a.zIndex - b.zIndex);
 
   for (const el of sorted) {
-    // Curved TEXT: draw along arc path
+    // Curved TEXT: render same PNG used in ZPK (via generateCurvedTextImage)
     if (el.type === 'TEXT' && el.curvedText) {
-      const cx = el.center?.x ?? (el.bounds.x + el.bounds.width / 2);
-      const cy = el.center?.y ?? (el.bounds.y + el.bounds.height / 2);
-      const rawColor = el.color ? parseZeppColor(el.color) : '#FFFFFF';
-      drawCurvedText(
-        ctx,
-        el.text || el.name,
-        cx, cy,
-        el.curvedText.radius,
-        el.curvedText.startAngle,
-        el.curvedText.endAngle,
-        el.fontSize ?? 16,
-        rawColor
-      );
+      const cx = el.center?.x ?? CX;
+      const cy = el.center?.y ?? CY;
+      const text = el.text || el.name;
+      const fontSize = el.fontSize ?? 16;
+      const color = el.color ? parseZeppColor(el.color) : '#FFFFFF';
+      const { radius, startAngle, endAngle } = el.curvedText;
+      const size = (radius + fontSize) * 2 + 20;
+
+      if (curvedCache) {
+        const cacheKey = `${el.id}|${text}|${radius}|${startAngle}|${endAngle}|${fontSize}|${color}`;
+        let img = curvedCache.get(cacheKey);
+        if (!img) {
+          // Invalidate old entries for this element
+          for (const k of curvedCache.keys()) { if (k.startsWith(el.id + '|')) curvedCache.delete(k); }
+          const dataUrl = generateCurvedTextImage(text, radius, startAngle, endAngle, fontSize, color);
+          img = new Image();
+          img.onload = () => onIconLoaded?.();
+          img.src = dataUrl;
+          curvedCache.set(cacheKey, img);
+        }
+        if (img.complete && img.naturalWidth > 0) {
+          ctx.drawImage(img, cx - size / 2, cy - size / 2, size, size);
+        }
+      }
       continue;
     }
 
@@ -785,42 +798,6 @@ function drawHand(
 }
 
 // ─── Placeholder (rectangles for IMG_TIME, TEXT, etc.) ──────────────────────────
-
-function drawCurvedText(
-  ctx: CanvasRenderingContext2D,
-  text: string,
-  centerX: number,
-  centerY: number,
-  radius: number,
-  startAngleDeg: number,
-  endAngleDeg: number,
-  fontSize: number,
-  color: string
-) {
-  const startAngle = (startAngleDeg * Math.PI) / 180;
-  const endAngle = (endAngleDeg * Math.PI) / 180;
-  const totalAngle = endAngle - startAngle;
-  const anglePerChar = totalAngle / Math.max(text.length - 1, 1);
-
-  ctx.save();
-  ctx.font = `bold ${fontSize}px Arial`;
-  ctx.fillStyle = color;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-
-  for (let i = 0; i < text.length; i++) {
-    const angle = startAngle + i * anglePerChar;
-    const charX = centerX + radius * Math.cos(angle);
-    const charY = centerY + radius * Math.sin(angle);
-    ctx.save();
-    ctx.translate(charX, charY);
-    ctx.rotate(angle + Math.PI / 2);
-    ctx.fillText(text[i], 0, 0);
-    ctx.restore();
-  }
-
-  ctx.restore();
-}
 
 function drawPlaceholder(ctx: CanvasRenderingContext2D, el: WatchFaceElement) {
   const { x, y, width, height } = el.bounds;
