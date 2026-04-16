@@ -625,6 +625,23 @@ function drawElements(ctx: CanvasRenderingContext2D, elements: WatchFaceElement[
       case 'TEXT_IMG':
         drawDigitElement(ctx, el, digitCache, onIconLoaded);
         break;
+      case 'TEXT': {
+        const { x, y, width, height } = el.bounds;
+        const text = el.text || el.name;
+        const fontSize = el.fontSize ?? 16;
+        const color = el.color ? parseZeppColor(el.color) : '#FFFFFF';
+        const style = el.fontStyle ? getFontStyle(el.fontStyle) : undefined;
+        const fontFamily = style?.fontFamily ?? 'Arial';
+        const fontWeight = style?.fontWeight ?? 'bold';
+        ctx.save();
+        ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
+        ctx.fillStyle = color;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(text, x + width / 2, y + height / 2, width);
+        ctx.restore();
+        break;
+      }
       case 'IMG':
         if (el.iconKey && iconCache) {
           const cached = iconCache.get(el.iconKey);
