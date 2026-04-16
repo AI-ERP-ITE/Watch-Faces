@@ -837,7 +837,6 @@ function drawPlaceholder(ctx: CanvasRenderingContext2D, el: WatchFaceElement) {
   const elColor = el.color ? parseZeppColor(el.color) : null;
   const boxFill = elColor ? hexToRgba(elColor, 0.15) : 'rgba(0, 200, 255, 0.08)';
   const boxStroke = elColor ? hexToRgba(elColor, 0.5) : 'rgba(0, 200, 255, 0.3)';
-  const labelFill = elColor ? hexToRgba(elColor, 0.9) : 'rgba(0, 200, 255, 0.7)';
 
   ctx.fillStyle = boxFill;
   ctx.strokeStyle = boxStroke;
@@ -846,8 +845,15 @@ function drawPlaceholder(ctx: CanvasRenderingContext2D, el: WatchFaceElement) {
   ctx.strokeRect(x, y, width, height);
 
   const label = formatLabel(el);
-  ctx.font = '10px monospace';
-  ctx.fillStyle = labelFill;
+  const style = el.fontStyle ? getFontStyle(el.fontStyle) : undefined;
+  const fontFamily = style?.fontFamily ?? 'Arial';
+  const fontWeight = style?.fontWeight ?? 'bold';
+  const color = el.color ? parseZeppColor(el.color) : (style?.color ?? 'rgba(0, 200, 255, 0.7)');
+  const maxFontSize = Math.min(Math.floor(height * 0.8), Math.floor(width / (label.length * 0.6)));
+  const fontSize = Math.max(10, maxFontSize);
+
+  ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
+  ctx.fillStyle = color;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(label, x + width / 2, y + height / 2, width - 4);
