@@ -3,6 +3,31 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- GitHub Pages SPA: restore path from 404 redirect -->
+    <script>
+      (function() {
+        var redirect = sessionStorage.redirect;
+        delete sessionStorage.redirect;
+        if (redirect && redirect !== location.href) {
+          history.replaceState(null, null, redirect);
+        }
+        var search = window.location.search;
+        if (search.indexOf('?p=/') === 0 || search.indexOf('&p=/') > -1) {
+          var params = search.slice(1).split('&');
+          var path = '';
+          var query = '';
+          params.forEach(function(p) {
+            if (p.indexOf('p=/') === 0) path = p.slice(2).replace(/~and~/g, '&');
+            else if (p.indexOf('q=') === 0) query = '?' + p.slice(2).replace(/~and~/g, '&');
+          });
+          if (path) {
+            window.history.replaceState(null, null,
+              window.location.pathname.split('?')[0] + path + query + window.location.hash
+            );
+          }
+        }
+      })();
+    </script>
     <title>Watch Face Creator</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

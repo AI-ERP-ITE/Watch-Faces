@@ -5,7 +5,7 @@ import { inspectAttr } from 'kimi-plugin-inspect-react'
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: './',
+  base: '/Watch-Faces/',
   plugins: [inspectAttr(), react()],
   resolve: {
     alias: {

@@ -342,7 +342,8 @@ export async function uploadZPKWithQR(
   zpkBlob: Blob,
   qrDataUrl: string,
   watchfaceName: string,
-  previewDataUrl?: string
+  previewDataUrl?: string,
+  sourceJsonBlob?: Blob
 ): Promise<GitHubUploadResult> {
   try {
     console.log('[GitHub] Starting folder-based ZPK+QR upload flow...');
@@ -406,6 +407,27 @@ export async function uploadZPKWithQR(
     
     // Note: Files may take 30-60 seconds to appear on GitHub Pages, but upload is successful
     console.log('[GitHub] Upload complete! Files will be accessible on GitHub Pages shortly.');
+
+    // Step 5: Upload source.json if provided (non-fatal)
+    if (sourceJsonBlob) {
+      try {
+        console.log('[GitHub] Step 5: Uploading source.json...');
+        const sourcePath = `${watchfaceId}/source.json`;
+        const sourceResult = await uploadToGitHub(
+          config,
+          sourcePath,
+          sourceJsonBlob,
+          `Upload source.json for: ${watchfaceName}`
+        );
+        if (sourceResult.success) {
+          console.log('[GitHub] source.json uploaded to:', sourceResult.downloadUrl);
+        } else {
+          console.warn('[GitHub] source.json upload failed (non-fatal):', sourceResult.error);
+        }
+      } catch (e) {
+        console.warn('[GitHub] source.json upload threw (non-fatal):', e);
+      }
+    }
     
     console.log('[GitHub] Upload flow complete!');
     return {
@@ -422,5 +444,67 @@ export async function uploadZPKWithQR(
       error: error instanceof Error ? error.message : 'Unknown error',
     };
   }
+}
+
+// Regenerate + overwrite qr.png for a single watchface folder
+export async function regenerateSingleQR(
+  config: GitHubConfig,
+  watchfaceId: string,
+  baseUrl: string   // e.g. 'https://owner.github.io/repo'
+): Promise<{ success: boolean; qrDataUrl?: string; error?: string }> {
+  try {
+    const { generateQRCode } = await import('./qrGenerator');
+    const zpkUrl = `${baseUrl.replace(/\/$/, '')}/zpk/${watchfaceId}/face.zpk`;
+    const qrDataUrl = await generateQRCode(zpkUrl);
+    const qrBlob = await fetch(qrDataUrl).then((r) => r.blob());
+    const result = await uploadToGitHub(
+      config,
+      `${watchfaceId}/qr.png`,
+      qrBlob,
+      `Regenerate QR code for: ${watchfaceId}`
+    );
+    if (!result.success) {
+      return { success: false, error: result.error };
+    }
+    return { success: true, qrDataUrl };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+// Batch-regenerate QR codes for every entry in the catalog.
+// Calls onProgress(done, total, currentId) after each attempt.
+// Returns lists of succeeded and failed watchface IDs.
+export async function batchRegenerateQRCodes(
+  config: GitHubConfig,
+  watchfaceIds: string[],
+  baseUrl: string,
+  onProgress: (done: number, total: number, currentId: string) => void
+): Promise<{ success: string[]; failed: Array<{ id: string; error: string }> }> {
+  const succeeded: string[] = [];
+  const failed: Array<{ id: string; error: string }> = [];
+
+  for (let i = 0; i < watchfaceIds.length; i++) {
+    const id = watchfaceIds[i];
+    onProgress(i, watchfaceIds.length, id);
+
+    const result = await regenerateSingleQR(config, id, baseUrl);
+    if (result.success) {
+      succeeded.push(id);
+    } else {
+      failed.push({ id, error: result.error ?? 'unknown' });
+    }
+
+    // 500 ms delay between requests to avoid GitHub API rate limiting
+    if (i < watchfaceIds.length - 1) {
+      await new Promise((r) => setTimeout(r, 500));
+    }
+  }
+
+  onProgress(watchfaceIds.length, watchfaceIds.length, '');
+  return { success: succeeded, failed };
 }
 
