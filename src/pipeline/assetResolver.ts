@@ -84,7 +84,8 @@ function resolveForWidget(
       // If IMG element has a sourceType that maps to a known icon, assign icon src
       const iconKey = resolveIconKey(sourceType, dataType);
       if (iconKey) {
-        return { src: `icon_${iconKey}.png` };
+        const safeKey = iconKey.replace(/[^a-zA-Z0-9_-]/g, '_');
+        return { src: `icon_${safeKey}.png` };
       }
       return {};
     }

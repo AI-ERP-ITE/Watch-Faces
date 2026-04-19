@@ -5,7 +5,7 @@
 import type { ElementImage } from '@/types';
 import type { ResolvedElement } from '@/types/pipeline';
 import { TIME_DIGIT, DATE_DIGIT, MONTH_LABEL, WEEK_LABEL, WEATHER_ICON, TEXT_IMG_DIGIT } from './constants';
-import { getIconByKey } from '@/lib/iconLibrary';
+import { getIconBySafeKey } from '@/lib/iconLibrary';
 
 // ─── Canvas Utility ─────────────────────────────────────────────────────────────
 
@@ -369,9 +369,10 @@ export function generatePipelineAssets(elements: ResolvedElement[]): ElementImag
         const iconSrc = el.assets?.src;
         if (iconSrc && iconSrc.startsWith('icon_') && iconSrc.endsWith('.png')) {
           if (!generatedSets.has(iconSrc)) {
-            const iconKey = iconSrc.replace('icon_', '').replace('.png', '');
-            // getIconByKey covers custom icons and already-cached Tabler icons
-            const iconEntry = getIconByKey(iconKey);
+            // Reverse-map filename back to original iconKey (handles sanitized keys)
+            const safeKey = iconSrc.replace('icon_', '').replace('.png', '');
+            // getIconByKey uses original key; try to find by sanitized match too
+            const iconEntry = getIconBySafeKey(safeKey);
             if (iconEntry) {
               // Render icon at element's geometry size (w/h from pipeline), fallback 48x48
               const targetW = el.w ?? 48;

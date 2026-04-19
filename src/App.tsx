@@ -1256,7 +1256,8 @@ function App() {
         if (el.iconKey) {
           const iconEntry = getIconByKey(el.iconKey);
           if (iconEntry) {
-            const filename = `icon_${el.iconKey}.png`;
+            const safeKey = el.iconKey.replace(/[^a-zA-Z0-9_-]/g, '_');
+            const filename = `icon_${safeKey}.png`;
             const p = iconEntry.dataUrl.split(',');
             const b = atob(p[1]);
             const u8 = new Uint8Array(b.length);

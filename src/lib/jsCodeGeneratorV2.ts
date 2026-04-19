@@ -548,7 +548,7 @@ function generateWidgetCodeV2(element: WatchFaceElement, widgetIndex: number, is
   if (element.type === 'IMG') {
     const w = element.bounds.width || 50;
     const h = element.bounds.height || 50;
-    const imgSrc = element.iconKey ? `icon_${element.iconKey}.png` : (element.src || 'placeholder.png');
+    const imgSrc = element.iconKey ? `icon_${element.iconKey.replace(/[^a-zA-Z0-9_-]/g, '_')}.png` : (element.src || 'placeholder.png');
     
     // Regular IMG elements (icons, indicators) - raw coordinates matching reference
     return `

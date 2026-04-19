@@ -792,6 +792,38 @@ export function getIconLibrary(): IconEntry[] {
 }
 
 /**
+/**
+ * Sanitize an icon key for use as a filename (removes characters invalid on Windows/ZeppOS).
+ * e.g. 'tabler:heart' → 'tabler_heart'
+ */
+export function sanitizeIconKey(key: string): string {
+  return key.replace(/[^a-zA-Z0-9_-]/g, '_');
+}
+
+/**
+ * Look up an icon by its sanitized key (as used in asset filenames).
+ * Searches full library (custom + Tabler cache).
+ */
+export function getIconBySafeKey(safeKey: string): IconEntry | undefined {
+  const allCustom = getIconLibrary();
+  // Try direct match first (custom keys never contain ':')
+  const direct = allCustom.find(i => i.key === safeKey);
+  if (direct) return direct;
+  // Search by sanitized key match across all known icons
+  const match = allCustom.find(i => sanitizeIconKey(i.key) === safeKey);
+  if (match) return match;
+  // Search Tabler cache by sanitized key
+  const { getTablerIconByKey } = require('./tablerIconRenderer') as typeof import('./tablerIconRenderer');
+  // Tabler keys look like 'tabler:heart' → sanitized 'tabler_heart'
+  // Re-construct original key: 'tabler_heart' → 'tabler:heart'
+  if (safeKey.startsWith('tabler_')) {
+    const originalKey = 'tabler:' + safeKey.slice('tabler_'.length);
+    return getTablerIconByKey(originalKey);
+  }
+  return undefined;
+}
+
+/**
  * Look up an icon by key — checks custom library first, then the Tabler cache.
  * For Tabler icons that haven't been rendered yet, returns undefined synchronously.
  * Use getIconByKeyAsync() to guarantee a result for Tabler keys.
