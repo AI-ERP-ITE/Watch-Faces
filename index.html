@@ -22,7 +22,7 @@
           });
           if (path) {
             window.history.replaceState(null, null,
-              window.location.pathname.split('?')[0] + path + query + window.location.hash
+              window.location.pathname.split('?')[0].replace(/\/$/, '') + path + query + window.location.hash
             );
           }
         }
