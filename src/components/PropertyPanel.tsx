@@ -7,6 +7,8 @@ import { getIconLibrary, getFullIconLibrary } from '@/lib/iconLibrary';
 import type { IconEntry } from '@/lib/iconLibrary';
 import { cn } from '@/lib/utils';
 import { FONT_STYLES, getFontStyle } from '@/lib/fontLibrary';
+import { WEATHER_STYLES, generateWeatherSet } from '@/lib/weatherIconSets';
+import type { WeatherStyle } from '@/lib/weatherIconSets';
 import { useState, useEffect, useRef } from 'react';
 
 export interface PropertyPanelProps {
@@ -255,6 +257,32 @@ export function PropertyPanel({ element, onUpdateElement, className }: PropertyP
         </Section>
       )}
 
+      {/* Weather style picker — IMG_LEVEL + WEATHER_CURRENT */}
+      {element.type === 'IMG_LEVEL' && element.dataType === 'WEATHER_CURRENT' && (
+        <Section label="Weather Style">
+          <div className="space-y-2">
+            <div className="flex gap-2">
+              {WEATHER_STYLES.map(ws => (
+                <button
+                  key={ws.key}
+                  onClick={() => update({ weatherStyle: ws.key })}
+                  className={cn(
+                    'flex-1 h-7 rounded border text-[10px]',
+                    (element.weatherStyle ?? 'flat') === ws.key
+                      ? 'border-cyan-500 bg-cyan-500/20 text-white'
+                      : 'border-white/10 bg-white/5 text-white/50 hover:border-white/30'
+                  )}
+                >
+                  {ws.label}
+                </button>
+              ))}
+            </div>
+            {/* Preview strip: show codes 0,1,2,4,5,8,11,20,28 as samples */}
+            <WeatherPreviewStrip style={(element.weatherStyle ?? 'flat') as WeatherStyle} />
+          </div>
+        </Section>
+      )}
+
       {/* Icon picker — IMG elements only */}
       {element.type === 'IMG' && (
         <Section label="Icon">
@@ -459,6 +487,28 @@ function NumField({ label, value, onChange, disabled }: { label: string; value: 
           disabled && 'opacity-50 cursor-not-allowed'
         )}
       />
+    </div>
+  );
+}
+
+// ─── Weather preview strip ─────────────────────────────────────────────────────
+
+const PREVIEW_CODES = [0, 2, 4, 5, 8, 11, 14, 20, 28];
+
+function WeatherPreviewStrip({ style }: { style: WeatherStyle }) {
+  const [dataUrls, setDataUrls] = useState<string[]>([]);
+  useEffect(() => {
+    // generateWeatherSet uses document.createElement, safe to call in useEffect
+    const all = generateWeatherSet(style);
+    setDataUrls(PREVIEW_CODES.map(c => all[c]));
+  }, [style]);
+
+  if (dataUrls.length === 0) return null;
+  return (
+    <div className="flex gap-1 flex-wrap">
+      {dataUrls.map((url, i) => (
+        <img key={i} src={url} alt={`weather_${PREVIEW_CODES[i]}`} className="w-7 h-7 rounded" />
+      ))}
     </div>
   );
 }

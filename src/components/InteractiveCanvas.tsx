@@ -3,6 +3,8 @@ import { cn } from '@/lib/utils';
 import type { WatchFaceElement } from '@/types';
 import { getIconByKey } from '@/lib/iconLibrary';
 import { getFontStyle } from '@/lib/fontLibrary';
+import { generateWeatherSet } from '@/lib/weatherIconSets';
+import type { WeatherStyle } from '@/lib/weatherIconSets';
 
 const CANVAS_SIZE = 480;
 const CX = 240;
@@ -642,9 +644,27 @@ function drawElements(ctx: CanvasRenderingContext2D, elements: WatchFaceElement[
         ctx.restore();
         break;
       }
+      case 'IMG_LEVEL':
+        if (el.dataType === 'WEATHER_CURRENT' && iconCache) {
+          const wStyle = (el.weatherStyle ?? 'flat') as WeatherStyle;
+          const cacheKey = `__weather_${wStyle}_2`;
+          const cached = iconCache.get(cacheKey);
+          if (cached) {
+            ctx.drawImage(cached, el.bounds.x, el.bounds.y, el.bounds.width, el.bounds.height);
+          } else {
+            // Generate preview for code=2 (Partly Cloudy) asynchronously
+            const dataUrls = generateWeatherSet(wStyle);
+            const img = new Image();
+            img.onload = () => { iconCache.set(cacheKey, img); onIconLoaded?.(); };
+            img.src = dataUrls[2];
+            drawPlaceholder(ctx, el);
+          }
+        } else {
+          drawPlaceholder(ctx, el);
+        }
+        break;
       case 'IMG':
-        if (el.iconKey && iconCache) {
-          const cached = iconCache.get(el.iconKey);
+        if (el.iconKey && iconCache) {          const cached = iconCache.get(el.iconKey);
           if (cached) {
             ctx.drawImage(cached, el.bounds.x, el.bounds.y, el.bounds.width, el.bounds.height);
           } else {

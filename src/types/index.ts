@@ -59,6 +59,9 @@ export interface WatchFaceElement {
   // Icon library
   iconKey?: string;
 
+  // Weather IMG_LEVEL style
+  weatherStyle?: string;
+
   // Font library
   fontStyle?: string;
 

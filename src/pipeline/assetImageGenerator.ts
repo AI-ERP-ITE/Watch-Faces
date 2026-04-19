@@ -6,6 +6,8 @@ import type { ElementImage } from '@/types';
 import type { ResolvedElement } from '@/types/pipeline';
 import { TIME_DIGIT, DATE_DIGIT, MONTH_LABEL, WEEK_LABEL, WEATHER_ICON, TEXT_IMG_DIGIT } from './constants';
 import { getIconBySafeKey } from '@/lib/iconLibrary';
+import { generateWeatherSet } from '@/lib/weatherIconSets';
+import type { WeatherStyle } from '@/lib/weatherIconSets';
 
 // ─── Canvas Utility ─────────────────────────────────────────────────────────────
 
@@ -158,16 +160,11 @@ function generateClockHands(): ElementImage[] {
 
 // ─── Weather Icons ──────────────────────────────────────────────────────────────
 
-function generateWeatherIcons(): ElementImage[] {
-  const symbols = ['☀', '⛅', '☁', '🌧', '🌩', '❄', '🌫'];
-  return Array.from({ length: 29 }, (_, i) => ({
+function generateWeatherIcons(style: WeatherStyle = 'flat'): ElementImage[] {
+  const dataUrls = generateWeatherSet(style);
+  return dataUrls.map((dataUrl, i) => ({
     name: `weather_${i}.png`,
-    dataUrl: createCanvasImage(WEATHER_ICON.w, WEATHER_ICON.h, (ctx, w, h) => {
-      ctx.fillStyle = '#FFD700';
-      ctx.font = `${Math.floor(h * 0.55)}px serif`;
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText(symbols[i % symbols.length], w / 2, h / 2);
-    }),
+    dataUrl,
     bounds: { x: 0, y: 0, width: WEATHER_ICON.w, height: WEATHER_ICON.h },
     type: 'IMG_LEVEL' as const,
   }));
@@ -344,9 +341,11 @@ export function generatePipelineAssets(elements: ResolvedElement[]): ElementImag
 
       case 'IMG_LEVEL': {
         if (el.sourceType === 'weather') {
-          if (!generatedSets.has('weather_icons')) {
-            images.push(...generateWeatherIcons());
-            generatedSets.add('weather_icons');
+          const wStyle = ((el as unknown as { weatherStyle?: string }).weatherStyle ?? 'flat') as WeatherStyle;
+          const setKey = `weather_icons_${wStyle}`;
+          if (!generatedSets.has(setKey)) {
+            images.push(...generateWeatherIcons(wStyle));
+            generatedSets.add(setKey);
           }
         }
         break;
