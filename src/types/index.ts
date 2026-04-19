@@ -2,7 +2,7 @@
 
 export interface WatchFaceElement {
   id: string;
-  type: 'TIME_POINTER' | 'IMG_LEVEL' | 'TEXT' | 'IMG' | 'ARC_PROGRESS' | 'CIRCLE' | 'TEXT_IMG' | 'BUTTON' | 'IMG_STATUS' | 'IMG_TIME' | 'IMG_DATE' | 'IMG_WEEK';
+  type: 'TIME_POINTER' | 'IMG_LEVEL' | 'TEXT' | 'IMG' | 'ARC_PROGRESS' | 'CIRCLE' | 'TEXT_IMG' | 'BUTTON' | 'IMG_STATUS' | 'IMG_TIME' | 'IMG_DATE' | 'IMG_WEEK' | 'FILL_RECT' | 'STROKE_RECT' | 'IMG_ANIM' | 'IMG_PROGRESS' | 'DATE_POINTER' | 'IMG_CLICK';
   subtype?: string;
   name: string;
   bounds: {
@@ -47,6 +47,17 @@ export interface WatchFaceElement {
   clickAction?: string;
   pressSrc?: string;
   normalSrc?: string;
+
+  // IMG / CIRCLE specific
+  alpha?: number;
+
+  // IMG_ANIM specific
+  animPath?: string;    // folder path for animation frames (e.g. 'anim/rain')
+  animFps?: number;     // frames per second
+  repeatCount?: number; // 0=infinite, 1=once
+
+  // DATE_POINTER specific
+  dateType?: 'MONTH' | 'DAY' | 'WEEK';
 
   // IMG_STATUS specific
   statusType?: string;

@@ -540,6 +540,18 @@ function generateWidgetCodeV2(element: WatchFaceElement, widgetIndex: number, is
       return generateCircleWidget(element, widgetIndex, showLevel);
     case 'IMG_LEVEL':
       return generateImgLevelWidget(element, widgetIndex, showLevel);
+    case 'FILL_RECT':
+      return generateFillRectWidget(element, widgetIndex, showLevel);
+    case 'STROKE_RECT':
+      return generateStrokeRectWidget(element, widgetIndex, showLevel);
+    case 'IMG_ANIM':
+      return generateImgAnimWidget(element, widgetIndex, showLevel);
+    case 'IMG_PROGRESS':
+      return generateImgProgressWidget(element, widgetIndex, showLevel);
+    case 'DATE_POINTER':
+      return generateDatePointerWidget(element, widgetIndex, showLevel);
+    case 'IMG_CLICK':
+      return generateImgClickWidget(element, widgetIndex, showLevel);
     case 'IMG':
     default:
       break;
@@ -618,10 +630,12 @@ function generateTextImgWidget(element: WatchFaceElement, widgetIndex: number, s
     const DATA_TYPE_PREFIXES: Record<string, string> = {
       BATTERY: 'batt_digit', STEP: 'step_digit', HEART: 'heart_digit',
       SPO2: 'spo2_digit', CAL: 'cal_digit', DISTANCE: 'dist_digit',
-      STRESS: 'stress_digit', PAI: 'pai_digit', SLEEP: 'sleep_digit',
-      STAND: 'stand_digit', FAT_BURN: 'fatburn_digit', UVI: 'uvi_digit',
-      AQI: 'aqi_digit', HUMIDITY: 'humid_digit', WIND: 'wind_digit',
-      WEATHER: 'weather_digit',
+      STRESS: 'stress_digit', PAI: 'pai_digit', PAI_WEEKLY: 'pai_digit',
+      SLEEP: 'sleep_digit', STAND: 'stand_digit', FAT_BURN: 'fatburn_digit',
+      UVI: 'uvi_digit', AQI: 'aqi_digit', HUMIDITY: 'humid_digit',
+      WIND: 'wind_digit', ALTIMETER: 'alt_digit', VO2MAX: 'vo2_digit',
+      TRAINING_LOAD: 'training_digit', WEATHER: 'weather_digit',
+      SUN_RISE: 'sunrise_digit', SUN_SET: 'sunset_digit',
     };
     const prefix = (element.dataType && DATA_TYPE_PREFIXES[element.dataType])
       ? DATA_TYPE_PREFIXES[element.dataType]
@@ -801,6 +815,7 @@ function generateCircleWidget(element: WatchFaceElement, widgetIndex: number, sh
   const radius = element.radius ?? Math.min(element.bounds.width || 50, element.bounds.height || 50) / 2;
   const colorHex = element.color ?? '0xFFFFFF';
   const colorValue = colorHex.startsWith('0x') ? colorHex : `0x${colorHex.replace('#', '')}`;
+  const alphaLine = element.alpha !== undefined ? `\n                    alpha: ${element.alpha},` : '';
 
   return `
                 // ${element.name} - CIRCLE Widget
@@ -808,7 +823,7 @@ function generateCircleWidget(element: WatchFaceElement, widgetIndex: number, sh
                     center_x: px(${centerX}),
                     center_y: px(${centerY}),
                     radius: px(${radius}),
-                    color: ${colorValue},
+                    color: ${colorValue},${alphaLine}
                     show_level: hmUI.show_level.${showLevel}
                 });`;
 }
@@ -834,6 +849,136 @@ function generateImgLevelWidget(element: WatchFaceElement, widgetIndex: number, 
                     y: px(${element.bounds.y}),
                     image_array: ${imageArrayStr},
                     image_length: ${images.length},${typeParam}
+                    show_level: hmUI.show_level.${showLevel}
+                });`;
+}
+
+// ============================================================
+// FILL_RECT - Solid filled rectangle
+// ============================================================
+function generateFillRectWidget(element: WatchFaceElement, widgetIndex: number, showLevel: string): string {
+  const colorHex = element.color ?? '0x333333';
+  const colorValue = colorHex.startsWith('0x') ? colorHex : `0x${colorHex.replace('#', '')}`;
+  const alphaLine = element.alpha !== undefined ? `\n                    alpha: ${element.alpha},` : '';
+  return `
+                // ${element.name} - FILL_RECT Widget
+                let widget_${widgetIndex} = hmUI.createWidget(hmUI.widget.FILL_RECT, {
+                    x: px(${element.bounds.x}),
+                    y: px(${element.bounds.y}),
+                    w: px(${element.bounds.width || 100}),
+                    h: px(${element.bounds.height || 10}),
+                    color: ${colorValue},${alphaLine}
+                    show_level: hmUI.show_level.${showLevel}
+                });`;
+}
+
+// ============================================================
+// STROKE_RECT - Outlined rectangle
+// ============================================================
+function generateStrokeRectWidget(element: WatchFaceElement, widgetIndex: number, showLevel: string): string {
+  const colorHex = element.color ?? '0xFFFFFF';
+  const colorValue = colorHex.startsWith('0x') ? colorHex : `0x${colorHex.replace('#', '')}`;
+  const lineWidth = element.lineWidth ?? 2;
+  return `
+                // ${element.name} - STROKE_RECT Widget
+                let widget_${widgetIndex} = hmUI.createWidget(hmUI.widget.STROKE_RECT, {
+                    x: px(${element.bounds.x}),
+                    y: px(${element.bounds.y}),
+                    w: px(${element.bounds.width || 100}),
+                    h: px(${element.bounds.height || 10}),
+                    color: ${colorValue},
+                    line_width: px(${lineWidth}),
+                    show_level: hmUI.show_level.${showLevel}
+                });`;
+}
+
+// ============================================================
+// IMG_ANIM - Animated image sequence (folder-based frames)
+// anim_path: folder containing sequentially-named frames
+// anim_fps: playback speed, repeat_count: 0=infinite 1=once
+// ============================================================
+function generateImgAnimWidget(element: WatchFaceElement, widgetIndex: number, showLevel: string): string {
+  const animPath = element.animPath || 'anim/default';
+  const animFps = element.animFps ?? 25;
+  const repeatCount = element.repeatCount ?? 0;
+  return `
+                // ${element.name} - IMG_ANIM Widget
+                let widget_${widgetIndex} = hmUI.createWidget(hmUI.widget.IMG_ANIM, {
+                    x: px(${element.bounds.x}),
+                    y: px(${element.bounds.y}),
+                    w: px(${element.bounds.width || 100}),
+                    h: px(${element.bounds.height || 100}),
+                    anim_path: '${animPath}',
+                    anim_fps: ${animFps},
+                    repeat_count: ${repeatCount},
+                    anim_status: hmUI.anim_status.START,
+                    show_level: hmUI.show_level.${showLevel}
+                });`;
+}
+
+// ============================================================
+// IMG_PROGRESS - Sequential image array progress display
+// image_array: array of images, image_length: count
+// x_array / y_array: per-image positions (same length as images)
+// ============================================================
+function generateImgProgressWidget(element: WatchFaceElement, widgetIndex: number, showLevel: string): string {
+  const images = element.images || (element.src ? [element.src] : []);
+  const imageArrayStr = `[${images.map(img => `'${img}'`).join(', ')}]`;
+  const xArr = images.map((_, i) => element.bounds.x + i * (element.bounds.width || 20));
+  const yArr = images.map(() => element.bounds.y);
+  const xArrayStr = `[${xArr.map(v => `px(${v})`).join(', ')}]`;
+  const yArrayStr = `[${yArr.map(v => `px(${v})`).join(', ')}]`;
+  const typeParam = element.dataType ? `\n                    type: hmUI.data_type.${element.dataType},` : '';
+  return `
+                // ${element.name} - IMG_PROGRESS Widget
+                let widget_${widgetIndex} = hmUI.createWidget(hmUI.widget.IMG_PROGRESS, {
+                    image_array: ${imageArrayStr},
+                    image_length: ${images.length},
+                    x_array: ${xArrayStr},
+                    y_array: ${yArrayStr},${typeParam}
+                    show_level: hmUI.show_level.${showLevel}
+                });`;
+}
+
+// ============================================================
+// DATE_POINTER - Analog pointer driven by date values
+// dateType: MONTH | DAY | WEEK → maps to hmUI.date constant
+// ============================================================
+function generateDatePointerWidget(element: WatchFaceElement, widgetIndex: number, showLevel: string): string {
+  const dateType = element.dateType ?? 'DAY';
+  const centerX = element.center?.x ?? 240;
+  const centerY = element.center?.y ?? 240;
+  const posX = element.hourPos?.x ?? 10;
+  const posY = element.hourPos?.y ?? 60;
+  const src = element.src || 'date_hand.png';
+  return `
+                // ${element.name} - DATE_POINTER Widget (${dateType})
+                let widget_${widgetIndex} = hmUI.createWidget(hmUI.widget.DATE_POINTER, {
+                    date_type: hmUI.date.${dateType},
+                    center_x: px(${centerX}),
+                    center_y: px(${centerY}),
+                    posX: px(${posX}),
+                    posY: px(${posY}),
+                    path: '${src}',
+                    show_level: hmUI.show_level.${showLevel}
+                });`;
+}
+
+// ============================================================
+// IMG_CLICK - Interactive image area (used for MOON data type)
+// Tapping triggers data_type action (e.g., MOON phase toggle)
+// ============================================================
+function generateImgClickWidget(element: WatchFaceElement, widgetIndex: number, showLevel: string): string {
+  const src = element.src || 'moon_icon.png';
+  const typeParam = element.dataType ? `\n                    type: hmUI.data_type.${element.dataType},` : '';
+  return `
+                // ${element.name} - IMG_CLICK Widget
+                let widget_${widgetIndex} = hmUI.createWidget(hmUI.widget.IMG_CLICK, {
+                    x: px(${element.bounds.x}),
+                    y: px(${element.bounds.y}),
+                    w: px(${element.bounds.width || 50}),
+                    h: px(${element.bounds.height || 50}),
+                    src: '${src}',${typeParam}
                     show_level: hmUI.show_level.${showLevel}
                 });`;
 }
