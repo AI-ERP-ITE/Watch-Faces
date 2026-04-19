@@ -4,7 +4,12 @@
 
 @layer base {
   :root {
-    --background: 0 0% 6%;
+    --background: 220 8% 6%;  /* obsidian #101115 */
+    --storefront-bg: #101115;
+    --storefront-card: #181A1F;
+    --storefront-text: #D9DBE0;
+    --storefront-muted: #8E9196;
+    --storefront-gold: #C0A678;
     --foreground: 0 0% 100%;
     --card: 0 0% 10%;
     --card-foreground: 0 0% 100%;
@@ -37,7 +42,7 @@
   }
   
   body {
-    @apply bg-[#0F0F0F] text-white antialiased;
+    @apply bg-obsidian text-text-primary antialiased;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
   }
 

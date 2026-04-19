@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useCatalog } from '@/context/CatalogContext';
 import { WatchfaceGrid } from './WatchfaceGrid';
+import { EmptyState } from './EmptyState';
 
 export function ModelPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -25,7 +26,7 @@ export function ModelPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center text-zinc-500 text-sm">
+      <div className="min-h-screen bg-[#101115] flex items-center justify-center font-mono text-[#8E9196] text-sm">
         Loading…
       </div>
     );
@@ -33,7 +34,7 @@ export function ModelPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center text-red-400 text-sm">
+      <div className="min-h-screen bg-[#101115] flex items-center justify-center text-red-400 font-mono text-sm">
         {error}
       </div>
     );
@@ -41,10 +42,9 @@ export function ModelPage() {
 
   if (!model) {
     return (
-      <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center gap-4 text-zinc-400">
-        <span className="text-5xl">⌚</span>
-        <p className="text-sm">Model not found.</p>
-        <Link to="/" className="text-xs underline underline-offset-4 hover:text-zinc-200">
+      <div className="min-h-screen bg-[#101115] flex flex-col items-center justify-center gap-4 text-[#8E9196]">
+        <p className="font-mono text-sm">Model not found.</p>
+        <Link to="/" className="text-xs font-mono underline underline-offset-4 hover:text-[#D9DBE0]">
           Back to Browse
         </Link>
       </div>
@@ -52,32 +52,32 @@ export function ModelPage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100">
+    <div className="min-h-screen bg-[#101115] text-[#D9DBE0]">
       {/* Header band */}
-      <section className="border-b border-zinc-800/60 py-8 px-6">
+      <section className="border-b border-[#181A1F] py-8 px-6">
         <div className="max-w-5xl mx-auto">
           {/* Breadcrumb */}
-          <nav className="text-xs text-zinc-500 mb-4 flex items-center gap-1.5">
-            <Link to="/" className="hover:text-zinc-300 transition-colors">Browse</Link>
+          <nav className="text-xs font-mono text-[#8E9196] mb-4 flex items-center gap-1.5">
+            <Link to="/" className="hover:text-[#D9DBE0] transition-colors">Browse</Link>
             <span>/</span>
-            <span className="text-zinc-300">{model.name}</span>
+            <span className="text-[#D9DBE0]">{model.name}</span>
           </nav>
 
           <div className="flex flex-col sm:flex-row sm:items-end gap-4">
             <div>
-              <p className="text-xs uppercase tracking-widest text-zinc-500 mb-1">
+              <p className="font-mono text-xs uppercase tracking-widest text-[#8E9196] mb-1">
                 {model.brand.charAt(0).toUpperCase() + model.brand.slice(1)}
               </p>
-              <h1 className="text-2xl font-bold text-white">{model.name}</h1>
+              <h1 className="font-sans font-light text-2xl tracking-tight text-[#D9DBE0]">{model.name}</h1>
               {specGroup && (
-                <p className="text-xs text-zinc-500 mt-1">
+                <p className="font-mono text-xs text-[#8E9196] mt-1">
                   {specGroup.resolution} · {specGroup.shape} · API {specGroup.apiVersion.toUpperCase()}
                 </p>
               )}
             </div>
 
             <div className="sm:ml-auto flex items-center gap-2">
-              <span className="text-xs text-zinc-500">
+              <span className="font-mono text-xs text-[#8E9196]">
                 {entries.length} watchface{entries.length !== 1 ? 's' : ''}
               </span>
             </div>
@@ -86,12 +86,12 @@ export function ModelPage() {
           {/* Sibling models (same spec group) */}
           {sibling.length > 0 && (
             <div className="mt-4 flex flex-wrap gap-2 items-center">
-              <span className="text-xs text-zinc-500">Also works on:</span>
+              <span className="font-mono text-xs text-[#8E9196]">Also works on:</span>
               {sibling.map(([s, m]) => (
                 <Link
                   key={s}
                   to={`/model/${s}`}
-                  className="px-2.5 py-1 rounded-full text-xs bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-zinc-200 hover:border-zinc-500 transition-colors"
+                  className="px-2.5 py-1 rounded-full text-xs font-mono border border-[#181A1F] text-[#8E9196] hover:text-[#C0A678] hover:border-[#C0A678]/40 transition-colors"
                 >
                   {m.name}
                 </Link>
@@ -101,13 +101,15 @@ export function ModelPage() {
         </div>
       </section>
 
-      {/* Grid */}
+      {/* Grid or EmptyState */}
       <section className="max-w-5xl mx-auto px-4 py-8">
-        <WatchfaceGrid
-          entries={entries}
-          baseUrl={baseUrl}
-          emptyMessage={`No watchfaces yet for ${model.name}.`}
-        />
+        {entries.length > 0 ? (
+          <WatchfaceGrid entries={entries} baseUrl={baseUrl} />
+        ) : (
+          <EmptyState
+            subtitle={`No watchfaces for ${model.name} yet — coming soon.`}
+          />
+        )}
       </section>
     </div>
   );

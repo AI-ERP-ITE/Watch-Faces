@@ -35,16 +35,16 @@ export function FilterSidebar({ filters, onChange }: FilterSidebarProps) {
   }
 
   return (
-    <aside className="w-full space-y-5">
+    <aside className="w-full space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h3 className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
+        <h3 className="font-mono text-xs uppercase tracking-widest text-[#8E9196]">
           Filters
         </h3>
         {hasActiveFilters && (
           <button
             onClick={clearAll}
-            className="flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+            className="flex items-center gap-1 text-xs font-mono text-[#C0A678] hover:text-[#D4BC96] transition-colors"
           >
             <X size={11} />
             Clear
@@ -81,10 +81,10 @@ export function FilterSidebar({ filters, onChange }: FilterSidebarProps) {
                 onChange({ modelSlug: filters.modelSlug === slug ? null : slug })
               }
               className={`
-                text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors
+                text-left px-2.5 py-1.5 rounded-lg text-xs font-sans transition-colors
                 ${filters.modelSlug === slug
-                  ? 'bg-zinc-700 text-zinc-100'
-                  : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
+                  ? 'text-[#C0A678] border-l-2 border-[#C0A678] pl-2'
+                  : 'text-[#8E9196] hover:text-[#D9DBE0]'
                 }
               `}
             >
@@ -121,8 +121,8 @@ function FilterSection({
   children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-2">
-      <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
+    <div className="space-y-2 bg-[#181A1F] rounded-xl p-4">
+      <p className="font-mono text-xs uppercase tracking-widest text-[#8E9196]">
         {label}
       </p>
       {children}
@@ -143,10 +143,10 @@ function FilterChip({
     <button
       onClick={onClick}
       className={`
-        px-2.5 py-1 rounded-lg text-xs font-medium transition-colors
+        px-2.5 py-1 rounded-lg text-xs font-mono transition-colors
         ${active
-          ? 'bg-zinc-100 text-zinc-900'
-          : 'bg-zinc-800 text-zinc-400 border border-zinc-700 hover:bg-zinc-700 hover:text-zinc-200'
+          ? 'text-[#C0A678] border border-[#C0A678]/60 bg-[#C0A678]/5'
+          : 'text-[#8E9196] border border-[#181A1F] hover:border-[#C0A678]/30 hover:text-[#C0A678]'
         }
       `}
     >

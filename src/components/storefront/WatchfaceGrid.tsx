@@ -7,28 +7,16 @@ const PAGE_SIZE = 24;
 interface WatchfaceGridProps {
   entries: CatalogEntry[];
   baseUrl: string;
-  /** Optional message shown when entries array is empty */
-  emptyMessage?: string;
 }
 
 export function WatchfaceGrid({
   entries,
   baseUrl,
-  emptyMessage = 'No watchfaces found.',
 }: WatchfaceGridProps) {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   const visible = entries.slice(0, visibleCount);
   const hasMore = visibleCount < entries.length;
-
-  if (entries.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-24 gap-4 text-zinc-500">
-        <span className="text-5xl">⌚</span>
-        <p className="text-sm">{emptyMessage}</p>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-8">
@@ -44,7 +32,7 @@ export function WatchfaceGrid({
         <div className="flex justify-center pt-2">
           <button
             onClick={() => setVisibleCount((prev) => prev + PAGE_SIZE)}
-            className="px-6 py-2.5 text-sm font-medium rounded-xl bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700 hover:text-white transition-colors"
+            className="px-6 py-2.5 text-xs font-mono rounded-xl bg-[#181A1F] border border-[#181A1F] text-[#8E9196] hover:border-[#C0A678]/40 hover:text-[#C0A678] transition-colors"
           >
             Load more ({entries.length - visibleCount} remaining)
           </button>
@@ -52,7 +40,7 @@ export function WatchfaceGrid({
       )}
 
       {/* Total count */}
-      <p className="text-center text-xs text-zinc-600">
+      <p className="text-center text-xs font-mono text-[#8E9196]/50">
         Showing {Math.min(visibleCount, entries.length)} of {entries.length} watchfaces
       </p>
     </div>

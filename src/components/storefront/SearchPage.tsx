@@ -3,6 +3,7 @@ import { useSearchParams, Link } from 'react-router-dom';
 import { useCatalog, type SortOption } from '@/context/CatalogContext';
 import { WatchfaceGrid } from './WatchfaceGrid';
 import { SortControls } from './SortControls';
+import { EmptyState } from './EmptyState';
 
 export function SearchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -139,11 +140,11 @@ export function SearchPage() {
         {!loading && !error && query && (
           <div className="space-y-4">
             <SortControls value={sortBy} onChange={setSortBy} count={results.length} />
-            <WatchfaceGrid
-              entries={results}
-              baseUrl={baseUrl}
-              emptyMessage={`No watchfaces match "${query}". Try a different search term.`}
-            />
+            {results.length > 0 ? (
+              <WatchfaceGrid entries={results} baseUrl={baseUrl} />
+            ) : (
+              <EmptyState subtitle={`No watchfaces match “${query}” — try a different search.`} />
+            )}
           </div>
         )}
       </div>

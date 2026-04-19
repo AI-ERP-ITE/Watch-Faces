@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useCatalog } from '@/context/CatalogContext';
 import { WatchfaceGrid } from './WatchfaceGrid';
+import { EmptyState } from './EmptyState';
 
 const CATEGORY_META: Record<string, { label: string; description: string; emoji: string }> = {
   minimal:  { label: 'Minimal',  emoji: '◻', description: 'Clean, distraction-free faces that put data first.' },
@@ -27,7 +28,7 @@ export function CategoryPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center text-zinc-500 text-sm">
+      <div className="min-h-screen bg-[#101115] flex items-center justify-center font-mono text-[#8E9196] text-sm">
         Loading…
       </div>
     );
@@ -35,7 +36,7 @@ export function CategoryPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center text-red-400 text-sm">
+      <div className="min-h-screen bg-[#101115] flex items-center justify-center text-red-400 font-mono text-sm">
         {error}
       </div>
     );
@@ -43,10 +44,9 @@ export function CategoryPage() {
 
   if (!meta) {
     return (
-      <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center gap-4 text-zinc-400">
-        <span className="text-5xl">⌚</span>
-        <p className="text-sm">Category not found.</p>
-        <Link to="/" className="text-xs underline underline-offset-4 hover:text-zinc-200">
+      <div className="min-h-screen bg-[#101115] flex flex-col items-center justify-center gap-4 text-[#8E9196]">
+        <p className="font-mono text-sm">Category not found.</p>
+        <Link to="/" className="text-xs font-mono underline underline-offset-4 hover:text-[#D9DBE0]">
           Back to Browse
         </Link>
       </div>
@@ -54,29 +54,29 @@ export function CategoryPage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100">
+    <div className="min-h-screen bg-[#101115] text-[#D9DBE0]">
       {/* Header band */}
-      <section className="border-b border-zinc-800/60 py-8 px-6">
+      <section className="border-b border-[#181A1F] py-8 px-6">
         <div className="max-w-5xl mx-auto">
           {/* Breadcrumb */}
-          <nav className="text-xs text-zinc-500 mb-4 flex items-center gap-1.5">
-            <Link to="/" className="hover:text-zinc-300 transition-colors">Browse</Link>
+          <nav className="text-xs font-mono text-[#8E9196] mb-4 flex items-center gap-1.5">
+            <Link to="/" className="hover:text-[#D9DBE0] transition-colors">Browse</Link>
             <span>/</span>
-            <span className="text-zinc-300">{meta.label}</span>
+            <span className="text-[#D9DBE0]">{meta.label}</span>
           </nav>
 
           <div className="flex items-end gap-4">
             <div>
               <div className="flex items-center gap-3 mb-1">
-                <span className="text-2xl">{meta.emoji}</span>
-                <h1 className="text-2xl font-bold text-white">{meta.label}</h1>
+                <span className="text-2xl text-[#8E9196]">{meta.emoji}</span>
+                <h1 className="font-sans font-light text-2xl tracking-tight text-[#D9DBE0]">{meta.label}</h1>
               </div>
               {meta.description && (
-                <p className="text-sm text-zinc-400 max-w-md">{meta.description}</p>
+                <p className="font-mono text-sm text-[#8E9196] max-w-md">{meta.description}</p>
               )}
             </div>
             <div className="ml-auto">
-              <span className="text-xs text-zinc-500">
+              <span className="font-mono text-xs text-[#8E9196]">
                 {entries.length} watchface{entries.length !== 1 ? 's' : ''}
               </span>
             </div>
@@ -90,7 +90,7 @@ export function CategoryPage() {
                 <Link
                   key={s}
                   to={`/category/${s}`}
-                  className="px-2.5 py-1 rounded-full text-xs bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-zinc-200 hover:border-zinc-500 transition-colors"
+                  className="px-2.5 py-1 rounded-full text-xs font-mono border border-[#181A1F] text-[#8E9196] hover:text-[#C0A678] hover:border-[#C0A678]/40 transition-colors"
                 >
                   {m.emoji} {m.label}
                 </Link>
@@ -99,13 +99,15 @@ export function CategoryPage() {
         </div>
       </section>
 
-      {/* Grid */}
+      {/* Grid or EmptyState */}
       <section className="max-w-5xl mx-auto px-4 py-8">
-        <WatchfaceGrid
-          entries={entries}
-          baseUrl={baseUrl}
-          emptyMessage={`No ${meta.label.toLowerCase()} watchfaces yet.`}
-        />
+        {entries.length > 0 ? (
+          <WatchfaceGrid entries={entries} baseUrl={baseUrl} />
+        ) : (
+          <EmptyState
+            subtitle={`No ${meta.label.toLowerCase()} watchfaces yet — coming soon.`}
+          />
+        )}
       </section>
     </div>
   );

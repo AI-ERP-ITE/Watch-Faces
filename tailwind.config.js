@@ -4,7 +4,16 @@ module.exports = {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        mono: ['Roboto Mono', 'monospace'],
+      },
       colors: {
+        obsidian: '#101115',
+        'slate-card': '#181A1F',
+        gold: { DEFAULT: '#C0A678', light: '#D4BC96' },
+        'text-primary': '#D9DBE0',
+        'text-secondary': '#8E9196',
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",

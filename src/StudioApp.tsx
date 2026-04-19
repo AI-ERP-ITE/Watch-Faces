@@ -976,6 +976,18 @@ function StudioApp() {
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
+  // Lazy-load editor fonts (30+ families) — only on /studio, not on storefront
+  useEffect(() => {
+    const EDITOR_FONTS_URL =
+      'https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&family=Orbitron:wght@400;700&family=Oswald:wght@400;700&family=Bebas+Neue&family=Rajdhani:wght@400;700&family=Share+Tech+Mono&family=Goldman:wght@400;700&family=Russo+One&family=Audiowide&family=Rationale&family=Black+Ops+One&family=Michroma&family=Exo+2:wght@400;700&family=Syncopate:wght@400;700&family=Nova+Mono&family=VT323&family=Press+Start+2P&family=Chakra+Petch:wght@400;700&family=Quantico:wght@400;700&family=Oxanium:wght@400;700&family=Wallpoet&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Poppins:wght@400;700&family=Nunito:wght@400;700&family=Raleway:wght@400;700&family=Josefin+Sans:wght@400;700&family=Righteous&family=Ubuntu:wght@400;700&family=Oxygen+Mono&display=swap';
+    if (!document.querySelector(`link[href="${EDITOR_FONTS_URL}"]`)) {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = EDITOR_FONTS_URL;
+      document.head.appendChild(link);
+    }
+  }, []);
+
   // Keyboard undo/redo
   const { dispatch: dispatchRef } = { dispatch };
   useEffect(() => {

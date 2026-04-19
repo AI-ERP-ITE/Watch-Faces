@@ -4,6 +4,7 @@ import { useCatalog, type FilterState, type SortOption } from '@/context/Catalog
 import { FilterSidebar } from './FilterSidebar';
 import { SortControls } from './SortControls';
 import { WatchfaceGrid } from './WatchfaceGrid';
+import { EmptyState } from './EmptyState';
 
 // ── Category metadata ──────────────────────────────────────────────────────
 
@@ -38,94 +39,137 @@ export function HomePage() {
   }
 
   const results = useMemo(() => getFiltered(filters), [getFiltered, filters]);
+  const hasFaces = results.length > 0;
+
+  function clearFilters() {
+    updateFilter({ brand: null, modelSlug: null, priceFilter: 'all', searchQuery: '' });
+  }
 
   // ── Model chip list ──────────────────────────────────────────────────────
   const modelList = useMemo(() => Object.entries(models), [models]);
 
+  const hasActiveFilters =
+    filters.brand !== null ||
+    filters.modelSlug !== null ||
+    filters.priceFilter !== 'all' ||
+    filters.searchQuery !== '';
+
   // ── Render ───────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100">
-      {/* Hero */}
-      <section className="border-b border-zinc-800/60 py-10 px-6 text-center">
-        <h1 className="text-3xl font-bold tracking-tight text-white mb-2">
-          Flowvault Watchfaces
+    <div className="min-h-screen bg-[#101115] text-[#D9DBE0]">
+      {/* Hero — always visible */}
+      <section
+        className="py-20 px-6 text-center border-b border-[#181A1F]"
+        style={{ background: 'radial-gradient(ellipse at center, #181A1F 0%, #101115 70%)' }}
+      >
+        <h1 className="font-sans font-light text-4xl tracking-tight text-[#D9DBE0] mb-3">
+          Flowvault
         </h1>
-        <p className="text-zinc-400 text-sm max-w-md mx-auto">
-          Premium Zepp OS watchfaces for Amazfit. Free &amp; paid, all spec-matched to your device.
+        <p className="font-sans text-lg text-[#8E9196] mb-2">
+          Premium Watchfaces for Amazfit
+        </p>
+        <p className="font-mono text-sm text-[#8E9196] max-w-sm mx-auto">
+          Designed for clarity, performance, and style.
         </p>
       </section>
 
-      {/* Model chips */}
-      <section className="border-b border-zinc-800/60 px-4 py-3 overflow-x-auto">
-        <div className="flex gap-2 w-max mx-auto">
-          <ModelChip
-            label="All Models"
-            active={filters.modelSlug === null && filters.brand === null}
-            onClick={() => updateFilter({ modelSlug: null, brand: null })}
+      {/* Loading */}
+      {loading && (
+        <div className="text-center py-16 font-mono text-sm text-[#8E9196]">Loading…</div>
+      )}
+
+      {/* Error */}
+      {error && (
+        <div className="text-center py-16 text-red-400 font-mono text-sm">{error}</div>
+      )}
+
+      {/* Empty state — no faces */}
+      {!loading && !error && !hasFaces && (
+        <div className="max-w-xl mx-auto px-4 py-8">
+          <EmptyState
+            showClearFilters={hasActiveFilters}
+            onClearFilters={clearFilters}
           />
-          {modelList.map(([slug, model]) => (
-            <ModelChip
-              key={slug}
-              label={model.name}
-              active={filters.modelSlug === slug}
-              onClick={() =>
-                updateFilter({
-                  modelSlug: filters.modelSlug === slug ? null : slug,
-                  brand: null,
-                })
-              }
-            />
-          ))}
         </div>
-      </section>
+      )}
 
-      {/* Category cards */}
-      <section className="px-6 py-6 border-b border-zinc-800/60">
-        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 max-w-4xl mx-auto">
-          {CATEGORIES.map((cat) => (
-            <Link
-              key={cat.slug}
-              to={`/category/${cat.slug}`}
-              className="flex flex-col items-center gap-1.5 py-3 rounded-xl bg-zinc-900 border border-zinc-800 hover:border-zinc-600 hover:bg-zinc-800 transition-colors"
-            >
-              <span className="text-lg">{cat.emoji}</span>
-              <span className="text-xs text-zinc-400">{cat.label}</span>
-            </Link>
-          ))}
-        </div>
-      </section>
+      {/* Content — only when faces exist */}
+      {!loading && !error && hasFaces && (
+        <>
+          {/* Model chips */}
+          <section className="border-b border-[#181A1F] px-4 py-3 overflow-x-auto">
+            <div className="flex gap-2 w-max mx-auto">
+              <ModelChip
+                label="All Models"
+                active={filters.modelSlug === null && filters.brand === null}
+                onClick={() => updateFilter({ modelSlug: null, brand: null })}
+              />
+              {modelList.map(([slug, model]) => (
+                <ModelChip
+                  key={slug}
+                  label={model.name}
+                  active={filters.modelSlug === slug}
+                  onClick={() =>
+                    updateFilter({
+                      modelSlug: filters.modelSlug === slug ? null : slug,
+                      brand: null,
+                    })
+                  }
+                />
+              ))}
+            </div>
+          </section>
 
-      {/* Main: sidebar + grid */}
-      <section className="max-w-7xl mx-auto px-4 py-8 flex gap-8">
-        {/* Sidebar */}
-        <aside className="hidden lg:block w-52 shrink-0">
-          <FilterSidebar filters={filters} onChange={updateFilter} />
-        </aside>
+          {/* Category cards */}
+          <section className="px-6 py-6 border-b border-[#181A1F]">
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 max-w-4xl mx-auto">
+              {CATEGORIES.map((cat) => (
+                <Link
+                  key={cat.slug}
+                  to={`/category/${cat.slug}`}
+                  className="flex flex-col items-center gap-1.5 py-3 rounded-xl border border-[#181A1F] hover:border-[#C0A678]/40 transition-colors group"
+                >
+                  <span className="text-lg text-[#8E9196] group-hover:text-[#C0A678] transition-colors">{cat.emoji}</span>
+                  <span className="text-xs font-sans text-[#8E9196] group-hover:text-[#C0A678] transition-colors">{cat.label}</span>
+                </Link>
+              ))}
+            </div>
+          </section>
 
-        {/* Right: sort + grid */}
-        <div className="flex-1 min-w-0 space-y-4">
-          {/* Mobile filter row */}
-          <div className="lg:hidden">
-            <MobileFilterRow filters={filters} onChange={updateFilter} />
-          </div>
+          {/* Main: sidebar + grid */}
+          <section className="max-w-7xl mx-auto px-4 py-8 flex gap-8">
+            {/* Sidebar */}
+            <aside className="hidden lg:block w-52 shrink-0">
+              <FilterSidebar filters={filters} onChange={updateFilter} />
+            </aside>
 
-          <SortControls
-            value={filters.sortBy}
-            onChange={(v: SortOption) => updateFilter({ sortBy: v })}
-            count={results.length}
-          />
+            {/* Right: sort + grid */}
+            <div className="flex-1 min-w-0 space-y-4">
+              {/* Mobile filter row */}
+              <div className="lg:hidden">
+                <MobileFilterRow filters={filters} onChange={updateFilter} />
+              </div>
 
+              <SortControls
+                value={filters.sortBy}
+                onChange={(v: SortOption) => updateFilter({ sortBy: v })}
+                count={results.length}
+              />
+
+              <WatchfaceGrid entries={results} baseUrl={baseUrl} />
+            </div>
+          </section>
+        </>
+      )}
+
+      {/* Placeholder so TS doesn't complain — never rendered */}
+      {false && (
+        <div>
           {loading && (
             <div className="text-center py-16 text-zinc-500 text-sm">Loading…</div>
           )}
-          {error && (
-            <div className="text-center py-16 text-red-400 text-sm">{error}</div>
-          )}
-          {!loading && !error && (
-            <WatchfaceGrid entries={results} baseUrl={baseUrl} />
-          )}
         </div>
-      </section>
+      )}
     </div>
   );
 }
