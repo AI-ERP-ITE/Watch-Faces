@@ -832,11 +832,8 @@ export function getIconByKey(key: string): IconEntry | undefined {
   // Custom icons (fast path)
   const custom = getIconLibrary().find(i => i.key === key);
   if (custom) return custom;
-  // Tabler icons (from cache, already rendered)
-  if (key.startsWith('tabler:')) {
-    const { getTablerIconByKey } = require('./tablerIconRenderer') as typeof import('./tablerIconRenderer');
-    return getTablerIconByKey(key);
-  }
+  // Tabler icons: we cannot use require() in Vite/ESM — return undefined so the
+  // canvas async path (getIconByKeyAsync) handles rendering on demand.
   return undefined;
 }
 
