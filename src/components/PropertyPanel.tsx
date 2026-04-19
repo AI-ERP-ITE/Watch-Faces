@@ -506,6 +506,78 @@ export function PropertyPanel({ element, onUpdateElement, className }: PropertyP
         </Section>
       )}
 
+      {/* Frame controls — FILL_RECT with isFrame */}
+      {element.isFrame && (
+        <>
+          <Section label="Frame Style">
+            <div className="flex gap-1.5">
+              {(['engraved', 'embossed', 'flat'] as const).map(s => (
+                <button
+                  key={s}
+                  onClick={() => update({ frameStyle: s })}
+                  className={cn(
+                    'flex-1 h-7 rounded border text-[10px] capitalize transition-colors',
+                    (element.frameStyle ?? 'engraved') === s
+                      ? 'border-cyan-500 bg-cyan-500/20 text-white'
+                      : 'border-white/10 bg-white/5 text-white/50 hover:border-white/30 hover:text-white/80'
+                  )}
+                >{s}</button>
+              ))}
+            </div>
+          </Section>
+          <Section label="Frame Depth">
+            <div className="flex items-center gap-2">
+              <input
+                type="range" min="0" max="1" step="0.05"
+                value={element.frameIntensity ?? 0.6}
+                onChange={e => update({ frameIntensity: Number(e.target.value) })}
+                className="flex-1 accent-cyan-400 h-1"
+              />
+              <span className="text-[10px] font-mono text-cyan-400 w-8 text-right">
+                {Math.round((element.frameIntensity ?? 0.6) * 100)}%
+              </span>
+            </div>
+          </Section>
+          <Section label="Corner Radius">
+            <div className="flex items-center gap-2">
+              <input
+                type="range" min="0" max="40" step="1"
+                value={element.frameCornerRadius ?? 6}
+                onChange={e => update({ frameCornerRadius: Number(e.target.value) })}
+                className="flex-1 accent-cyan-400 h-1"
+              />
+              <span className="text-[10px] font-mono text-cyan-400 w-8 text-right">
+                {element.frameCornerRadius ?? 6}px
+              </span>
+            </div>
+          </Section>
+          <Section label="Frame Fill">
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={element.frameFill ?? '#1a1a2e'}
+                onChange={e => update({ frameFill: e.target.value })}
+                className="w-7 h-7 rounded cursor-pointer border-0 bg-transparent"
+              />
+              <button
+                onClick={() => update({ frameFill: undefined })}
+                className={cn(
+                  'text-[9px] border rounded px-2 h-6 transition-colors',
+                  !element.frameFill
+                    ? 'border-cyan-500/50 bg-cyan-500/15 text-cyan-400'
+                    : 'border-white/10 text-white/30 hover:text-white/60'
+                )}
+              >
+                Transparent
+              </button>
+              {element.frameFill && (
+                <span className="text-[9px] font-mono text-white/50">{element.frameFill}</span>
+              )}
+            </div>
+          </Section>
+        </>
+      )}
+
       {/* Weather style picker — IMG_LEVEL + WEATHER_CURRENT */}
       {element.type === 'IMG_LEVEL' && element.dataType === 'WEATHER_CURRENT' && (
         <Section label="Weather Style">

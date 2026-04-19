@@ -105,6 +105,13 @@ export interface WatchFaceElement {
     startAngle: number;  // Start angle in degrees
     endAngle: number;    // End angle in degrees
   };
+
+  // ── Decorative Frame (FILL_RECT with 3D engraving/emboss effect) ─────────
+  isFrame?: boolean;                               // marks this rect as a styled frame
+  frameStyle?: 'engraved' | 'embossed' | 'flat';  // default 'engraved'
+  frameIntensity?: number;                         // 0–1, bevel depth, default 0.6
+  frameCornerRadius?: number;                      // 0–40 px, default 6
+  frameFill?: string;                              // hex color, or undefined = transparent
 }
 
 export interface WatchFaceConfig {

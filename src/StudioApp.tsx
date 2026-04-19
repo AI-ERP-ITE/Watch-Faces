@@ -1712,6 +1712,10 @@ function StudioApp() {
                       selectedElementId={selectedElementId}
                       onSelectElement={setSelectedElementId}
                       onUpdateElement={(id, changes) => dispatch({ type: 'UPDATE_ELEMENT', payload: { id, changes } })}
+                      onAddElement={(el) => {
+                        dispatch({ type: 'ADD_ELEMENT', payload: el });
+                        setSelectedElementId(el.id);
+                      }}
                       showGrid={showGrid}
                       className="w-full max-w-sm"
                     />

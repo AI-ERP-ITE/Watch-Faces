@@ -23,6 +23,7 @@ export interface InteractiveCanvasProps {
   selectedElementId?: string | null;
   onSelectElement?: (id: string | null) => void;
   onUpdateElement?: (id: string, changes: Partial<WatchFaceElement>) => void;
+  onAddElement?: (el: WatchFaceElement) => void;
   showGrid?: boolean;
   className?: string;
 }
@@ -33,6 +34,7 @@ export const InteractiveCanvas = forwardRef<HTMLCanvasElement, InteractiveCanvas
   selectedElementId,
   onSelectElement,
   onUpdateElement,
+  onAddElement,
   showGrid,
   className,
 }, forwardedRef) {
@@ -55,6 +57,61 @@ export const InteractiveCanvas = forwardRef<HTMLCanvasElement, InteractiveCanvas
   // handImageCache: style key → { hour, minute, second, cover } images
   const handImageCache = useRef(new Map<string, Map<string, HTMLImageElement>>());
   useState(0); // reserved for future forced re-renders
+
+  // Context menu state (right-click → "Add Frame")
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; elementId: string } | null>(null);
+
+  // Dismiss context menu on any outside click
+  useEffect(() => {
+    if (!contextMenu) return;
+    const dismiss = () => setContextMenu(null);
+    document.addEventListener('click', dismiss);
+    document.addEventListener('contextmenu', dismiss);
+    return () => {
+      document.removeEventListener('click', dismiss);
+      document.removeEventListener('contextmenu', dismiss);
+    };
+  }, [contextMenu]);
+
+  const handleContextMenu = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const { x: cx, y: cy } = getCanvasPos(e, canvas);
+    const visible = [...elementsRef.current].filter(el => el.visible).sort((a, b) => b.zIndex - a.zIndex);
+    const hitId = hitTest(cx, cy, visible);
+    if (!hitId) return;
+    onSelectElement?.(hitId);
+    // Position relative to canvas element in CSS pixels
+    const rect = canvas.getBoundingClientRect();
+    setContextMenu({ x: e.clientX - rect.left, y: e.clientY - rect.top, elementId: hitId });
+  }, [onSelectElement]);
+
+  const handleAddFrame = useCallback(() => {
+    if (!contextMenu) return;
+    const el = elementsRef.current.find(e => e.id === contextMenu.elementId);
+    if (!el) { setContextMenu(null); return; }
+    const pad = 6;
+    const frameEl: WatchFaceElement = {
+      id: `frame-${Date.now().toString(36)}`,
+      type: 'FILL_RECT',
+      name: `${el.name} Frame`,
+      bounds: {
+        x: Math.max(0, el.bounds.x - pad),
+        y: Math.max(0, el.bounds.y - pad),
+        width: el.bounds.width + pad * 2,
+        height: el.bounds.height + pad * 2,
+      },
+      visible: true,
+      zIndex: el.zIndex - 1,
+      isFrame: true,
+      frameStyle: 'engraved',
+      frameIntensity: 0.6,
+      frameCornerRadius: 6,
+    };
+    onAddElement?.(frameEl);
+    setContextMenu(null);
+  }, [contextMenu, onAddElement]);
 
   // Draw everything to canvas
   const draw = useCallback(() => {
@@ -289,30 +346,59 @@ export const InteractiveCanvas = forwardRef<HTMLCanvasElement, InteractiveCanvas
   }, [draw]);
 
   return (
-    <canvas
-      ref={(node) => {
-        (canvasRef as React.MutableRefObject<HTMLCanvasElement | null>).current = node;
-        if (typeof forwardedRef === 'function') forwardedRef(node);
-        else if (forwardedRef) forwardedRef.current = node;
-      }}
-      width={CANVAS_SIZE}
-      height={CANVAS_SIZE}
-      className={cn('rounded-full shadow-2xl cursor-pointer select-none', className)}
-      style={{
-        maxWidth: '100%',
-        height: 'auto',
-        touchAction: 'none',
-        boxShadow: '0 0 60px rgba(0, 212, 255, 0.15), inset 0 0 30px rgba(0, 0, 0, 0.5)',
-      }}
-      onClick={handleCanvasClick}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-    />
+    <div className={cn('relative inline-block', className)}>
+      <canvas
+        ref={(node) => {
+          (canvasRef as React.MutableRefObject<HTMLCanvasElement | null>).current = node;
+          if (typeof forwardedRef === 'function') forwardedRef(node);
+          else if (forwardedRef) forwardedRef.current = node;
+        }}
+        width={CANVAS_SIZE}
+        height={CANVAS_SIZE}
+        className="rounded-full shadow-2xl cursor-pointer select-none"
+        style={{
+          width: '100%',
+          height: 'auto',
+          display: 'block',
+          touchAction: 'none',
+          boxShadow: '0 0 60px rgba(0, 212, 255, 0.15), inset 0 0 30px rgba(0, 0, 0, 0.5)',
+        }}
+        onClick={handleCanvasClick}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onContextMenu={handleContextMenu}
+      />
+      {/* Right-click context menu */}
+      {contextMenu && (
+        <div
+          style={{ position: 'absolute', left: contextMenu.x, top: contextMenu.y }}
+          className="z-50 bg-zinc-900/95 border border-white/15 rounded-lg shadow-2xl py-1 min-w-[148px] text-xs backdrop-blur-sm"
+          onClick={e => e.stopPropagation()}
+        >
+          <div className="px-3 py-1 text-[10px] text-white/30 uppercase tracking-wider border-b border-white/10 mb-1">
+            {elementsRef.current.find(e => e.id === contextMenu.elementId)?.name ?? 'Element'}
+          </div>
+          <button
+            onClick={handleAddFrame}
+            className="w-full text-left px-3 py-1.5 hover:bg-white/10 text-white/80 hover:text-white flex items-center gap-2 transition-colors"
+          >
+            <span className="text-[13px]">⬛</span>
+            <span>Add Frame</span>
+          </button>
+          <button
+            onClick={() => setContextMenu(null)}
+            className="w-full text-left px-3 py-1.5 hover:bg-white/5 text-white/30 hover:text-white/60 transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+    </div>
   );
 });
 
@@ -667,8 +753,13 @@ function drawElements(ctx: CanvasRenderingContext2D, elements: WatchFaceElement[
           drawPlaceholder(ctx, el);
         }
         break;
+      case 'FILL_RECT':
+      case 'STROKE_RECT':
+        drawFrame(ctx, el);
+        break;
       case 'IMG':
-        if (el.iconKey && iconCache) {          const cached = iconCache.get(el.iconKey);
+        if (el.iconKey && iconCache) {
+          const cached = iconCache.get(el.iconKey);
           if (cached) {
             ctx.drawImage(cached, el.bounds.x, el.bounds.y, el.bounds.width, el.bounds.height);
           } else {
@@ -700,6 +791,84 @@ function drawElements(ctx: CanvasRenderingContext2D, elements: WatchFaceElement[
         break;
     }
   }
+}
+
+// ─── FILL_RECT / Decorative Frame ───────────────────────────────────────────────
+
+function rrPath(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  const cr = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + cr, y);
+  ctx.lineTo(x + w - cr, y);
+  ctx.arcTo(x + w, y, x + w, y + cr, cr);
+  ctx.lineTo(x + w, y + h - cr);
+  ctx.arcTo(x + w, y + h, x + w - cr, y + h, cr);
+  ctx.lineTo(x + cr, y + h);
+  ctx.arcTo(x, y + h, x, y + h - cr, cr);
+  ctx.lineTo(x, y + cr);
+  ctx.arcTo(x, y, x + cr, y, cr);
+  ctx.closePath();
+}
+
+function drawFrame(ctx: CanvasRenderingContext2D, el: WatchFaceElement) {
+  const { x, y, width: w, height: h } = el.bounds;
+  const r = el.frameCornerRadius ?? 6;
+  const intensity = el.frameIntensity ?? 0.6;
+  const style = el.frameStyle ?? 'engraved';
+  const fill = el.frameFill;
+
+  const isEngraved = style !== 'embossed';
+  const bev = Math.max(2, 2 + intensity * 10);
+
+  // 1. Optional fill
+  ctx.save();
+  if (fill) {
+    rrPath(ctx, x, y, w, h, r);
+    ctx.fillStyle = fill;
+    ctx.fill();
+  }
+
+  // 2. Clip to shape boundary for inner shadow gradients
+  rrPath(ctx, x, y, w, h, r);
+  ctx.clip();
+
+  const topLeftAlpha  = isEngraved ? 0.12 + intensity * 0.48 : 0.04 + intensity * 0.22;
+  const botRightAlpha = isEngraved ? 0.08 + intensity * 0.32 : 0.12 + intensity * 0.42;
+  const topLeftRgba   = isEngraved ? `rgba(0,0,0,${topLeftAlpha})`     : `rgba(255,255,255,${topLeftAlpha})`;
+  const botRightRgba  = isEngraved ? `rgba(255,255,255,${botRightAlpha})` : `rgba(0,0,0,${botRightAlpha})`;
+  const transparent   = 'rgba(0,0,0,0)';
+
+  // Top edge shadow (engraved) / highlight (embossed)
+  const topG = ctx.createLinearGradient(0, y, 0, y + bev);
+  topG.addColorStop(0, topLeftRgba); topG.addColorStop(1, transparent);
+  ctx.fillStyle = topG; ctx.fillRect(x, y, w, bev);
+
+  // Left edge
+  const leftG = ctx.createLinearGradient(x, 0, x + bev, 0);
+  leftG.addColorStop(0, topLeftRgba); leftG.addColorStop(1, transparent);
+  ctx.fillStyle = leftG; ctx.fillRect(x, y, bev, h);
+
+  // Bottom edge highlight (engraved) / shadow (embossed)
+  const botG = ctx.createLinearGradient(0, y + h, 0, y + h - bev);
+  botG.addColorStop(0, botRightRgba); botG.addColorStop(1, transparent);
+  ctx.fillStyle = botG; ctx.fillRect(x, y + h - bev, w, bev);
+
+  // Right edge
+  const rightG = ctx.createLinearGradient(x + w, 0, x + w - bev, 0);
+  rightG.addColorStop(0, botRightRgba); rightG.addColorStop(1, transparent);
+  ctx.fillStyle = rightG; ctx.fillRect(x + w - bev, y, bev, h);
+
+  ctx.restore();
+
+  // 3. Outer rim stroke (dark for engraved, light for embossed)
+  ctx.save();
+  rrPath(ctx, x, y, w, h, r);
+  ctx.strokeStyle = isEngraved
+    ? `rgba(0,0,0,${0.18 + intensity * 0.32})`
+    : `rgba(255,255,255,${0.12 + intensity * 0.28})`;
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.restore();
 }
 
 // ─── Digit element: IMG_TIME, IMG_DATE, IMG_WEEK, TEXT_IMG ──────────────────────
