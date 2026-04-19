@@ -384,8 +384,12 @@ export function PropertyPanel({ element, onUpdateElement, className }: PropertyP
                   }}>
                     12:34
                   </span>
-                  <span className="text-[10px] text-white/30 shrink-0 ml-2">
-                    {style.label}
+                  <span className="flex items-center gap-1 shrink-0 ml-2">
+                    <span className="text-[10px] text-white/30">{style.label}</span>
+                    {style.embeddable
+                      ? <span className="text-[9px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded px-1 leading-4" title="This font will be embedded in the ZPK file">✓ Embeds</span>
+                      : <span className="text-[9px] text-white/20" title="Preview only — device uses system font">preview only</span>
+                    }
                   </span>
                 </button>
               ))}
