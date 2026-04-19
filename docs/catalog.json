@@ -1,1 +1,24 @@
-[]
+[
+  {
+    "id": "30-test",
+    "name": "30 test",
+    "specGroup": "unknown",
+    "categories": [
+      "elegant",
+      "premium"
+    ],
+    "hashtags": [
+      "elegant",
+      "premium",
+      "business",
+      "analog"
+    ],
+    "price": 0,
+    "stripeLink": null,
+    "createdAt": "2026-04-19T12:19:15.294Z",
+    "downloads": 0,
+    "zpkPath": "zpk/30/face.zpk",
+    "previewPath": "zpk/30/preview.png",
+    "qrPath": "zpk/30/qr.png"
+  }
+]
