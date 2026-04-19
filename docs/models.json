@@ -1,0 +1,15 @@
+{
+  "balance-2":        { "name": "Amazfit Balance 2",        "brand": "amazfit", "specGroup": "480-round-v2" },
+  "balance":          { "name": "Amazfit Balance",          "brand": "amazfit", "specGroup": "480-round-v2" },
+  "active-max":       { "name": "Amazfit Active Max",       "brand": "amazfit", "specGroup": "480-round-v2" },
+  "active-3-premium": { "name": "Amazfit Active 3 Premium", "brand": "amazfit", "specGroup": "480-round-v2-b" },
+  "gtr-4":            { "name": "Amazfit GTR 4",            "brand": "amazfit", "specGroup": "round-v3-a" },
+  "gts-4":            { "name": "Amazfit GTS 4",            "brand": "amazfit", "specGroup": "square-v3-a" },
+  "active-2-round":   { "name": "Amazfit Active 2 Round",   "brand": "amazfit", "specGroup": "round-v3-a" },
+  "active-2-square":  { "name": "Amazfit Active 2 Square",  "brand": "amazfit", "specGroup": "square-v3-a" },
+  "active":           { "name": "Amazfit Active",           "brand": "amazfit", "specGroup": "round-v3-a" },
+  "pop-3s":           { "name": "Amazfit Pop 3S",           "brand": "amazfit", "specGroup": "round-v3-a" },
+  "cheetah-pro":      { "name": "Amazfit Cheetah Pro",      "brand": "amazfit", "specGroup": "round-v3-a" },
+  "t-rex-2":          { "name": "Amazfit T-Rex 2",          "brand": "amazfit", "specGroup": "round-v3-a" },
+  "falcon":           { "name": "Amazfit Falcon",           "brand": "amazfit", "specGroup": "round-v3-a" }
+}

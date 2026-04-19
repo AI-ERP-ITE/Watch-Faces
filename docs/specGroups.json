@@ -1,0 +1,26 @@
+{
+  "480-round-v2": {
+    "resolution": "480x480",
+    "shape": "round",
+    "apiVersion": "v2",
+    "deviceSources": [8519936, 8519937, 8519939]
+  },
+  "480-round-v2-b": {
+    "resolution": "480x480",
+    "shape": "round",
+    "apiVersion": "v2",
+    "deviceSources": [8388608, 8388609]
+  },
+  "round-v3-a": {
+    "resolution": "466x466",
+    "shape": "round",
+    "apiVersion": "v3",
+    "deviceSources": [8388608, 8388609]
+  },
+  "square-v3-a": {
+    "resolution": "390x450",
+    "shape": "square",
+    "apiVersion": "v3",
+    "deviceSources": [8388610, 8388611]
+  }
+}
