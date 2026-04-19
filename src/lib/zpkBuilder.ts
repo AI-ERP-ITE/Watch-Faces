@@ -2,6 +2,7 @@
 import JSZip from 'jszip';
 import type { WatchFaceConfig } from '@/types';
 import { generateWatchFaceCode } from './jsCodeGenerator';
+import { FONT_STYLES } from '@/lib/fontLibrary';
 
 export interface ZPKBuildOptions {
   config: WatchFaceConfig;
@@ -89,6 +90,34 @@ export async function buildZPK(options: ZPKBuildOptions): Promise<ZPKBuildResult
         assets.file(elementFile.src, elementFile.file);
       }
       console.log('[ZPK] Element images added, total:', options.elementFiles.length);
+
+      // Pack embeddable font files for TEXT elements
+      const fontFilesToPack = new Set<string>();
+      for (const el of fixedConfig.elements) {
+        if (el.type === 'TEXT' && el.fontStyle) {
+          const fontEntry = FONT_STYLES.find(f => f.key === el.fontStyle);
+          if (fontEntry?.embeddable && fontEntry.fontFile) {
+            fontFilesToPack.add(fontEntry.fontFile);
+          }
+        }
+      }
+      if (fontFilesToPack.size > 0) {
+        console.log('[ZPK] Packing fonts:', [...fontFilesToPack]);
+        const fontsFolder = assets.folder('fonts');
+        if (fontsFolder) {
+          for (const fontFile of fontFilesToPack) {
+            try {
+              const response = await fetch(`/fonts/${fontFile}`);
+              if (!response.ok) throw new Error(`HTTP ${response.status}`);
+              const blob = await response.blob();
+              fontsFolder.file(fontFile, blob);
+              console.log('[ZPK] Font packed:', fontFile, 'size:', blob.size);
+            } catch (err) {
+              console.warn('[ZPK] Could not fetch font, skipping:', fontFile, err);
+            }
+          }
+        }
+      }
     } else {
       console.error('[ZPK] ERROR: Failed to create assets folder!');
     }
