@@ -809,11 +809,14 @@ function drawArc(ctx: CanvasRenderingContext2D, el: WatchFaceElement) {
 
 // ─── TIME_POINTER ───────────────────────────────────────────────────────────────
 
-// Hand pivot positions (match assetImageGenerator.ts constants)
+// Hand pivot positions — must match drawTaperedHand/drawSecondHand pivot math in handStyles.ts
+// Hour: 22×140, tail=22 → pivot at (11, 118)
+// Minute: 16×200, tail=28 → pivot at (8, 172)
+// Second: 8×240, pivot at (4, 180) — 75% down (tail counterbalance below)
 const HAND_DEFS = [
-  { key: 'hour',   w: 22,  h: 140, pivotX: 11, pivotY: 70  },
-  { key: 'minute', w: 16,  h: 200, pivotX: 8,  pivotY: 100 },
-  { key: 'second', w: 8,   h: 240, pivotX: 3,  pivotY: 120 },
+  { key: 'hour',   w: 22,  h: 140, pivotX: 11, pivotY: 118 },
+  { key: 'minute', w: 16,  h: 200, pivotX: 8,  pivotY: 172 },
+  { key: 'second', w: 8,   h: 240, pivotX: 4,  pivotY: 180 },
   { key: 'cover',  w: 30,  h: 30,  pivotX: 15, pivotY: 15  },
 ] as const;
 
@@ -867,6 +870,7 @@ function drawTimePointer(
       second: degToRad(secondAngle),
     };
     for (const def of HAND_DEFS) {
+      if (def.key === 'second' && el.hideSeconds) continue;
       const img = imgMap.get(def.key);
       if (!img) continue;
       ctx.save();
@@ -884,7 +888,7 @@ function drawTimePointer(
     const handColor = el.color ? parseZeppColor(el.color) : '#CCCCCC';
     drawHand(ctx, cx, cy, 65, 10, hourAngle, handColor);
     drawHand(ctx, cx, cy, 95, 7, minuteAngle, handColor);
-    drawHand(ctx, cx, cy, 115, 2, secondAngle, '#FF4444');
+    if (!el.hideSeconds) drawHand(ctx, cx, cy, 115, 2, secondAngle, '#FF4444');
     ctx.save();
     ctx.beginPath();
     ctx.arc(cx, cy, 6, 0, Math.PI * 2);

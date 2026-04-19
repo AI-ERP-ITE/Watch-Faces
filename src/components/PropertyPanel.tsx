@@ -347,6 +347,16 @@ export function PropertyPanel({ element, onUpdateElement, className }: PropertyP
             })}
           </div>
           <p className="text-[10px] text-white/30 mt-1">Re-generate watchface to apply new hand style.</p>
+          {/* Seconds toggle */}
+          <label className="flex items-center gap-2 mt-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={!(element.hideSeconds ?? false)}
+              onChange={e => update({ hideSeconds: !e.target.checked })}
+              className="accent-cyan-400 w-3 h-3"
+            />
+            <span className="text-[11px] text-white/70">Show seconds hand</span>
+          </label>
         </Section>
       )}
 

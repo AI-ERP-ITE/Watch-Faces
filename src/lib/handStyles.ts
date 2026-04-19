@@ -4,7 +4,7 @@
  * Each uses gradients, highlights, and shadows to simulate depth/3D appearance.
  */
 
-export type HandStyleKey = 'white' | 'silver' | 'black' | 'brown' | 'gold';
+export type HandStyleKey = 'white' | 'silver' | 'black' | 'brown' | 'gold' | 'poedagar' | 'fleming' | 'montagut' | 'olevs';
 
 export interface HandStyleDef {
   key: HandStyleKey;
@@ -15,11 +15,15 @@ export interface HandStyleDef {
 }
 
 export const HAND_STYLES: HandStyleDef[] = [
-  { key: 'white',  label: 'White Pearl',    description: 'Pearlescent white ceramic look',   swatch: '#E8EAF0' },
-  { key: 'silver', label: 'Silver Steel',   description: 'Brushed stainless steel highlight', swatch: '#B0B8C8' },
-  { key: 'black',  label: 'Midnight Black', description: 'DLC-coated matte black with edge',  swatch: '#2A2D35' },
-  { key: 'brown',  label: 'Bronze Cognac',  description: 'Warm PVD bronze gradient',          swatch: '#7D5A3C' },
-  { key: 'gold',   label: 'Rose Gold',      description: 'Polished rose-gold with bevel',     swatch: '#C9954C' },
+  { key: 'white',    label: 'White Pearl',    description: 'Pearlescent white ceramic look',        swatch: '#E8EAF0' },
+  { key: 'silver',   label: 'Silver Steel',   description: 'Brushed stainless steel highlight',     swatch: '#B0B8C8' },
+  { key: 'black',    label: 'Midnight Black', description: 'DLC-coated matte black with edge',      swatch: '#2A2D35' },
+  { key: 'brown',    label: 'Bronze Cognac',  description: 'Warm PVD bronze gradient',              swatch: '#7D5A3C' },
+  { key: 'gold',     label: 'Rose Gold',      description: 'Polished rose-gold with bevel',         swatch: '#C9954C' },
+  { key: 'poedagar', label: 'Poedagar Gold',  description: 'Luxury gold with blue accent diamond',  swatch: '#D4A020' },
+  { key: 'fleming',  label: 'Fleming Slate',  description: 'Slim architectural steel, dark dial',   swatch: '#7A8A9A' },
+  { key: 'montagut', label: 'Montagut Silver', description: 'Leaf-shaped slim silver, green dial',  swatch: '#C0CCD8' },
+  { key: 'olevs',    label: 'OLEVS Chrome',   description: 'Bold chrome, Roman-numerals style',     swatch: '#D8DDE8' },
 ];
 
 // ─── Canvas helper ──────────────────────────────────────────────────────────────
@@ -109,6 +113,54 @@ const PALETTES: Record<HandStyleKey, HandPalette> = {
     secondAccent:'#FF6060',
     capGrad:     ['#9A7030', '#FFD080'],
     capRing:     '#7A5020',
+  },
+  // Poedagar: rich gold with deep shadow and bright highlight — matches the blue-dial luxury watch
+  poedagar: {
+    bodyGrad:    ['#7A5500', '#FFD54F', '#B08020'],
+    bodyStroke:  'rgba(180,120,0,0.6)',
+    tip:         '#FFF8D0',
+    tailGrad:    ['#6A4800', '#FFD54F'],
+    shadow:      'rgba(80,40,0,0.55)',
+    secondMain:  '#FFD54F',
+    secondAccent:'#1565C0',   // blue accent (matching the dial)
+    capGrad:     ['#B08020', '#FFD54F'],
+    capRing:     '#7A5500',
+  },
+  // Fleming: dark slate-silver, thin architectural profile — matches the Fleming Editorial watch
+  fleming: {
+    bodyGrad:    ['#3A4050', '#A0A8B8', '#3A4050'],
+    bodyStroke:  'rgba(200,210,230,0.20)',
+    tip:         '#C8D0E0',
+    tailGrad:    ['#282E3A', '#7A8898'],
+    shadow:      'rgba(0,0,0,0.70)',
+    secondMain:  '#7A8898',
+    secondAccent:'#E0E8F0',
+    capGrad:     ['#3A4050', '#A0A8B8'],
+    capRing:     'rgba(220,230,250,0.25)',
+  },
+  // Montagut: clean bright silver with subtle leaf shape — matches the green-dial Montagut
+  montagut: {
+    bodyGrad:    ['#909AA8', '#E8EEF8', '#909AA8'],
+    bodyStroke:  'rgba(100,110,130,0.40)',
+    tip:         '#F4F8FF',
+    tailGrad:    ['#707880', '#D0D8E8'],
+    shadow:      'rgba(0,0,0,0.35)',
+    secondMain:  '#D0D8E8',
+    secondAccent:'#2E7D32',   // green accent matching dial
+    capGrad:     ['#808890', '#E8EEF8'],
+    capRing:     '#606870',
+  },
+  // OLEVS: bold chrome with strong highlight stripe — matches the black-dial OLEVS
+  olevs: {
+    bodyGrad:    ['#505860', '#F0F4FF', '#606870'],
+    bodyStroke:  'rgba(40,50,60,0.50)',
+    tip:         '#FFFFFF',
+    tailGrad:    ['#404850', '#D8DDE8'],
+    shadow:      'rgba(0,0,0,0.55)',
+    secondMain:  '#E0E8F8',
+    secondAccent:'#FF2020',
+    capGrad:     ['#606870', '#F0F4FF'],
+    capRing:     '#303840',
   },
 };
 
@@ -325,14 +377,25 @@ export interface GeneratedHandSet {
 export function generateHandSet(style: HandStyleKey): GeneratedHandSet {
   const pal = PALETTES[style];
 
-  // Hour hand: 22×140, pivot at (11, 115) — i.e. 25px tail
+  // Per-style geometry overrides: [hourBase, hourTip, minuteBase, minuteTip, tailMult]
+  // Defaults: hour baseHalfW=5, tip=1, tail=22; minute baseHalfW=3.5, tip=0.8, tail=28
+  type Geom = { hBase: number; hTip: number; hTail: number; mBase: number; mTip: number; mTail: number };
+  const GEOM: Partial<Record<HandStyleKey, Geom>> = {
+    poedagar: { hBase: 6, hTip: 1.5, hTail: 24, mBase: 4.5, mTip: 1.2, mTail: 30 },   // wider faceted gold
+    fleming:  { hBase: 3, hTip: 0.6, hTail: 18, mBase: 2.2, mTip: 0.5, mTail: 22 },   // ultra-slim
+    montagut: { hBase: 4, hTip: 0.7, hTail: 20, mBase: 2.8, mTip: 0.6, mTail: 26 },   // slim leaf
+    olevs:    { hBase: 7, hTip: 1.8, hTail: 26, mBase: 5.5, mTip: 1.4, mTail: 32 },   // wide chrome
+  };
+  const g = GEOM[style] ?? { hBase: 5, hTip: 1, hTail: 22, mBase: 3.5, mTip: 0.8, mTail: 28 };
+
+  // Hour hand: 22×140, pivot at (11, 118)
   const hourHand = createCanvasImage(22, 140, (ctx, w, h) => {
-    drawTaperedHand(ctx, w, h, pal, 5, 1, 22);
+    drawTaperedHand(ctx, w, h, pal, g.hBase, g.hTip, g.hTail);
   });
 
-  // Minute hand: 16×200, pivot at (8, 170) — 30px tail
+  // Minute hand: 16×200, pivot at (8, 172)
   const minuteHand = createCanvasImage(16, 200, (ctx, w, h) => {
-    drawTaperedHand(ctx, w, h, pal, 3.5, 0.8, 28);
+    drawTaperedHand(ctx, w, h, pal, g.mBase, g.mTip, g.mTail);
   });
 
   // Second hand: 8×240, pivot at (4, 180)

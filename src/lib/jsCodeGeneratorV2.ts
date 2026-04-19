@@ -705,6 +705,7 @@ function generateTimePointerWidget(element: WatchFaceElement, widgetIndex: numbe
   const minuteSrc = element.minuteHandSrc || 'minute_hand.png';
   const secondSrc = element.secondHandSrc || 'second_hand.png';
   const coverSrc = element.coverSrc;
+  const hasSeconds = !element.hideSeconds;
 
   let coverParams = '';
   if (coverSrc) {
@@ -713,6 +714,13 @@ function generateTimePointerWidget(element: WatchFaceElement, widgetIndex: numbe
                     hour_cover_x: px(${centerX - 15}),
                     hour_cover_y: px(${centerY - 15}),`;
   }
+
+  const secondParams = hasSeconds ? `
+                    second_centerX: px(${centerX}),
+                    second_centerY: px(${centerY}),
+                    second_posX: px(${secondPosX}),
+                    second_posY: px(${secondPosY}),
+                    second_path: '${secondSrc}',` : '';
 
   return `
                 // ${element.name} - TIME_POINTER Widget (Analog Clock)
@@ -726,12 +734,7 @@ function generateTimePointerWidget(element: WatchFaceElement, widgetIndex: numbe
                     minute_centerY: px(${centerY}),
                     minute_posX: px(${minutePosX}),
                     minute_posY: px(${minutePosY}),
-                    minute_path: '${minuteSrc}',
-                    second_centerX: px(${centerX}),
-                    second_centerY: px(${centerY}),
-                    second_posX: px(${secondPosX}),
-                    second_posY: px(${secondPosY}),
-                    second_path: '${secondSrc}',
+                    minute_path: '${minuteSrc}',${secondParams}
                     show_level: hmUI.show_level.${showLevel}
                 });`;
 }

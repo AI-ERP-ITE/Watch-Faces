@@ -73,8 +73,11 @@ export interface WatchFaceElement {
   // Weather IMG_LEVEL style
   weatherStyle?: string;
 
-  // Clock hand style (TIME_POINTER) — 'white' | 'silver' | 'black' | 'brown' | 'gold'
+  // Clock hand style (TIME_POINTER) — 'white' | 'silver' | 'black' | 'brown' | 'gold' | 'poedagar' | 'fleming' | 'montagut' | 'olevs'
   handStyle?: string;
+
+  // Hide seconds hand (TIME_POINTER)
+  hideSeconds?: boolean;
 
   // Font library
   fontStyle?: string;
