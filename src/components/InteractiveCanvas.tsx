@@ -862,10 +862,26 @@ function drawTimePointer(
   const style = (el.handStyle ?? 'silver') as HandStyleKey;
   const imgMap = handCache ? loadHandImages(style, handCache, onLoaded) : null;
 
+  // ── Per-hand scale: resolve length/width multipliers ───────────────────
+  // "Scale whole" uses handLengthScale for all; "Scale each" uses per-hand fields
+  const globalLen = el.handLengthScale ?? 1.0;
+  const perScale: Record<string, { len: number; wid: number }> = {
+    hour:   { len: (el.handHourLength   ?? globalLen), wid: (el.handHourWidth   ?? 1.0) },
+    minute: { len: (el.handMinuteLength ?? globalLen), wid: (el.handMinuteWidth ?? 1.0) },
+    second: { len: (el.handSecondLength ?? globalLen), wid: (el.handSecondWidth ?? 1.0) },
+    cover:  { len: 1, wid: 1 },
+  };
+
+  // ── Effects ──────────────────────────────────────────────────────────────
+  const shadowIntensity = el.handShadow ?? 0;
+  const glowIntensity   = el.handGlow   ?? 0;
+  const trailIntensity  = el.handTrail  ?? 0;
+  const tintColor       = el.handTint;  // e.g. '#4488FF' or undefined
+
   if (imgMap && imgMap.size === 4) {
     // Draw using real hand images
     const angles: Record<string, number> = {
-      hour: degToRad(hourAngle),
+      hour:   degToRad(hourAngle),
       minute: degToRad(minuteAngle),
       second: degToRad(secondAngle),
     };
@@ -873,14 +889,69 @@ function drawTimePointer(
       if (def.key === 'second' && el.hideSeconds) continue;
       const img = imgMap.get(def.key);
       if (!img) continue;
+
+      const sc = perScale[def.key];
+      const drawW = def.w * sc.wid;
+      const drawH = def.h * sc.len;
+      // Pivot position scales with length (pivot is near base)
+      const drawPivotX = def.pivotX * sc.wid;
+      const drawPivotY = def.key === 'cover' ? def.pivotY : (def.pivotY / def.h) * drawH;
+
+      const angle = def.key === 'cover' ? 0 : angles[def.key];
+
+      // ── Trail (speed-blur ghost) ─────────────────────────────
+      if (trailIntensity > 0 && def.key !== 'cover') {
+        for (let t = 1; t <= 3; t++) {
+          const trailAlpha = trailIntensity * (0.18 - t * 0.04);
+          if (trailAlpha <= 0) break;
+          const trailAngle = angle - degToRad(t * 3);
+          ctx.save();
+          ctx.globalAlpha = trailAlpha;
+          ctx.translate(cx, cy);
+          ctx.rotate(trailAngle);
+          ctx.drawImage(img, -drawPivotX, -drawPivotY, drawW, drawH);
+          ctx.restore();
+        }
+      }
+
       ctx.save();
       ctx.translate(cx, cy);
-      if (def.key === 'cover') {
-        ctx.drawImage(img, -def.pivotX, -def.pivotY, def.w, def.h);
-      } else {
-        ctx.rotate(angles[def.key]);
-        ctx.drawImage(img, -def.pivotX, -def.pivotY, def.w, def.h);
+      if (def.key !== 'cover') ctx.rotate(angle);
+
+      // ── Shadow ────────────────────────────────────────────────
+      if (shadowIntensity > 0) {
+        ctx.shadowColor = `rgba(0,0,0,${0.3 + shadowIntensity * 0.6})`;
+        ctx.shadowBlur = 4 + shadowIntensity * 20;
+        ctx.shadowOffsetX = shadowIntensity * 4;
+        ctx.shadowOffsetY = shadowIntensity * 4;
       }
+
+      ctx.drawImage(img, -drawPivotX, -drawPivotY, drawW, drawH);
+
+      // ── Glow overlay ──────────────────────────────────────────
+      if (glowIntensity > 0 && def.key !== 'cover') {
+        ctx.shadowColor = 'rgba(0,0,0,0)';
+        ctx.shadowBlur = 0;
+        const glowColor = tintColor ?? '#00EEFF';
+        ctx.globalCompositeOperation = 'screen';
+        ctx.globalAlpha = glowIntensity * 0.55;
+        ctx.shadowColor = glowColor;
+        ctx.shadowBlur = 12 + glowIntensity * 20;
+        ctx.drawImage(img, -drawPivotX, -drawPivotY, drawW, drawH);
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = 1;
+      }
+
+      // ── Tint overlay ──────────────────────────────────────────
+      if (tintColor && glowIntensity <= 0 && def.key !== 'cover') {
+        ctx.globalCompositeOperation = 'overlay';
+        ctx.globalAlpha = 0.35;
+        ctx.fillStyle = tintColor;
+        ctx.fillRect(-drawPivotX, -drawPivotY, drawW, drawH);
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = 1;
+      }
+
       ctx.restore();
     }
   } else {

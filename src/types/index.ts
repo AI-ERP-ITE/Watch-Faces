@@ -79,6 +79,23 @@ export interface WatchFaceElement {
   // Hide seconds hand (TIME_POINTER)
   hideSeconds?: boolean;
 
+  // ── Hand scaling ──────────────────────────────────────────────────────────
+  // "Scale Whole" mode: one multiplier for all hands (length only)
+  handLengthScale?: number;   // 0.5–2.0, default 1.0
+  // "Scale Each" mode: per-hand length + width multipliers
+  handHourLength?: number;    // 0.5–2.0
+  handHourWidth?: number;     // 0.5–2.0
+  handMinuteLength?: number;
+  handMinuteWidth?: number;
+  handSecondLength?: number;
+  handSecondWidth?: number;
+
+  // ── Hand effects (preview only — visual on canvas) ───────────────────────
+  handShadow?: number;   // 0–1: shadow intensity/size
+  handGlow?: number;     // 0–1: neon glow brightness
+  handTrail?: number;    // 0–1: speed-blur ghost opacity
+  handTint?: string;     // CSS color — accent tint blended on hands (e.g. '#4488FF')
+
   // Font library
   fontStyle?: string;
 

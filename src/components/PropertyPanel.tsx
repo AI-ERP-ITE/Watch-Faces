@@ -360,6 +360,152 @@ export function PropertyPanel({ element, onUpdateElement, className }: PropertyP
         </Section>
       )}
 
+      {/* TIME_POINTER — Hand Scale */}
+      {element.type === 'TIME_POINTER' && (
+        <Section label="Hand Scale">
+          {/* Scale whole */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-white/50">Scale whole</span>
+              <span className="text-[10px] text-cyan-400 font-mono w-10 text-right">{(element.handLengthScale ?? 1).toFixed(2)}×</span>
+            </div>
+            <input
+              type="range" min="0.5" max="2.0" step="0.05"
+              value={element.handLengthScale ?? 1}
+              onChange={e => update({ handLengthScale: Number(e.target.value) })}
+              className="w-full accent-cyan-400 h-1"
+            />
+          </div>
+          {/* Scale each */}
+          <details className="mt-2">
+            <summary className="text-[10px] text-white/40 cursor-pointer hover:text-white/70 select-none">Scale each hand individually ▸</summary>
+            <div className="mt-2 space-y-3 pl-1 border-l border-white/10">
+              {/* Hour */}
+              <div>
+                <span className="text-[9px] text-white/40 uppercase tracking-wider">Hour</span>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-[9px] text-white/30 w-10">Length</span>
+                  <input type="range" min="0.5" max="2.0" step="0.05"
+                    value={element.handHourLength ?? (element.handLengthScale ?? 1)}
+                    onChange={e => update({ handHourLength: Number(e.target.value) })}
+                    className="flex-1 accent-cyan-400 h-1" />
+                  <span className="text-[9px] font-mono text-cyan-400 w-8 text-right">{(element.handHourLength ?? (element.handLengthScale ?? 1)).toFixed(2)}×</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[9px] text-white/30 w-10">Width</span>
+                  <input type="range" min="0.5" max="2.0" step="0.05"
+                    value={element.handHourWidth ?? 1}
+                    onChange={e => update({ handHourWidth: Number(e.target.value) })}
+                    className="flex-1 accent-cyan-400 h-1" />
+                  <span className="text-[9px] font-mono text-cyan-400 w-8 text-right">{(element.handHourWidth ?? 1).toFixed(2)}×</span>
+                </div>
+              </div>
+              {/* Minute */}
+              <div>
+                <span className="text-[9px] text-white/40 uppercase tracking-wider">Minute</span>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-[9px] text-white/30 w-10">Length</span>
+                  <input type="range" min="0.5" max="2.0" step="0.05"
+                    value={element.handMinuteLength ?? (element.handLengthScale ?? 1)}
+                    onChange={e => update({ handMinuteLength: Number(e.target.value) })}
+                    className="flex-1 accent-cyan-400 h-1" />
+                  <span className="text-[9px] font-mono text-cyan-400 w-8 text-right">{(element.handMinuteLength ?? (element.handLengthScale ?? 1)).toFixed(2)}×</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[9px] text-white/30 w-10">Width</span>
+                  <input type="range" min="0.5" max="2.0" step="0.05"
+                    value={element.handMinuteWidth ?? 1}
+                    onChange={e => update({ handMinuteWidth: Number(e.target.value) })}
+                    className="flex-1 accent-cyan-400 h-1" />
+                  <span className="text-[9px] font-mono text-cyan-400 w-8 text-right">{(element.handMinuteWidth ?? 1).toFixed(2)}×</span>
+                </div>
+              </div>
+              {/* Second */}
+              {!element.hideSeconds && (
+                <div>
+                  <span className="text-[9px] text-white/40 uppercase tracking-wider">Second</span>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-[9px] text-white/30 w-10">Length</span>
+                    <input type="range" min="0.5" max="2.0" step="0.05"
+                      value={element.handSecondLength ?? (element.handLengthScale ?? 1)}
+                      onChange={e => update({ handSecondLength: Number(e.target.value) })}
+                      className="flex-1 accent-cyan-400 h-1" />
+                    <span className="text-[9px] font-mono text-cyan-400 w-8 text-right">{(element.handSecondLength ?? (element.handLengthScale ?? 1)).toFixed(2)}×</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[9px] text-white/30 w-10">Width</span>
+                    <input type="range" min="0.5" max="2.0" step="0.05"
+                      value={element.handSecondWidth ?? 1}
+                      onChange={e => update({ handSecondWidth: Number(e.target.value) })}
+                      className="flex-1 accent-cyan-400 h-1" />
+                    <span className="text-[9px] font-mono text-cyan-400 w-8 text-right">{(element.handSecondWidth ?? 1).toFixed(2)}×</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </details>
+        </Section>
+      )}
+
+      {/* TIME_POINTER — Hand Effects */}
+      {element.type === 'TIME_POINTER' && (
+        <Section label="Hand Effects">
+          {/* Shadow */}
+          <div className="space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-white/50">Shadow</span>
+              <span className="text-[10px] text-white/40 font-mono w-8 text-right">{Math.round((element.handShadow ?? 0) * 100)}%</span>
+            </div>
+            <input type="range" min="0" max="1" step="0.05"
+              value={element.handShadow ?? 0}
+              onChange={e => update({ handShadow: Number(e.target.value) })}
+              className="w-full accent-cyan-400 h-1" />
+          </div>
+          {/* Glow */}
+          <div className="space-y-1 mt-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-white/50">Glow / Neon</span>
+              <span className="text-[10px] text-white/40 font-mono w-8 text-right">{Math.round((element.handGlow ?? 0) * 100)}%</span>
+            </div>
+            <input type="range" min="0" max="1" step="0.05"
+              value={element.handGlow ?? 0}
+              onChange={e => update({ handGlow: Number(e.target.value) })}
+              className="w-full accent-cyan-400 h-1" />
+          </div>
+          {/* Speed trail */}
+          <div className="space-y-1 mt-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-white/50">Speed trail</span>
+              <span className="text-[10px] text-white/40 font-mono w-8 text-right">{Math.round((element.handTrail ?? 0) * 100)}%</span>
+            </div>
+            <input type="range" min="0" max="1" step="0.05"
+              value={element.handTrail ?? 0}
+              onChange={e => update({ handTrail: Number(e.target.value) })}
+              className="w-full accent-cyan-400 h-1" />
+          </div>
+          {/* Tint color */}
+          <div className="mt-2">
+            <span className="text-[10px] text-white/50 block mb-1">Tint / Accent color</span>
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={element.handTint ?? '#4488FF'}
+                onChange={e => update({ handTint: e.target.value })}
+                className="w-7 h-7 rounded cursor-pointer border-0 bg-transparent"
+              />
+              <button
+                onClick={() => update({ handTint: undefined })}
+                className="text-[9px] text-white/30 hover:text-white/60 border border-white/10 rounded px-1.5 h-5"
+                title="Remove tint"
+              >none</button>
+              {element.handTint && (
+                <span className="text-[9px] font-mono text-white/50">{element.handTint}</span>
+              )}
+            </div>
+          </div>
+        </Section>
+      )}
+
       {/* Weather style picker — IMG_LEVEL + WEATHER_CURRENT */}
       {element.type === 'IMG_LEVEL' && element.dataType === 'WEATHER_CURRENT' && (
         <Section label="Weather Style">
