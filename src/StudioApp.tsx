@@ -23,6 +23,8 @@ import { testApiKey, type AIProvider } from '@/lib/aiService';
 import { runPipeline } from '@/pipeline';
 import { extractElementsFromImage, type PipelineAIProvider } from '@/pipeline/pipelineAIService';
 import { generatePipelineAssets, generateCurvedTextImage } from '@/pipeline/assetImageGenerator';
+import { generateHandSet } from '@/lib/handStyles';
+import type { HandStyleKey } from '@/lib/handStyles';
 import { buildSourceJson, sourceJsonToBlob } from '@/lib/sourceJsonGenerator';
 import { PublishForm } from '@/components/PublishForm';
 import { AdminPanel } from '@/components/AdminPanel';
@@ -808,84 +810,16 @@ async function mockKimiAnalysis(
     type: 'BUTTON',
   });
 
-  // Generate clock hand images for TIME_POINTER
-  // Hour hand: shorter, wider (22x140, pivot at bottom-center: posX=11, posY=70)
-  const hourHandDataUrl = createCanvasImage(22, 140, (ctx, w, h) => {
-    ctx.fillStyle = '#CCCCCC';
-    // Tapered hand shape
-    ctx.beginPath();
-    ctx.moveTo(w / 2 - 4, h);        // bottom-left
-    ctx.lineTo(w / 2 - 1, 10);       // top-left narrow
-    ctx.lineTo(w / 2, 0);            // tip
-    ctx.lineTo(w / 2 + 1, 10);       // top-right narrow
-    ctx.lineTo(w / 2 + 4, h);        // bottom-right
-    ctx.closePath();
-    ctx.fill();
-    ctx.strokeStyle = '#999999';
-    ctx.lineWidth = 1;
-    ctx.stroke();
-  });
-  elementImages.push({
-    name: 'hour_hand.png',
-    dataUrl: hourHandDataUrl,
-    bounds: { x: 0, y: 0, width: 22, height: 140 },
-    type: 'TIME_POINTER',
-  });
-
-  // Minute hand: longer, thinner (16x200, pivot at bottom-center: posX=8, posY=100)
-  const minuteHandDataUrl = createCanvasImage(16, 200, (ctx, w, h) => {
-    ctx.fillStyle = '#FFFFFF';
-    ctx.beginPath();
-    ctx.moveTo(w / 2 - 3, h);
-    ctx.lineTo(w / 2 - 1, 10);
-    ctx.lineTo(w / 2, 0);
-    ctx.lineTo(w / 2 + 1, 10);
-    ctx.lineTo(w / 2 + 3, h);
-    ctx.closePath();
-    ctx.fill();
-    ctx.strokeStyle = '#AAAAAA';
-    ctx.lineWidth = 1;
-    ctx.stroke();
-  });
-  elementImages.push({
-    name: 'minute_hand.png',
-    dataUrl: minuteHandDataUrl,
-    bounds: { x: 0, y: 0, width: 16, height: 200 },
-    type: 'TIME_POINTER',
-  });
-
-  // Second hand: longest, thinnest, red (6x240, pivot at bottom-center: posX=3, posY=120)
-  const secondHandDataUrl = createCanvasImage(6, 240, (ctx, w, h) => {
-    ctx.fillStyle = '#FF3333';
-    ctx.fillRect(w / 2 - 1, 0, 2, h);
-    // Small circle at pivot
-    ctx.beginPath();
-    ctx.arc(w / 2, 120, 3, 0, Math.PI * 2);
-    ctx.fill();
-  });
-  elementImages.push({
-    name: 'second_hand.png',
-    dataUrl: secondHandDataUrl,
-    bounds: { x: 0, y: 0, width: 6, height: 240 },
-    type: 'TIME_POINTER',
-  });
-
-  // Cover (center cap over hands) - small circle 30x30
-  const coverDataUrl = createCanvasImage(30, 30, (ctx, w, h) => {
-    ctx.fillStyle = '#888888';
-    ctx.beginPath();
-    ctx.arc(w / 2, h / 2, 12, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = '#AAAAAA';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-  });
-  elementImages.push({
-    name: 'hand_cover.png',
-    dataUrl: coverDataUrl,
-    bounds: { x: 0, y: 0, width: 30, height: 30 },
-    type: 'TIME_POINTER',
-  });
+  // Generate clock hand images for TIME_POINTER — use handStyle from the TIME_POINTER element
+  const timePointerEl = elements.find(el => el.type === 'TIME_POINTER');
+  const handStyle = (timePointerEl?.handStyle ?? 'silver') as HandStyleKey;
+  const handSet = generateHandSet(handStyle);
+  elementImages.push(
+    { name: 'hour_hand.png',  dataUrl: handSet.hourHand,   bounds: { x: 0, y: 0, width: 22, height: 140 }, type: 'TIME_POINTER' },
+    { name: 'minute_hand.png',dataUrl: handSet.minuteHand, bounds: { x: 0, y: 0, width: 16, height: 200 }, type: 'TIME_POINTER' },
+    { name: 'second_hand.png',dataUrl: handSet.secondHand, bounds: { x: 0, y: 0, width: 8,  height: 240 }, type: 'TIME_POINTER' },
+    { name: 'hand_cover.png', dataUrl: handSet.cover,      bounds: { x: 0, y: 0, width: 30, height: 30  }, type: 'TIME_POINTER' },
+  );
 
   // Generate 29 weather level icons for IMG_LEVEL (matches Brushed Steel reference count)
   const weatherSize = 40;

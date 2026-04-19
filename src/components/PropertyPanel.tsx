@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { FONT_STYLES, getFontStyle } from '@/lib/fontLibrary';
 import { WEATHER_STYLES, generateWeatherSet } from '@/lib/weatherIconSets';
 import type { WeatherStyle } from '@/lib/weatherIconSets';
+import { HAND_STYLES } from '@/lib/handStyles';
 import { useState, useEffect, useRef } from 'react';
 
 export interface PropertyPanelProps {
@@ -252,8 +253,35 @@ export function PropertyPanel({ element, onUpdateElement, className }: PropertyP
 
       {/* TIME_POINTER-specific fields */}
       {element.type === 'TIME_POINTER' && (
-        <Section label="Hands">
-          <p className="text-[10px] text-white/30">Hand images auto-sized from assets. Drag on canvas to reposition.</p>
+        <Section label="Hand Style">
+          <div className="grid grid-cols-5 gap-1.5">
+            {HAND_STYLES.map(hs => {
+              const active = (element.handStyle ?? 'silver') === hs.key;
+              return (
+                <button
+                  key={hs.key}
+                  title={hs.label}
+                  onClick={() => update({ handStyle: hs.key })}
+                  className={cn(
+                    'flex flex-col items-center gap-1 py-1.5 rounded border text-[9px] transition-colors',
+                    active
+                      ? 'border-cyan-500 bg-cyan-500/15 text-white'
+                      : 'border-white/10 bg-white/5 text-white/50 hover:border-white/30 hover:text-white/80'
+                  )}
+                >
+                  <span
+                    className="w-4 h-4 rounded-full border"
+                    style={{
+                      background: `radial-gradient(circle at 35% 35%, white 0%, ${hs.swatch} 60%, #111 100%)`,
+                      borderColor: active ? '#22d3ee' : 'rgba(255,255,255,0.15)',
+                    }}
+                  />
+                  <span className="leading-tight text-center px-0.5">{hs.label.split(' ')[0]}</span>
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-[10px] text-white/30 mt-1">Re-generate watchface to apply new hand style.</p>
         </Section>
       )}
 

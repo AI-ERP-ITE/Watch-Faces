@@ -8,6 +8,8 @@ import { TIME_DIGIT, DATE_DIGIT, MONTH_LABEL, WEEK_LABEL, WEATHER_ICON, TEXT_IMG
 import { getIconBySafeKey } from '@/lib/iconLibrary';
 import { generateWeatherSet } from '@/lib/weatherIconSets';
 import type { WeatherStyle } from '@/lib/weatherIconSets';
+import { generateHandSet } from '@/lib/handStyles';
+import type { HandStyleKey } from '@/lib/handStyles';
 
 // ─── Canvas Utility ─────────────────────────────────────────────────────────────
 
@@ -113,48 +115,13 @@ function generateTextImages(
 
 // ─── Clock Hand Generator ───────────────────────────────────────────────────────
 
-function generateClockHands(): ElementImage[] {
+function generateClockHands(style: HandStyleKey = 'silver'): ElementImage[] {
+  const set = generateHandSet(style);
   return [
-    {
-      name: 'hour_hand.png',
-      dataUrl: createCanvasImage(22, 140, (ctx, w, h) => {
-        ctx.fillStyle = '#CCCCCC';
-        ctx.beginPath();
-        ctx.moveTo(w / 2 - 4, h); ctx.lineTo(w / 2 - 1, 10);
-        ctx.lineTo(w / 2, 0); ctx.lineTo(w / 2 + 1, 10);
-        ctx.lineTo(w / 2 + 4, h); ctx.closePath(); ctx.fill();
-      }),
-      bounds: { x: 0, y: 0, width: 22, height: 140 }, type: 'TIME_POINTER',
-    },
-    {
-      name: 'minute_hand.png',
-      dataUrl: createCanvasImage(16, 200, (ctx, w, h) => {
-        ctx.fillStyle = '#FFFFFF';
-        ctx.beginPath();
-        ctx.moveTo(w / 2 - 3, h); ctx.lineTo(w / 2 - 1, 10);
-        ctx.lineTo(w / 2, 0); ctx.lineTo(w / 2 + 1, 10);
-        ctx.lineTo(w / 2 + 3, h); ctx.closePath(); ctx.fill();
-      }),
-      bounds: { x: 0, y: 0, width: 16, height: 200 }, type: 'TIME_POINTER',
-    },
-    {
-      name: 'second_hand.png',
-      dataUrl: createCanvasImage(6, 240, (ctx, w, h) => {
-        ctx.fillStyle = '#FF4444';
-        ctx.fillRect(w / 2 - 1, 0, 2, h);
-        ctx.beginPath(); ctx.arc(w / 2, 120, 3, 0, Math.PI * 2); ctx.fill();
-      }),
-      bounds: { x: 0, y: 0, width: 6, height: 240 }, type: 'TIME_POINTER',
-    },
-    {
-      name: 'hand_cover.png',
-      dataUrl: createCanvasImage(30, 30, (ctx, w, h) => {
-        ctx.fillStyle = '#888888';
-        ctx.beginPath(); ctx.arc(w / 2, h / 2, 12, 0, Math.PI * 2); ctx.fill();
-        ctx.strokeStyle = '#AAAAAA'; ctx.lineWidth = 2; ctx.stroke();
-      }),
-      bounds: { x: 0, y: 0, width: 30, height: 30 }, type: 'TIME_POINTER',
-    },
+    { name: 'hour_hand.png',  dataUrl: set.hourHand,   bounds: { x: 0, y: 0, width: 22, height: 140 }, type: 'TIME_POINTER' },
+    { name: 'minute_hand.png',dataUrl: set.minuteHand, bounds: { x: 0, y: 0, width: 16, height: 200 }, type: 'TIME_POINTER' },
+    { name: 'second_hand.png',dataUrl: set.secondHand, bounds: { x: 0, y: 0, width: 8,  height: 240 }, type: 'TIME_POINTER' },
+    { name: 'hand_cover.png', dataUrl: set.cover,      bounds: { x: 0, y: 0, width: 30, height: 30  }, type: 'TIME_POINTER' },
   ];
 }
 
@@ -277,7 +244,7 @@ export function generatePipelineAssets(elements: ResolvedElement[]): ElementImag
     switch (el.widget) {
       case 'TIME_POINTER': {
         if (!generatedSets.has('clock_hands')) {
-          images.push(...generateClockHands());
+          images.push(...generateClockHands('silver'));
           generatedSets.add('clock_hands');
         }
         break;
