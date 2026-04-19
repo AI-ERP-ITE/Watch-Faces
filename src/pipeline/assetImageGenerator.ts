@@ -253,8 +253,12 @@ export function generatePipelineAssets(elements: ResolvedElement[]): ElementImag
       case 'IMG_TIME': {
         if (!generatedSets.has('time_digits')) {
           const color = getElementColor(el);
-          // Derive digit size from element bounds (4 digits + gap)
-          const timeDigitW = el.w ? Math.floor(el.w / 5) : TIME_DIGIT.w;
+          // Hours element: width covers 2 digits, so digit width = width/2
+          // Legacy single element: width covers 4 digits + gap = ~5 slots
+          const isHoursEl = (el as unknown as { subtype?: string }).subtype === 'hours';
+          const timeDigitW = el.w
+            ? (isHoursEl ? Math.floor(el.w / 2) : Math.floor(el.w / 5))
+            : TIME_DIGIT.w;
           const timeDigitH = el.h ?? TIME_DIGIT.h;
           images.push(...generateDigitImages('time_digit', timeDigitW, timeDigitH, color));
           generatedSets.add('time_digits');

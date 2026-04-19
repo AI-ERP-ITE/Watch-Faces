@@ -46,6 +46,8 @@ type Action =
   | { type: 'SET_GITHUB_REPO'; payload: string }
   | { type: 'UPDATE_ELEMENT'; payload: { id: string; changes: Partial<WatchFaceElement> } }
   | { type: 'UPDATE_ELEMENTS_BATCH'; payload: Array<{ id: string; changes: Partial<WatchFaceElement> }> }
+  | { type: 'ADD_ELEMENT'; payload: WatchFaceElement }
+  | { type: 'DELETE_ELEMENT'; payload: string }
   | { type: 'UNDO' }
   | { type: 'REDO' }
   | { type: 'RESET' };
@@ -87,6 +89,26 @@ function appReducer(state: AppState, action: Action): AppState {
     case 'SET_GITHUB_REPO':
       localStorage.setItem('githubRepo', action.payload);
       return { ...state, githubRepo: action.payload };
+    case 'ADD_ELEMENT': {
+      if (!state.watchFaceConfig) return state;
+      const newUndoForAdd = [...state.undoStack, structuredClone(state.watchFaceConfig.elements)].slice(-30);
+      return {
+        ...state,
+        watchFaceConfig: { ...state.watchFaceConfig, elements: [...state.watchFaceConfig.elements, action.payload] },
+        undoStack: newUndoForAdd,
+        redoStack: [],
+      };
+    }
+    case 'DELETE_ELEMENT': {
+      if (!state.watchFaceConfig) return state;
+      const newUndoForDel = [...state.undoStack, structuredClone(state.watchFaceConfig.elements)].slice(-30);
+      return {
+        ...state,
+        watchFaceConfig: { ...state.watchFaceConfig, elements: state.watchFaceConfig.elements.filter(e => e.id !== action.payload) },
+        undoStack: newUndoForDel,
+        redoStack: [],
+      };
+    }
     case 'UPDATE_ELEMENT': {
       if (!state.watchFaceConfig) return state;
       const newUndoStack = [...state.undoStack, structuredClone(state.watchFaceConfig.elements)].slice(-30);
@@ -196,6 +218,8 @@ export const actions = {
   setGithubRepo: (repo: string) => ({ type: 'SET_GITHUB_REPO' as const, payload: repo }),
   updateElement: (id: string, changes: Partial<WatchFaceElement>) => ({ type: 'UPDATE_ELEMENT' as const, payload: { id, changes } }),
   updateElementsBatch: (updates: Array<{ id: string; changes: Partial<WatchFaceElement> }>) => ({ type: 'UPDATE_ELEMENTS_BATCH' as const, payload: updates }),
+  addElement: (element: WatchFaceElement) => ({ type: 'ADD_ELEMENT' as const, payload: element }),
+  deleteElement: (id: string) => ({ type: 'DELETE_ELEMENT' as const, payload: id }),
   undo: () => ({ type: 'UNDO' as const }),
   redo: () => ({ type: 'REDO' as const }),
   reset: () => ({ type: 'RESET' as const }),

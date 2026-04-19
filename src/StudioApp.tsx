@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { ArrowRight, RefreshCw, Sparkles, Wand2, Settings, Eye, EyeOff, Grid3X3, Undo2, Redo2 } from 'lucide-react';
+import { ArrowRight, RefreshCw, Sparkles, Wand2, Settings, Eye, EyeOff, Grid3X3, Undo2, Redo2, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -908,7 +908,57 @@ function StudioApp() {
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
   const [showGrid, setShowGrid] = useState(false);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+  const [showAddElement, setShowAddElement] = useState(false);
+  const [addElType, setAddElType] = useState<WatchFaceElement['type']>('TEXT');
+  const [addElDataType, setAddElDataType] = useState('HEART');
+  const [addElSubtype, setAddElSubtype] = useState<string>('');
   const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  const handleAddElement = () => {
+    if (!state.watchFaceConfig) return;
+    const maxZ = state.watchFaceConfig.elements.reduce((m, e) => Math.max(m, e.zIndex), 0);
+    const canvas = state.watchFaceConfig.resolution?.width ?? 480;
+    const cx = Math.floor(canvas / 2);
+    // Default sizes per type
+    const defaults: Partial<Record<WatchFaceElement['type'], { w: number; h: number }>> = {
+      TEXT: { w: 160, h: 50 },
+      ARC_PROGRESS: { w: 400, h: 400 },
+      TEXT_IMG: { w: 160, h: 50 },
+      IMG: { w: 100, h: 100 },
+      IMG_TIME: { w: 200, h: 80 },
+      IMG_DATE: { w: 100, h: 50 },
+      IMG_WEEK: { w: 120, h: 50 },
+      IMG_LEVEL: { w: 60, h: 60 },
+      IMG_STATUS: { w: 40, h: 40 },
+      CIRCLE: { w: 80, h: 80 },
+      BUTTON: { w: 120, h: 60 },
+      TIME_POINTER: { w: canvas, h: canvas },
+    };
+    const { w = 120, h = 60 } = defaults[addElType] ?? {};
+    const x = addElType === 'ARC_PROGRESS' || addElType === 'TIME_POINTER' ? 0 : cx - Math.floor(w / 2);
+    const y = addElType === 'ARC_PROGRESS' || addElType === 'TIME_POINTER' ? 0 : Math.floor(canvas * 0.4) - Math.floor(h / 2);
+    const needsDataType = addElType === 'ARC_PROGRESS' || addElType === 'TEXT_IMG' || addElType === 'IMG_LEVEL' || addElType === 'IMG_STATUS';
+    const isArc = addElType === 'ARC_PROGRESS';
+    const newEl: WatchFaceElement = {
+      id: generateId(),
+      type: addElType,
+      ...(addElSubtype ? { subtype: addElSubtype } : {}),
+      name: addElSubtype
+        ? addElSubtype.charAt(0).toUpperCase() + addElSubtype.slice(1)
+        : (needsDataType ? addElDataType.charAt(0) + addElDataType.slice(1).toLowerCase() : addElType),
+      bounds: { x, y, width: w, height: h },
+      visible: true,
+      zIndex: maxZ + 1,
+      ...(needsDataType ? { dataType: addElDataType } : {}),
+      ...(isArc ? { startAngle: -90, endAngle: 270, radius: 190, lineWidth: 10, color: '#00CC88' } : {}),
+      ...(addElType === 'TIME_POINTER' ? { center: { x: cx, y: cx } } : {}),
+      ...(addElType === 'TEXT' ? { text: 'Text', fontSize: 36, color: '#FFFFFF' } : {}),
+    };
+    dispatch({ type: 'ADD_ELEMENT', payload: newEl });
+    setSelectedElementId(newEl.id);
+    setShowAddElement(false);
+    toast.success(`Added ${newEl.name}`);
+  };
 
   // Lazy-load editor fonts (30+ families) — only on /studio, not on storefront
   useEffect(() => {
@@ -1672,15 +1722,101 @@ function StudioApp() {
                       element={state.watchFaceConfig.elements.find(el => el.id === selectedElementId) ?? null}
                       onUpdateElement={(id, changes) => dispatch({ type: 'UPDATE_ELEMENT', payload: { id, changes } })}
                     />
-                    <h4 className="text-sm font-medium text-zinc-400 mt-4">Elements</h4>
+                    <div className="flex items-center justify-between mt-4">
+                      <h4 className="text-sm font-medium text-zinc-400">Elements</h4>
+                      <button
+                        onClick={() => setShowAddElement(true)}
+                        className="flex items-center gap-1 text-xs text-cyan-400 hover:text-cyan-300 border border-cyan-500/30 hover:border-cyan-400/50 rounded px-2 py-1 transition-colors"
+                        title="Add a new element"
+                      >
+                        <Plus className="h-3 w-3" />
+                        Add
+                      </button>
+                    </div>
                     <ElementList
                       elements={state.watchFaceConfig.elements}
                       onToggleVisibility={handleToggleElement}
                       selectedElementId={selectedElementId}
                       onSelectElement={setSelectedElementId}
+                      onDeleteElement={(id) => {
+                        dispatch({ type: 'DELETE_ELEMENT', payload: id });
+                        if (selectedElementId === id) setSelectedElementId(null);
+                      }}
                     />
                   </div>
                 </div>
+
+                {/* Add Element Dialog */}
+                <Dialog open={showAddElement} onOpenChange={setShowAddElement}>
+                  <DialogContent className="bg-[#111] border-zinc-800 text-white max-w-sm">
+                    <DialogHeader>
+                      <DialogTitle className="text-white text-base">Add Element</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 pt-1">
+                      {/* Widget type grid */}
+                      <div>
+                        <p className="text-xs text-zinc-400 mb-2">Widget type</p>
+                        <div className="grid grid-cols-3 gap-2">
+                          {(
+                            [
+                              { type: 'TEXT' as const, label: 'Text', icon: '📝' },
+                              { type: 'IMG_TIME' as const, label: 'Hours', icon: '⏰', sub: 'hours' },
+                              { type: 'IMG_TIME' as const, label: 'Minutes', icon: '⏱️', sub: 'minutes' },
+                              { type: 'ARC_PROGRESS' as const, label: 'Arc', icon: '⭕' },
+                              { type: 'TEXT_IMG' as const, label: 'Digits', icon: '🔢' },
+                              { type: 'IMG_DATE' as const, label: 'Date', icon: '📅' },
+                              { type: 'IMG_WEEK' as const, label: 'Weekday', icon: '📆' },
+                              { type: 'IMG_LEVEL' as const, label: 'Level', icon: '📊' },
+                              { type: 'IMG_STATUS' as const, label: 'Status', icon: '🔵' },
+                              { type: 'IMG' as const, label: 'Image', icon: '🖼️' },
+                              { type: 'CIRCLE' as const, label: 'Circle', icon: '⚪' },
+                              { type: 'TIME_POINTER' as const, label: 'Analog', icon: '🕐' },
+                            ] as { type: WatchFaceElement['type']; label: string; icon: string; sub?: string }[]
+                          ).map((opt) => {
+                            const isSelected = addElType === opt.type && (addElSubtype || '') === (opt.sub || '');
+                            return (
+                              <button
+                                key={opt.label}
+                                onClick={() => { setAddElType(opt.type); setAddElSubtype(opt.sub ?? ''); }}
+                                className={`flex flex-col items-center gap-1 p-2 rounded-lg border text-xs transition-all ${
+                                  isSelected
+                                    ? 'bg-cyan-500/20 border-cyan-500 text-cyan-300'
+                                    : 'bg-zinc-900 border-zinc-700 text-zinc-300 hover:border-zinc-500'
+                                }`}
+                              >
+                                <span className="text-lg">{opt.icon}</span>
+                                {opt.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Data type selector — shown for relevant widget types */}
+                      {(addElType === 'ARC_PROGRESS' || addElType === 'TEXT_IMG' || addElType === 'IMG_LEVEL' || addElType === 'IMG_STATUS') && (
+                        <div>
+                          <p className="text-xs text-zinc-400 mb-2">Data type</p>
+                          <select
+                            value={addElDataType}
+                            onChange={(e) => setAddElDataType(e.target.value)}
+                            className="w-full bg-zinc-900 border border-zinc-700 text-white text-sm rounded px-2 py-1.5"
+                          >
+                            {['BATTERY','STEP','HEART','SPO2','CAL','DISTANCE','STRESS','PAI','SLEEP','STAND','FAT_BURN','UVI','AQI','HUMIDITY','WEATHER_CURRENT'].map(dt => (
+                              <option key={dt} value={dt}>{dt}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
+                      <button
+                        onClick={handleAddElement}
+                        className="w-full py-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-black font-semibold text-sm transition-colors"
+                      >
+                        Add Element
+                      </button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               </>
             )}
 

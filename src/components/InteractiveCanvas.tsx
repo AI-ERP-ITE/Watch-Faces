@@ -5,6 +5,8 @@ import { getIconByKey } from '@/lib/iconLibrary';
 import { getFontStyle } from '@/lib/fontLibrary';
 import { generateWeatherSet } from '@/lib/weatherIconSets';
 import type { WeatherStyle } from '@/lib/weatherIconSets';
+import { generateHandSet } from '@/lib/handStyles';
+import type { HandStyleKey } from '@/lib/handStyles';
 
 const CANVAS_SIZE = 480;
 const CX = 240;
@@ -50,6 +52,8 @@ export const InteractiveCanvas = forwardRef<HTMLCanvasElement, InteractiveCanvas
   showGridRef.current = showGrid;
   const iconImageCache = useRef(new Map<string, HTMLImageElement>());
   const digitImageCache = useRef(new Map<string, HTMLImageElement>());
+  // handImageCache: style key → { hour, minute, second, cover } images
+  const handImageCache = useRef(new Map<string, Map<string, HTMLImageElement>>());
   useState(0); // reserved for future forced re-renders
 
   // Draw everything to canvas
@@ -72,7 +76,7 @@ export const InteractiveCanvas = forwardRef<HTMLCanvasElement, InteractiveCanvas
     if (showGridRef.current) drawGrid(ctx);
 
     // Elements
-    drawElements(ctx, elements, iconImageCache.current, digitImageCache.current, draw);
+    drawElements(ctx, elements, iconImageCache.current, digitImageCache.current, draw, handImageCache.current);
 
     // Selection highlight
     if (selectedElementId) {
@@ -577,7 +581,7 @@ function drawBackground(ctx: CanvasRenderingContext2D, img: HTMLImageElement) {
 
 // ─── Element Dispatcher ─────────────────────────────────────────────────────────
 
-function drawElements(ctx: CanvasRenderingContext2D, elements: WatchFaceElement[], iconCache?: Map<string, HTMLImageElement>, digitCache?: Map<string, HTMLImageElement>, onIconLoaded?: () => void) {
+function drawElements(ctx: CanvasRenderingContext2D, elements: WatchFaceElement[], iconCache?: Map<string, HTMLImageElement>, digitCache?: Map<string, HTMLImageElement>, onIconLoaded?: () => void, handCache?: Map<string, Map<string, HTMLImageElement>>) {
   const sorted = [...elements].filter(e => e.visible).sort((a, b) => a.zIndex - b.zIndex);
 
   for (const el of sorted) {
@@ -619,7 +623,7 @@ function drawElements(ctx: CanvasRenderingContext2D, elements: WatchFaceElement[
         drawArc(ctx, el);
         break;
       case 'TIME_POINTER':
-        drawTimePointer(ctx, el);
+        drawTimePointer(ctx, el, handCache, onIconLoaded);
         break;
       case 'IMG_TIME':
       case 'IMG_DATE':
@@ -711,7 +715,10 @@ function getCachedImage(src: string, cache: Map<string, HTMLImageElement>, onLoa
 
 function getPlaceholderText(el: WatchFaceElement): string {
   const name = el.name.toLowerCase();
-  if (el.type === 'IMG_TIME' || name.includes('time')) return '10:28';
+  if (el.type === 'IMG_TIME') {
+    if (el.subtype === 'minutes') return '28';
+    return '10'; // hours or legacy single element
+  }
   if (name.includes('date')) return '24';
   if (name.includes('month')) return 'APR';
   if (el.type === 'IMG_WEEK' || name.includes('week')) return 'WED';
@@ -802,25 +809,89 @@ function drawArc(ctx: CanvasRenderingContext2D, el: WatchFaceElement) {
 
 // ─── TIME_POINTER ───────────────────────────────────────────────────────────────
 
-function drawTimePointer(ctx: CanvasRenderingContext2D, el: WatchFaceElement) {
+// Hand pivot positions (match assetImageGenerator.ts constants)
+const HAND_DEFS = [
+  { key: 'hour',   w: 22,  h: 140, pivotX: 11, pivotY: 70  },
+  { key: 'minute', w: 16,  h: 200, pivotX: 8,  pivotY: 100 },
+  { key: 'second', w: 8,   h: 240, pivotX: 3,  pivotY: 120 },
+  { key: 'cover',  w: 30,  h: 30,  pivotX: 15, pivotY: 15  },
+] as const;
+
+function loadHandImages(
+  style: HandStyleKey,
+  cache: Map<string, Map<string, HTMLImageElement>>,
+  onLoaded: (() => void) | undefined,
+): Map<string, HTMLImageElement> | null {
+  if (cache.has(style)) return cache.get(style)!;
+  // Start loading
+  const set = generateHandSet(style);
+  const imgMap = new Map<string, HTMLImageElement>();
+  cache.set(style, imgMap); // register early to avoid duplicate loads
+  const srcs: Record<string, string> = {
+    hour: set.hourHand, minute: set.minuteHand, second: set.secondHand, cover: set.cover,
+  };
+  let pending = Object.keys(srcs).length;
+  for (const [name, src] of Object.entries(srcs)) {
+    const img = new Image();
+    img.onload = () => {
+      imgMap.set(name, img);
+      pending--;
+      if (pending === 0) onLoaded?.();
+    };
+    img.src = src;
+  }
+  return null; // not ready yet — will redraw when all loaded
+}
+
+function drawTimePointer(
+  ctx: CanvasRenderingContext2D,
+  el: WatchFaceElement,
+  handCache?: Map<string, Map<string, HTMLImageElement>>,
+  onLoaded?: () => void,
+) {
   const cx = el.pointerCenter?.x ?? el.center?.x ?? CX;
   const cy = el.pointerCenter?.y ?? el.center?.y ?? CY;
 
-  const hourAngle = ((MOCK_HOUR % 12) + MOCK_MINUTE / 60) * 30 - 90;
+  const hourAngle   = ((MOCK_HOUR % 12) + MOCK_MINUTE / 60) * 30 - 90;
   const minuteAngle = MOCK_MINUTE * 6 - 90;
   const secondAngle = MOCK_SECOND * 6 - 90;
 
-  const handColor = el.color ? parseZeppColor(el.color) : '#FFFFFF';
-  drawHand(ctx, cx, cy, 65, 10, hourAngle, handColor);
-  drawHand(ctx, cx, cy, 95, 7, minuteAngle, handColor);
-  drawHand(ctx, cx, cy, 115, 2, secondAngle, '#FF4444');
+  const style = (el.handStyle ?? 'silver') as HandStyleKey;
+  const imgMap = handCache ? loadHandImages(style, handCache, onLoaded) : null;
 
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(cx, cy, 6, 0, Math.PI * 2);
-  ctx.fillStyle = '#FFFFFF';
-  ctx.fill();
-  ctx.restore();
+  if (imgMap && imgMap.size === 4) {
+    // Draw using real hand images
+    const angles: Record<string, number> = {
+      hour: degToRad(hourAngle),
+      minute: degToRad(minuteAngle),
+      second: degToRad(secondAngle),
+    };
+    for (const def of HAND_DEFS) {
+      const img = imgMap.get(def.key);
+      if (!img) continue;
+      ctx.save();
+      ctx.translate(cx, cy);
+      if (def.key === 'cover') {
+        ctx.drawImage(img, -def.pivotX, -def.pivotY, def.w, def.h);
+      } else {
+        ctx.rotate(angles[def.key]);
+        ctx.drawImage(img, -def.pivotX, -def.pivotY, def.w, def.h);
+      }
+      ctx.restore();
+    }
+  } else {
+    // Fallback: draw colored lines while images load
+    const handColor = el.color ? parseZeppColor(el.color) : '#CCCCCC';
+    drawHand(ctx, cx, cy, 65, 10, hourAngle, handColor);
+    drawHand(ctx, cx, cy, 95, 7, minuteAngle, handColor);
+    drawHand(ctx, cx, cy, 115, 2, secondAngle, '#FF4444');
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, 6, 0, Math.PI * 2);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fill();
+    ctx.restore();
+  }
 }
 
 function drawHand(

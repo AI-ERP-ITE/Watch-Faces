@@ -219,14 +219,21 @@ function generateWatchfaceIndexJsV2(config: WatchFaceConfig): string {
   // Generate NORMAL mode widgets
   let normalWidgetsCode = '';
   let normalWidgetCounter = 2;
-  const timeElement = elements.find(e => e.name.toLowerCase().includes('time'));
-  const dateElement = elements.find(e => e.name.toLowerCase().includes('date') && !e.name.toLowerCase().includes('month'));
-  const monthElement = elements.find(e => e.name.toLowerCase().includes('month'));
-  const weekElement = elements.find(e => e.name.toLowerCase().includes('week'));
+  // Find time elements by type (supports split hours/minutes or legacy single element)
+  const hoursElement = elements.find(e => e.type === 'IMG_TIME' && e.subtype === 'hours')
+    ?? elements.find(e => e.type === 'IMG_TIME' && !e.subtype);
+  const minutesElement = elements.find(e => e.type === 'IMG_TIME' && e.subtype === 'minutes');
+  const hasTimeWidget = !!(hoursElement || minutesElement);
+  const dateElement = elements.find(e => e.type === 'IMG_DATE' && e.subtype !== 'month') 
+    ?? elements.find(e => e.name.toLowerCase().includes('date') && !e.name.toLowerCase().includes('month'));
+  const monthElement = elements.find(e => e.type === 'IMG_DATE' && e.subtype === 'month')
+    ?? elements.find(e => e.name.toLowerCase().includes('month'));
+  const weekElement = elements.find(e => e.type === 'IMG_WEEK')
+    ?? elements.find(e => e.name.toLowerCase().includes('week'));
   
   // Add IMG_TIME widget if time element exists
-  if (timeElement) {
-    normalWidgetsCode += generateIMGTimeWidget(timeElement, normalWidgetCounter++, 'ONLY_NORMAL');
+  if (hasTimeWidget) {
+    normalWidgetsCode += generateIMGTimeWidget(hoursElement, minutesElement, normalWidgetCounter++, 'ONLY_NORMAL');
   }
   
   // Add IMG_DATE widget if date element exists
@@ -246,8 +253,11 @@ function generateWatchfaceIndexJsV2(config: WatchFaceConfig): string {
   
   // Add other static elements for NORMAL mode
   for (const element of elements) {
-    if (element.name.toLowerCase().includes('time') || element.name.toLowerCase().includes('date') || element.name.toLowerCase().includes('week') || element.name.toLowerCase().includes('month')) {
+    if (element.type === 'IMG_TIME' || element.type === 'IMG_DATE' || element.type === 'IMG_WEEK') {
       continue; // Skip, already handled above
+    }
+    if (element.name.toLowerCase().includes('month')) {
+      continue; // Skip month, handled above
     }
     const code = generateWidgetCodeV2(element, normalWidgetCounter);
     if (code) {
@@ -260,8 +270,8 @@ function generateWatchfaceIndexJsV2(config: WatchFaceConfig): string {
   let aodWidgetsCode = '';
   let aodWidgetCounter = 100;
   
-  if (timeElement) {
-    aodWidgetsCode += generateIMGTimeWidget(timeElement, aodWidgetCounter++, 'ONLY_AOD');
+  if (hasTimeWidget) {
+    aodWidgetsCode += generateIMGTimeWidget(hoursElement, minutesElement, aodWidgetCounter++, 'ONLY_AOD');
   }
   
   if (dateElement) {
@@ -278,7 +288,10 @@ function generateWatchfaceIndexJsV2(config: WatchFaceConfig): string {
   
   // Add other static elements for AOD mode
   for (const element of elements) {
-    if (element.name.toLowerCase().includes('time') || element.name.toLowerCase().includes('date') || element.name.toLowerCase().includes('week') || element.name.toLowerCase().includes('month')) {
+    if (element.type === 'IMG_TIME' || element.type === 'IMG_DATE' || element.type === 'IMG_WEEK') {
+      continue;
+    }
+    if (element.name.toLowerCase().includes('month')) {
       continue;
     }
     // Skip BUTTON in AOD mode - no touch interaction on AOD screen
@@ -387,18 +400,24 @@ ${aodWidgetsCode}
   return finalCode;
 }
 
-// Generate IMG_TIME widget with hour and minute arrays
-function generateIMGTimeWidget(element: WatchFaceElement, widgetIndex: number, showLevel: string): string {
-  const x = element.bounds.x || 25;
-  const y = element.bounds.y || 220;
-  const totalW = element.bounds.width || 250;
-  
-  // Derive digit width from element bounds: 4 digits + 1 gap unit = 5 slots
-  const digitW = Math.floor(totalW / 5);
-  const hourContentW = digitW * 2;
-  const gap = totalW - digitW * 4;  // remaining space is the colon gap
-  
-  // Use time_digit_N.png naming — must match what mockKimiAnalysis generates
+// Generate IMG_TIME widget with separate hour and minute elements
+// hoursEl defines hour position/size; minutesEl defines minute position (or derived from hoursEl)
+function generateIMGTimeWidget(hoursEl: WatchFaceElement | undefined, minutesEl: WatchFaceElement | undefined, widgetIndex: number, showLevel: string): string {
+  const refEl = hoursEl ?? minutesEl;
+  if (!refEl) return '';
+
+  // Hour position: from hoursEl, or fallback
+  const hx = hoursEl ? hoursEl.bounds.x : (refEl.bounds.x);
+  const hy = hoursEl ? hoursEl.bounds.y : (refEl.bounds.y);
+  // Digit width derived from hours element (2 digits fill the width)
+  const hW = hoursEl ? hoursEl.bounds.width : Math.floor(refEl.bounds.width * 2 / 5);
+  const digitW = Math.floor(hW / 2);
+
+  // Minute position: from minutesEl if available, else derive from hoursEl
+  const mx = minutesEl ? minutesEl.bounds.x : (hx + hW + Math.max(4, digitW));
+  const my = minutesEl ? minutesEl.bounds.y : hy;
+
+  // Use time_digit_N.png naming — must match what assetImageGenerator generates
   const digitArray = [];
   for (let i = 0; i < 10; i++) {
     digitArray.push(`'time_digit_${i}.png'`);
@@ -406,17 +425,17 @@ function generateIMGTimeWidget(element: WatchFaceElement, widgetIndex: number, s
   const digitArrayStr = `[${digitArray.join(', ')}]`;
   
   return `
-                // ${element.name} - IMG_TIME Widget
+                // IMG_TIME Widget (Hours @ ${hx},${hy} | Minutes @ ${mx},${my})
                 let widget_${widgetIndex} = hmUI.createWidget(hmUI.widget.IMG_TIME, {
                     hour_zero: 1,
-                    hour_startX: px(${x}),
-                    hour_startY: px(${y}),
+                    hour_startX: px(${hx}),
+                    hour_startY: px(${hy}),
                     hour_array: ${digitArrayStr},
                     hour_space: 0,
                     hour_align: hmUI.align.LEFT,
                     minute_zero: 1,
-                    minute_startX: px(${x + hourContentW + gap}),
-                    minute_startY: px(${y}),
+                    minute_startX: px(${mx}),
+                    minute_startY: px(${my}),
                     minute_array: ${digitArrayStr},
                     minute_space: 0,
                     minute_align: hmUI.align.LEFT,

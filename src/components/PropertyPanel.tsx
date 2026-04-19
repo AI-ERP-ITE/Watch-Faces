@@ -1,4 +1,5 @@
 import { Label } from '@/components/ui/label';
+import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -19,7 +20,8 @@ export interface PropertyPanelProps {
 }
 
 const WIDGET_TYPES: WatchFaceElement['type'][] = [
-  'ARC_PROGRESS', 'TIME_POINTER', 'TEXT_IMG', 'IMG', 'TEXT',
+  'ARC_PROGRESS', 'TIME_POINTER', 'IMG_TIME', 'IMG_DATE', 'IMG_WEEK',
+  'TEXT_IMG', 'IMG', 'TEXT',
   'IMG_LEVEL', 'IMG_STATUS', 'CIRCLE', 'BUTTON',
 ];
 
@@ -62,9 +64,22 @@ const TYPE_LABELS: Record<string, string> = {
   BUTTON: 'Button',
 };
 
+// Module-level style clipboard — persists across element selections
+interface StyleClipboard {
+  color?: string;
+  fontSize?: number;
+  fontStyle?: string;
+  radius?: number;
+  lineWidth?: number;
+  startAngle?: number;
+  endAngle?: number;
+}
+let _styleClipboard: StyleClipboard | null = null;
+
 export function PropertyPanel({ element, onUpdateElement, className }: PropertyPanelProps) {
   const [allIcons, setAllIcons] = useState<IconEntry[]>(() => getIconLibrary());
   const [iconSearch, setIconSearch] = useState('');
+  const [clipboardHasData, setClipboardHasData] = useState(() => _styleClipboard !== null);
   const tablerLoadedRef = useRef(false);
 
   // Load Tabler icons lazily when an IMG element is selected
@@ -121,6 +136,36 @@ export function PropertyPanel({ element, onUpdateElement, className }: PropertyP
   const setW = (v: number) => update({ bounds: { ...element.bounds, width: clamp(v, 1, 480) } });
   const setH = (v: number) => update({ bounds: { ...element.bounds, height: clamp(v, 1, 480) } });
 
+  const handleCopyStyle = () => {
+    _styleClipboard = {
+      color: element.color,
+      fontSize: element.fontSize,
+      fontStyle: element.fontStyle,
+      radius: element.radius,
+      lineWidth: element.lineWidth,
+      startAngle: element.startAngle,
+      endAngle: element.endAngle,
+    };
+    setClipboardHasData(true);
+    toast.success('Style copied!');
+  };
+
+  const handlePasteStyle = () => {
+    if (!_styleClipboard) return;
+    const changes: Partial<WatchFaceElement> = {};
+    if (_styleClipboard.color !== undefined) changes.color = _styleClipboard.color;
+    if (_styleClipboard.fontSize !== undefined) changes.fontSize = _styleClipboard.fontSize;
+    if (_styleClipboard.fontStyle !== undefined) changes.fontStyle = _styleClipboard.fontStyle;
+    if (element.type === 'ARC_PROGRESS') {
+      if (_styleClipboard.radius !== undefined) changes.radius = _styleClipboard.radius;
+      if (_styleClipboard.lineWidth !== undefined) changes.lineWidth = _styleClipboard.lineWidth;
+      if (_styleClipboard.startAngle !== undefined) changes.startAngle = _styleClipboard.startAngle;
+      if (_styleClipboard.endAngle !== undefined) changes.endAngle = _styleClipboard.endAngle;
+    }
+    update(changes);
+    toast.success('Style pasted!');
+  };
+
   const isCentered = element.type === 'ARC_PROGRESS' || element.type === 'TIME_POINTER';
   const isSizeLocked = false; // Allow resizing all elements in editor
 
@@ -130,8 +175,28 @@ export function PropertyPanel({ element, onUpdateElement, className }: PropertyP
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold text-white/60 uppercase tracking-wider">
           {TYPE_LABELS[element.type] ?? element.type}
+          {element.subtype && <span className="ml-1 text-cyan-400/70">({element.subtype})</span>}
         </span>
-        <span className="text-xs text-white/40 truncate max-w-[140px]">{element.name}</span>
+        <span className="text-xs text-white/40 truncate max-w-[100px]">{element.name}</span>
+      </div>
+      {/* Copy / Paste Style */}
+      <div className="flex gap-1.5">
+        <button
+          onClick={handleCopyStyle}
+          className="flex-1 h-6 rounded border border-white/10 bg-white/5 text-[10px] text-white/50 hover:border-cyan-500/40 hover:text-cyan-400 transition-colors"
+          title="Copy color, font size, arc shape"
+        >
+          Copy Style
+        </button>
+        {clipboardHasData && (
+          <button
+            onClick={handlePasteStyle}
+            className="flex-1 h-6 rounded border border-cyan-500/30 bg-cyan-500/10 text-[10px] text-cyan-400 hover:bg-cyan-500/20 transition-colors"
+            title="Paste copied style to this element"
+          >
+            Paste Style
+          </button>
+        )}
       </div>
 
       {/* Widget Type */}
@@ -177,17 +242,17 @@ export function PropertyPanel({ element, onUpdateElement, className }: PropertyP
       )}
 
       {/* Color */}
-      {element.color !== undefined && (
+      {(element.color !== undefined || element.type === 'ARC_PROGRESS' || element.type === 'CIRCLE') && (
         <Section label="Color">
           <div className="flex items-center gap-2">
             <input
               type="color"
-              value={toCssColor(element.color)}
+              value={toCssColor(element.color ?? '0x00CC88')}
               onChange={e => update({ color: e.target.value })}
               className="w-8 h-8 rounded cursor-pointer border-0 bg-transparent"
             />
             <Input
-              value={toCssColor(element.color)}
+              value={toCssColor(element.color ?? '0x00CC88')}
               onChange={e => update({ color: e.target.value })}
               className="h-7 text-xs font-mono bg-white/5 border-white/10 text-white"
             />

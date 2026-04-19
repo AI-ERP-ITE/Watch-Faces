@@ -7,6 +7,8 @@ export interface DomElement {
   className: string;
   dataWidget: string;
   dataType: string;
+  dataSubtype: string;
+  dataValue: string;
   /** Value of the data-icon-key attribute, e.g. 'heart_rate' or 'tabler:heart' */
   iconKey: string;
   matchedByClass: boolean;
@@ -29,6 +31,15 @@ const CLASS_MATCH_PATTERNS: RegExp[] = [
   /\b(weather|temp|temperature)\b/i,
   /\b(arc|ring|progress|gauge)\b/i,
   /\b(hand|pointer|analog)\b/i,
+  /\b(spo2|oxygen|o2)\b/i,
+  /\b(cal|calories|kcal)\b/i,
+  /\b(stress)\b/i,
+  /\b(sleep)\b/i,
+  /\b(distance|dist)\b/i,
+  /\b(humidity|humid)\b/i,
+  /\b(uvi|uv-index|uv)\b/i,
+  /\b(aqi|air-quality|air)\b/i,
+  /\b(bluetooth|bt-status|bt)\b/i,
 ];
 
 function matchesClassKeyword(className: string): boolean {
@@ -115,6 +126,8 @@ export function parseDom(rawHtml: string): Promise<DomElement[]> {
               className,
               dataWidget: el.dataset?.widget ?? '',
               dataType: el.dataset?.type ?? '',
+              dataSubtype: el.dataset?.subtype ?? '',
+              dataValue: el.dataset?.value ?? '',
               iconKey: el.dataset?.iconKey ?? '',
               matchedByClass: true,
               x, y,
@@ -166,6 +179,8 @@ export function parseDom(rawHtml: string): Promise<DomElement[]> {
               className: typeof el.className === 'string' ? el.className : '',
               dataWidget: el.dataset?.widget ?? '',
               dataType: el.dataset?.type ?? '',
+              dataSubtype: el.dataset?.subtype ?? '',
+              dataValue: el.dataset?.value ?? '',
               iconKey: el.dataset?.iconKey ?? '',
               matchedByClass: false,
               x, y,

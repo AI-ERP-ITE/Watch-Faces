@@ -1,11 +1,12 @@
 import { cn } from '@/lib/utils';
 import type { WatchFaceElement } from '@/types';
-import { Eye, EyeOff, GripVertical } from 'lucide-react';
+import { Eye, EyeOff, GripVertical, Trash2 } from 'lucide-react';
 
 interface ElementListProps {
   elements: WatchFaceElement[];
   onToggleVisibility?: (id: string) => void;
   onReorder?: (elements: WatchFaceElement[]) => void;
+  onDeleteElement?: (id: string) => void;
   selectedElementId?: string | null;
   onSelectElement?: (id: string) => void;
   className?: string;
@@ -15,6 +16,7 @@ export function ElementList({
   elements,
   onToggleVisibility,
   onReorder,
+  onDeleteElement,
   selectedElementId,
   onSelectElement,
   className,
@@ -39,7 +41,7 @@ export function ElementList({
   return (
     <div className={cn('space-y-2', className)}>
       <h4 className="text-sm font-medium text-zinc-400 mb-3">
-        Detected Elements ({elements.length})
+        Elements ({elements.length})
       </h4>
       
       <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
@@ -84,7 +86,7 @@ export function ElementList({
             {/* Visibility toggle */}
             {onToggleVisibility && (
               <button
-                onClick={() => onToggleVisibility(element.id)}
+                onClick={(e) => { e.stopPropagation(); onToggleVisibility(element.id); }}
                 className={cn(
                   'p-1.5 rounded-md transition-colors',
                   element.visible
@@ -97,6 +99,17 @@ export function ElementList({
                 ) : (
                   <EyeOff className="h-4 w-4" />
                 )}
+              </button>
+            )}
+
+            {/* Delete button */}
+            {onDeleteElement && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onDeleteElement(element.id); }}
+                className="p-1.5 rounded-md text-zinc-600 hover:text-red-400 hover:bg-red-400/10 opacity-0 group-hover:opacity-100 transition-all"
+                title="Delete element"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
               </button>
             )}
           </div>
