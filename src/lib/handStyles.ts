@@ -221,14 +221,8 @@ function drawTaperedHand(
   const cx = w / 2;
   const pivotY = h - tailLen;
 
-  // ── Drop shadow ──────────────────────────────────────────────────
-  ctx.save();
-  ctx.shadowColor = pal.shadow;
-  ctx.shadowBlur = 6;
-  ctx.shadowOffsetX = 2;
-  ctx.shadowOffsetY = 2;
-
   // ── Body path (tip to pivot, tapered) ───────────────────────────
+  ctx.save();
   const bodyPath = new Path2D();
   bodyPath.moveTo(cx - tipHalfW, 2);          // top-left near tip
   bodyPath.lineTo(cx + tipHalfW, 2);          // top-right near tip
@@ -301,32 +295,14 @@ function drawSecondHand(
   const cx = w / 2;
   const pivotY = h * 0.5;
 
-  // Drop shadow
-  ctx.save();
-  ctx.shadowColor = pal.shadow;
-  ctx.shadowBlur = 4;
-  ctx.shadowOffsetX = 1;
-  ctx.shadowOffsetY = 1;
-
   // Main shaft
+  ctx.save();
   const shaftGrad = ctx.createLinearGradient(cx - 1, 0, cx + 1, 0);
   shaftGrad.addColorStop(0, pal.secondMain);
   shaftGrad.addColorStop(0.5, 'rgba(255,255,255,0.7)');
   shaftGrad.addColorStop(1, pal.secondMain);
   ctx.fillStyle = shaftGrad;
   ctx.fillRect(cx - 1, 2, 2, h - 4);
-  ctx.restore();
-
-  // Accent lollipop ~20% from tip
-  const lollY = Math.floor(h * 0.2);
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(cx, lollY, 4, 0, Math.PI * 2);
-  const lollGrad = ctx.createRadialGradient(cx - 1, lollY - 1, 0, cx, lollY, 4);
-  lollGrad.addColorStop(0, 'rgba(255,255,255,0.9)');
-  lollGrad.addColorStop(1, pal.secondAccent);
-  ctx.fillStyle = lollGrad;
-  ctx.fill();
   ctx.restore();
 
   // Tail counter-balance (fat pill)
@@ -357,13 +333,7 @@ function drawCenterCap(
   const cy = h / 2;
   const r = 10;
 
-  // Drop shadow ring
   ctx.save();
-  ctx.shadowColor = pal.shadow;
-  ctx.shadowBlur = 5;
-  ctx.shadowOffsetX = 1;
-  ctx.shadowOffsetY = 2;
-
   // Outer disk
   const grad = ctx.createRadialGradient(cx - 3, cy - 3, 1, cx, cy, r);
   grad.addColorStop(0, pal.capGrad[1]);
