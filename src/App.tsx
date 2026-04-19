@@ -28,6 +28,7 @@ import { generateId } from '@/lib/utils';
 import { parseDom } from '@/html/parseDom';
 import { mapDomToElements } from '@/html/mapDomToElements';
 import { BackgroundCropTool } from '@/components/BackgroundCropTool';
+import { BackgroundPhotoEditor } from '@/components/BackgroundPhotoEditor';
 import { DesignInput } from '@/components/DesignInput';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
@@ -1025,6 +1026,25 @@ function App() {
 
   const handleCropCancel = () => { setCropFile(null); };
 
+  // Spec 023 — Background photo editor
+  // T037: showPhotoEditor flag controls modal visibility
+  const [showPhotoEditor, setShowPhotoEditor] = useState(false);
+
+  // T042: on Save → dispatch edited image to state (also rebuild backgroundFile)
+  const handlePhotoEditorSave = (dataUrl: string) => {
+    dispatch(actions.setBackgroundImage(dataUrl));
+    const parts = dataUrl.split(',');
+    const mime = parts[0].match(/:(.*?);/)?.[1] || 'image/png';
+    const bstr = atob(parts[1]);
+    const u8 = new Uint8Array(bstr.length);
+    for (let i = 0; i < bstr.length; i++) u8[i] = bstr.charCodeAt(i);
+    dispatch(actions.setBackgroundFile(new File([u8], 'background.png', { type: mime })));
+    setShowPhotoEditor(false);
+  };
+
+  // T043: on Cancel → close with no state change
+  const handlePhotoEditorClose = () => { setShowPhotoEditor(false); };
+
   // Persist AI settings
   const handleSetAiProvider = (provider: AIProvider) => {
     setAiProvider(provider);
@@ -1546,6 +1566,24 @@ function App() {
               value={state.backgroundImage}
               onFileChange={(file) => { dispatch(actions.setBackgroundFile(file)); if (file) openCropTool(file); }}
             />
+            {/* T038/T039: Edit Photo button — visible only when a background image is loaded */}
+            {state.backgroundImage && (
+              <button
+                onClick={() => setShowPhotoEditor(true)}
+                className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-md border border-zinc-600 text-zinc-300 hover:text-white hover:border-cyan-500 hover:bg-zinc-800 text-xs font-medium transition-colors"
+              >
+                ✏ Edit Photo
+              </button>
+            )}
+            {/* T038/T039: Edit Photo button — visible only when a background image is loaded */}
+            {state.backgroundImage && (
+              <button
+                onClick={() => setShowPhotoEditor(true)}
+                className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-md border border-zinc-600 text-zinc-300 hover:text-white hover:border-cyan-500 hover:bg-zinc-800 text-xs font-medium transition-colors"
+              >
+                ✏ Edit Photo
+              </button>
+            )}
 
             {/* Spec 012 — unified design input */}
             <DesignInput
@@ -1789,6 +1827,24 @@ function App() {
         isVisible={state.isLoading}
         title={state.loadingMessage || 'Processing...'}
       />
+
+      {/* Spec 023 — Background photo editor modal (T040–T043) */}
+      {showPhotoEditor && state.backgroundImage && (
+        <BackgroundPhotoEditor
+          sourceDataUrl={state.backgroundImage}
+          onSave={handlePhotoEditorSave}
+          onCancel={handlePhotoEditorClose}
+        />
+      )}
+
+      {/* Spec 023 — Background photo editor modal (T040–T043) */}
+      {showPhotoEditor && state.backgroundImage && (
+        <BackgroundPhotoEditor
+          sourceDataUrl={state.backgroundImage}
+          onSave={handlePhotoEditorSave}
+          onCancel={handlePhotoEditorClose}
+        />
+      )}
 
       {/* Spec 011 — Background crop tool modal */}
       <Dialog open={!!cropFile} onOpenChange={(open) => { if (!open) handleCropCancel(); }}>
