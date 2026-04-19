@@ -460,6 +460,59 @@ export function PropertyPanel({ element, onUpdateElement, className }: PropertyP
               value={element.handShadow ?? 0}
               onChange={e => update({ handShadow: Number(e.target.value) })}
               className="w-full accent-cyan-400 h-1" />
+            {/* Expanded shadow controls — shown when shadow > 0 */}
+            {(element.handShadow ?? 0) > 0 && (
+              <div className="mt-2 pl-2 border-l border-white/10 space-y-2">
+                {/* Opacity / Density */}
+                <div className="flex items-center gap-2">
+                  <span className="text-[9px] text-white/30 w-14 shrink-0">Density</span>
+                  <input type="range" min="0" max="1" step="0.05"
+                    value={element.handShadowOpacity ?? (0.3 + (element.handShadow ?? 0) * 0.6)}
+                    onChange={e => update({ handShadowOpacity: Number(e.target.value) })}
+                    className="flex-1 accent-cyan-400 h-1" />
+                  <span className="text-[9px] font-mono text-white/40 w-8 text-right">
+                    {Math.round((element.handShadowOpacity ?? (0.3 + (element.handShadow ?? 0) * 0.6)) * 100)}%
+                  </span>
+                </div>
+                {/* Blur / Spread */}
+                <div className="flex items-center gap-2">
+                  <span className="text-[9px] text-white/30 w-14 shrink-0">Blur</span>
+                  <input type="range" min="0" max="30" step="1"
+                    value={element.handShadowBlur ?? Math.round(4 + (element.handShadow ?? 0) * 20)}
+                    onChange={e => update({ handShadowBlur: Number(e.target.value) })}
+                    className="flex-1 accent-cyan-400 h-1" />
+                  <span className="text-[9px] font-mono text-white/40 w-8 text-right">
+                    {element.handShadowBlur ?? Math.round(4 + (element.handShadow ?? 0) * 20)}px
+                  </span>
+                </div>
+                {/* Distance */}
+                <div className="flex items-center gap-2">
+                  <span className="text-[9px] text-white/30 w-14 shrink-0">Distance</span>
+                  <input type="range" min="0" max="30" step="1"
+                    value={element.handShadowDistance ?? Math.round((element.handShadow ?? 0) * 6)}
+                    onChange={e => update({ handShadowDistance: Number(e.target.value) })}
+                    className="flex-1 accent-cyan-400 h-1" />
+                  <span className="text-[9px] font-mono text-white/40 w-8 text-right">
+                    {element.handShadowDistance ?? Math.round((element.handShadow ?? 0) * 6)}px
+                  </span>
+                </div>
+                {/* Direction */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[9px] text-white/30">Direction</span>
+                    <span className="text-[9px] font-mono text-white/40">{element.handShadowAngle ?? 135}°</span>
+                  </div>
+                  <input type="range" min="0" max="360" step="5"
+                    value={element.handShadowAngle ?? 135}
+                    onChange={e => update({ handShadowAngle: Number(e.target.value) })}
+                    className="w-full accent-cyan-400 h-1" />
+                  {/* Direction compass hint */}
+                  <div className="flex justify-between text-[8px] text-white/20 px-0.5">
+                    <span>→ 0</span><span>↓ 90</span><span>← 180</span><span>↑ 270</span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
           {/* Glow */}
           <div className="space-y-1 mt-2">

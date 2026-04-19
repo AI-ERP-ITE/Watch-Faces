@@ -1043,6 +1043,12 @@ function drawTimePointer(
 
   // ── Effects ──────────────────────────────────────────────────────────────
   const shadowIntensity = el.handShadow ?? 0;
+  const shadowOpacity   = el.handShadowOpacity  ?? (0.3 + shadowIntensity * 0.6);
+  const shadowBlur      = el.handShadowBlur     ?? (4 + shadowIntensity * 20);
+  const shadowDistance  = el.handShadowDistance ?? (shadowIntensity * 6);
+  const shadowAngleDeg  = el.handShadowAngle    ?? 135; // 135° = bottom-right classic
+  const shadowOffsetX   = shadowDistance * Math.cos(shadowAngleDeg * Math.PI / 180);
+  const shadowOffsetY   = shadowDistance * Math.sin(shadowAngleDeg * Math.PI / 180);
   const glowIntensity   = el.handGlow   ?? 0;
   const trailIntensity  = el.handTrail  ?? 0;
   const tintColor       = el.handTint;  // e.g. '#4488FF' or undefined
@@ -1089,10 +1095,10 @@ function drawTimePointer(
 
       // ── Shadow ────────────────────────────────────────────────
       if (shadowIntensity > 0) {
-        ctx.shadowColor = `rgba(0,0,0,${0.3 + shadowIntensity * 0.6})`;
-        ctx.shadowBlur = 4 + shadowIntensity * 20;
-        ctx.shadowOffsetX = shadowIntensity * 4;
-        ctx.shadowOffsetY = shadowIntensity * 4;
+        ctx.shadowColor   = `rgba(0,0,0,${shadowOpacity})`;
+        ctx.shadowBlur    = shadowBlur;
+        ctx.shadowOffsetX = shadowOffsetX;
+        ctx.shadowOffsetY = shadowOffsetY;
       }
 
       ctx.drawImage(img, -drawPivotX, -drawPivotY, drawW, drawH);

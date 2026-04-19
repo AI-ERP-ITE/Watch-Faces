@@ -91,7 +91,11 @@ export interface WatchFaceElement {
   handSecondWidth?: number;
 
   // ── Hand effects (preview only — visual on canvas) ───────────────────────
-  handShadow?: number;   // 0–1: shadow intensity/size
+  handShadow?: number;   // 0–1: master on/off + quick intensity
+  handShadowOpacity?: number;  // 0–1: darkness/density (overrides auto when set)
+  handShadowBlur?: number;     // 0–30px: spread / softness
+  handShadowDistance?: number; // 0–30px: distance from hand
+  handShadowAngle?: number;    // 0–360°: direction (0=right, 90=down, 180=left, 270=up)
   handGlow?: number;     // 0–1: neon glow brightness
   handTrail?: number;    // 0–1: speed-blur ghost opacity
   handTint?: string;     // CSS color — accent tint blended on hands (e.g. '#4488FF')
