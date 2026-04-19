@@ -93,6 +93,31 @@ function resolveForWidget(
     case 'TEXT':
       return {};
 
+    case 'FILL_RECT':
+    case 'STROKE_RECT':
+    case 'CIRCLE':
+      return {}; // no image assets — color only
+
+    case 'IMG_ANIM':
+      return {}; // animPath set from element.animPath
+
+    case 'IMG_PROGRESS':
+    case 'DATE_POINTER':
+      return {}; // assets handled via element.images / element.src
+
+    case 'IMG_CLICK': {
+      // Same icon resolution as IMG
+      const iconKey = resolveIconKey(sourceType, dataType);
+      if (iconKey) {
+        const safeKey = iconKey.replace(/[^a-zA-Z0-9_-]/g, '_');
+        return { src: `icon_${safeKey}.png` };
+      }
+      return {};
+    }
+
+    case 'BUTTON':
+      return {}; // uses normalSrc / pressSrc from element props
+
     default:
       return {};
   }

@@ -347,6 +347,14 @@ function mapWidgetToName(
     case 'IMG':          return `${displayName} Icon ${idx}`;
     case 'IMG_STATUS':   return `Status ${idx}`;
     case 'IMG_LEVEL':    return `Level ${displayName} ${idx}`;
+    case 'FILL_RECT':    return `Rectangle ${idx}`;
+    case 'STROKE_RECT':  return `Outline Rect ${idx}`;
+    case 'IMG_ANIM':     return `Animation ${idx}`;
+    case 'IMG_PROGRESS': return `Progress ${displayName} ${idx}`;
+    case 'DATE_POINTER': return `Date Pointer ${idx}`;
+    case 'IMG_CLICK':    return `${displayName} Tap ${idx}`;
+    case 'CIRCLE':       return `Circle ${idx}`;
+    case 'BUTTON':       return `Button ${idx}`;
     default:             return `Element ${idx}`;
   }
 }

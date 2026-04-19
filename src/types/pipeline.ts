@@ -40,6 +40,7 @@ export type AIElementType =
   | 'month'
   | 'stress'
   | 'pai'
+  | 'pai_weekly'
   | 'sleep'
   | 'stand'
   | 'fat_burn'
@@ -51,7 +52,14 @@ export type AIElementType =
   | 'wind'
   | 'alarm'
   | 'notification'
-  | 'moon';
+  | 'moon'
+  | 'rect'
+  | 'animation'
+  | 'date_pointer'
+  | 'vo2max'
+  | 'altimeter'
+  | 'training_load'
+  | 'button';
 
 export type AIStyle = 'analog' | 'digital' | 'minimal' | 'bold';
 
@@ -126,7 +134,15 @@ export type ZeppWidget =
   | 'TEXT_IMG'
   | 'IMG'
   | 'IMG_STATUS'
-  | 'IMG_LEVEL';
+  | 'IMG_LEVEL'
+  | 'FILL_RECT'
+  | 'STROKE_RECT'
+  | 'IMG_ANIM'
+  | 'IMG_PROGRESS'
+  | 'DATE_POINTER'
+  | 'IMG_CLICK'
+  | 'CIRCLE'
+  | 'BUTTON';
 
 export interface NormalizedElement {
   id: string;

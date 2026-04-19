@@ -18,9 +18,25 @@ function mapByRepresentation(type: AIElementType, representation: Representation
   }
 
   // Date/weekday/month — always image-based regardless of representation
+  // date_pointer: analog hand driven by month/day/week value
+  if (type === 'date_pointer') return 'DATE_POINTER';
   if (type === 'date') return 'IMG_DATE';
   if (type === 'weekday') return 'IMG_WEEK';
   if (type === 'month') return 'IMG_DATE';
+
+  // Rect/divider — solid or stroked rectangle depending on representation
+  if (type === 'rect') {
+    return representation === 'arc' ? 'STROKE_RECT' : 'FILL_RECT';
+  }
+
+  // Animation — frame-based image sequence
+  if (type === 'animation') return 'IMG_ANIM';
+
+  // Button — interactive shortcut
+  if (type === 'button') return 'BUTTON';
+
+  // Moon — tappable icon (IMG_CLICK) rather than IMG_LEVEL
+  if (type === 'moon') return 'IMG_CLICK';
 
   // FR-006: If geometry indicates circular shape, prefer ARC_PROGRESS
   if (el?.bounds && el.radius !== undefined) {
@@ -50,6 +66,7 @@ const TYPE_TO_DATA_TYPE: Partial<Record<AIElementType, string>> = {
   weather:    'WEATHER_CURRENT',
   stress:     'STRESS',
   pai:        'PAI',
+  pai_weekly: 'PAI_WEEKLY',
   sleep:      'SLEEP',
   stand:      'STAND',
   fat_burn:   'FAT_BURN',
@@ -62,6 +79,9 @@ const TYPE_TO_DATA_TYPE: Partial<Record<AIElementType, string>> = {
   alarm:      'ALARM',
   notification: 'NOTIFICATION',
   moon:       'MOON',
+  vo2max:     'VO2MAX',
+  altimeter:  'ALTIMETER',
+  training_load: 'TRAINING_LOAD',
 };
 
 // Fallback priority for assigning dataType to generic "arc" elements
