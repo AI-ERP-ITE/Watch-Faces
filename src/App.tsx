@@ -1251,6 +1251,13 @@ function App() {
         console.warn('[App] WARNING: No element files were prepared!');
       }
       
+      // Pre-warm Tabler icon cache so getIconByKey works synchronously for tabler:* keys
+      if (state.watchFaceConfig.elements.some(el => el.iconKey?.startsWith('tabler:'))) {
+        dispatch(actions.setLoadingMessage('Warming icon cache...'));
+        const { buildTablerLibrary } = await import('@/lib/tablerIconRenderer');
+        await buildTablerLibrary();
+      }
+
       // Inject icon assets for elements with iconKey
       for (const el of state.watchFaceConfig.elements) {
         if (el.iconKey) {
