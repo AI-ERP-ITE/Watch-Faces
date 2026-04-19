@@ -1203,6 +1203,11 @@ function App() {
   const handleGenerate = useCallback(async () => {
     console.log('[App] handleGenerate called');
 
+    // Deselect any selected element so the selection rectangle doesn't appear in the preview
+    setSelectedElementId(null);
+    // Wait two animation frames for InteractiveCanvas to redraw without the selection highlight
+    await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+
     // Capture canvas screenshot FIRST before step change unmounts the canvas
     let previewDataUrl: string | null = null;
     try {
