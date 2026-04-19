@@ -7,6 +7,10 @@ export interface FontStyle {
   fontWeight: string;
   color: string;
   category: FontCategory;
+  /** Can be embedded inside the ZPK archive (open-source / OFL licensed) */
+  embeddable?: boolean;
+  /** Filename in public/fonts/ e.g. 'Montserrat-Medium.ttf' */
+  fontFile?: string;
 }
 
 export const FONT_STYLES: FontStyle[] = [
@@ -36,7 +40,7 @@ export const FONT_STYLES: FontStyle[] = [
   { key: 'roboto',           label: 'Roboto',            fontFamily: 'Roboto',            fontWeight: '700', color: '#FFFFFF',  category: 'display' },
   { key: 'open-sans',        label: 'Open Sans',         fontFamily: 'Open Sans',         fontWeight: '700', color: '#FFFFFF',  category: 'display' },
   { key: 'lato',             label: 'Lato',              fontFamily: 'Lato',              fontWeight: '700', color: '#E0E0E0',  category: 'display' },
-  { key: 'montserrat',       label: 'Montserrat',        fontFamily: 'Montserrat',        fontWeight: '700', color: '#FFFFFF',  category: 'display' },
+  { key: 'montserrat',       label: 'Montserrat',        fontFamily: 'Montserrat',        fontWeight: '700', color: '#FFFFFF',  category: 'display',    embeddable: true,  fontFile: 'Montserrat-Medium.ttf' },
   { key: 'poppins',          label: 'Poppins',           fontFamily: 'Poppins',           fontWeight: '700', color: '#CCDDFF',  category: 'display' },
   { key: 'nunito',           label: 'Nunito',            fontFamily: 'Nunito',            fontWeight: '700', color: '#FFEEDD',  category: 'display' },
   { key: 'raleway',          label: 'Raleway',           fontFamily: 'Raleway',           fontWeight: '700', color: '#DDDDDD',  category: 'display' },
@@ -73,12 +77,12 @@ export const FONT_STYLES: FontStyle[] = [
   { key: 'consolas',         label: 'Consolas',          fontFamily: 'Consolas',          fontWeight: 'normal', color: '#FF4444', category: 'monospace' },
   { key: 'lucida-console',   label: 'Lucida Console',    fontFamily: 'Lucida Console',    fontWeight: 'normal', color: '#33FF33', category: 'monospace' },
   { key: 'lucida-sans',      label: 'Lucida Sans Unicode', fontFamily: 'Lucida Sans Unicode', fontWeight: 'normal', color: '#AADDFF', category: 'monospace' },
-  { key: 'cascadia-code',    label: 'Cascadia Code',     fontFamily: 'Cascadia Code',     fontWeight: '400', color: '#88FFCC', category: 'monospace' },
-  { key: 'cascadia-mono',    label: 'Cascadia Mono',     fontFamily: 'Cascadia Mono',     fontWeight: '400', color: '#AAFFDD', category: 'monospace' },
+  { key: 'cascadia-code',    label: 'Cascadia Code',     fontFamily: 'Cascadia Code',     fontWeight: '400', color: '#88FFCC', category: 'monospace', embeddable: true,  fontFile: 'CascadiaCode.ttf' },
+  { key: 'cascadia-mono',    label: 'Cascadia Mono',     fontFamily: 'Cascadia Mono',     fontWeight: '400', color: '#AAFFDD', category: 'monospace', embeddable: true,  fontFile: 'CascadiaMono.ttf' },
 
   // ─── LOCAL FILES (commercially licensed, bundled in /public/fonts/) ──────
   { key: 'tex-gyre-termes',  label: 'TeX Gyre Termes',   fontFamily: 'TeX Gyre Termes',   fontWeight: '400', color: '#FFEEBB', category: 'display' },
-  { key: 'the-bold-font',    label: 'The Bold Font',     fontFamily: 'The Bold Font',     fontWeight: '700', color: '#FFFFFF', category: 'display' },
+  { key: 'the-bold-font',    label: 'The Bold Font',     fontFamily: 'The Bold Font',     fontWeight: '700', color: '#FFFFFF',  category: 'display',    embeddable: true,  fontFile: 'THEBOLDFONT.ttf' },
 ];
 
 export function getFontStyle(key: string): FontStyle {
