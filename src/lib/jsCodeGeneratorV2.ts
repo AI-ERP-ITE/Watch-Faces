@@ -3,6 +3,7 @@
 // Compatible with Amazfit Balance 2, Balance, Active Max (older Zepp OS)
 
 import type { WatchFaceConfig, WatchFaceElement, GeneratedCode } from '@/types';
+import { FONT_STYLES } from '@/lib/fontLibrary';
 
 export function generateWatchFaceCodeV2(config: WatchFaceConfig): GeneratedCode {
   console.log('[JSGenV2] Starting v2 code generation for:', config.name);
@@ -712,6 +713,12 @@ function generateTextWidget(element: WatchFaceElement, widgetIndex: number, show
   const colorValue = colorHex.startsWith('0x') ? colorHex : `0x${colorHex.replace('#', '')}`;
   const textContent = element.text ?? '';
 
+  // Check if selected font is embeddable
+  const fontEntry = element.fontStyle ? FONT_STYLES.find(f => f.key === element.fontStyle) : undefined;
+  const fontLine = (fontEntry?.embeddable && fontEntry.fontFile)
+    ? `\n                    font: 'fonts/${fontEntry.fontFile}',`
+    : '';
+
   return `
                 // ${element.name} - TEXT Widget
                 let widget_${widgetIndex} = hmUI.createWidget(hmUI.widget.TEXT, {
@@ -726,7 +733,7 @@ function generateTextWidget(element: WatchFaceElement, widgetIndex: number, show
                     align_v: hmUI.align.CENTER_V,
                     text_style: hmUI.text_style.ELLIPSIS,
                     align_h: hmUI.align.CENTER_H,
-                    text: '${textContent}',
+                    text: '${textContent}',${fontLine}
                     show_level: hmUI.show_level.${showLevel}
                 });`;
 }
