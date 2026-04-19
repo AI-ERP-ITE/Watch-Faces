@@ -78,6 +78,7 @@ let _styleClipboard: StyleClipboard | null = null;
 
 export function PropertyPanel({ element, onUpdateElement, className }: PropertyPanelProps) {
   const [allIcons, setAllIcons] = useState<IconEntry[]>(() => getIconLibrary());
+  const [iconsLoading, setIconsLoading] = useState(false);
   const [iconSearch, setIconSearch] = useState('');
   const [clipboardHasData, setClipboardHasData] = useState(() => _styleClipboard !== null);
   const tablerLoadedRef = useRef(false);
@@ -86,7 +87,11 @@ export function PropertyPanel({ element, onUpdateElement, className }: PropertyP
   useEffect(() => {
     if (element?.type !== 'IMG' || tablerLoadedRef.current) return;
     tablerLoadedRef.current = true;
-    getFullIconLibrary().then(setAllIcons);
+    setIconsLoading(true);
+    getFullIconLibrary().then(icons => {
+      setAllIcons(icons);
+      setIconsLoading(false);
+    });
   }, [element?.type]);
 
   if (!element) {
@@ -680,7 +685,10 @@ export function PropertyPanel({ element, onUpdateElement, className }: PropertyP
               None
             </button>
             <div className="max-h-56 overflow-y-auto pr-1 space-y-2">
-              {(['health', 'fitness', 'weather', 'system', 'time'] as const).map(cat => {
+              {iconsLoading && (
+                <p className="text-[10px] text-white/40 text-center py-4 animate-pulse">Loading icons…</p>
+              )}
+              {!iconsLoading && (['health', 'fitness', 'weather', 'system', 'time'] as const).map(cat => {
                 const q = iconSearch.trim().toLowerCase();
                 const icons = allIcons.filter(i =>
                   i.category === cat &&
@@ -713,9 +721,11 @@ export function PropertyPanel({ element, onUpdateElement, className }: PropertyP
               })}
             </div>
             <p className="text-[9px] text-white/25">
-              {allIcons.filter(i => i.source === 'tabler').length > 0
-                ? `${allIcons.length} icons — violet dot = Tabler`
-                : 'Loading Tabler icons…'}
+              {iconsLoading
+                ? 'Loading icons…'
+                : allIcons.filter(i => i.source === 'tabler').length > 0
+                  ? `${allIcons.length} icons — violet dot = Tabler`
+                  : `${allIcons.length} icons`}
             </p>
           </div>
         </Section>

@@ -78,9 +78,20 @@ export async function renderAndCacheTablerIcon(key: string): Promise<IconEntry |
 export function buildTablerLibrary(): Promise<IconEntry[]> {
   if (_buildPromise) return _buildPromise;
 
-  _buildPromise = Promise.all(
-    TABLER_ICON_MAP.map(def => renderAndCacheTablerIcon(def.key))
-  ).then(entries => entries.filter((e): e is IconEntry => e !== undefined));
+  // Render in small batches to avoid exhausting the browser's canvas context pool
+  // (simultaneous creation of 90+ canvases evicts the main watchface canvas → blank screen)
+  const BATCH = 8;
+  _buildPromise = (async () => {
+    const results: IconEntry[] = [];
+    for (let i = 0; i < TABLER_ICON_MAP.length; i += BATCH) {
+      const batch = TABLER_ICON_MAP.slice(i, i + BATCH);
+      const entries = await Promise.all(batch.map(def => renderAndCacheTablerIcon(def.key)));
+      for (const e of entries) if (e) results.push(e);
+      // Yield to the browser between batches so the UI stays responsive
+      await new Promise(r => setTimeout(r, 0));
+    }
+    return results;
+  })();
 
   return _buildPromise;
 }
