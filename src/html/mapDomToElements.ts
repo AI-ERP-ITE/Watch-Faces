@@ -115,7 +115,9 @@ export function mapDomToElements(domEls: DomElement[]): WatchFaceElement[] {
 
     // ── Priority 4: tag type ────────────────────────────────────────────────
     if (el.tagName === 'img') {
-      result.push({ id: generateId(), type: 'IMG', name: 'Image', bounds, src: 'asset.png', visible: true, zIndex: zIndex++ });
+      const imgEl: WatchFaceElement = { id: generateId(), type: 'IMG', name: 'Image', bounds, src: 'asset.png', visible: true, zIndex: zIndex++ };
+      if (el.iconKey) imgEl.iconKey = el.iconKey;
+      result.push(imgEl);
       continue;
     }
     if (el.tagName === 'svg' || el.tagName === 'circle' || el.tagName === 'path') {

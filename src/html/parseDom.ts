@@ -7,6 +7,8 @@ export interface DomElement {
   className: string;
   dataWidget: string;
   dataType: string;
+  /** Value of the data-icon-key attribute, e.g. 'heart_rate' or 'tabler:heart' */
+  iconKey: string;
   matchedByClass: boolean;
   x: number;
   y: number;
@@ -113,6 +115,7 @@ export function parseDom(rawHtml: string): Promise<DomElement[]> {
               className,
               dataWidget: el.dataset?.widget ?? '',
               dataType: el.dataset?.type ?? '',
+              iconKey: el.dataset?.iconKey ?? '',
               matchedByClass: true,
               x, y,
               width: Math.round(rect.width),
@@ -163,6 +166,7 @@ export function parseDom(rawHtml: string): Promise<DomElement[]> {
               className: typeof el.className === 'string' ? el.className : '',
               dataWidget: el.dataset?.widget ?? '',
               dataType: el.dataset?.type ?? '',
+              iconKey: el.dataset?.iconKey ?? '',
               matchedByClass: false,
               x, y,
               width: Math.round(rect.width),

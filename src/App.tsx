@@ -1157,8 +1157,12 @@ function App() {
         w: el.bounds.width,
         h: el.bounds.height,
         color: el.color,
-        assets: {},
-      })) as Parameters<typeof generatePipelineAssets>[0];
+        iconKey: el.iconKey,
+        // Pre-resolve icon asset src so assetImageGenerator generates the PNG
+        assets: el.iconKey
+          ? { src: `icon_${el.iconKey.replace(/[^a-zA-Z0-9_-]/g, '_')}.png` }
+          : {},
+      })) as unknown as Parameters<typeof generatePipelineAssets>[0];
 
       const elementImages: ElementImage[] = generatePipelineAssets(resolvedElements);
 
